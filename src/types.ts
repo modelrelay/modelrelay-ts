@@ -105,6 +105,8 @@ export interface ChatCompletionCreateParams {
 	maxTokens?: number;
 	temperature?: number;
 	metadata?: Record<string, string>;
+	stop?: string[];
+	stopSequences?: string[];
 	/**
 	 * When using publishable keys, an end-user id is required to mint a frontend token.
 	 */

@@ -352,6 +352,8 @@ function buildProxyBody(
 	if (typeof params.temperature === "number")
 		body.temperature = params.temperature;
 	if (params.metadata) body.metadata = params.metadata;
+	if (params.stop?.length) body.stop = params.stop;
+	if (params.stopSequences?.length) body.stop_sequences = params.stopSequences;
 	return body;
 }
 
