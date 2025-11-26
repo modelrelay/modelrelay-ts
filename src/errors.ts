@@ -1,12 +1,68 @@
-import type { FieldError } from "./types";
+import type { FieldError, RetryMetadata, TransportErrorKind } from "./types";
+
+export type ErrorCategory = "config" | "transport" | "api";
 
 export class ModelRelayError extends Error {
-	status: number;
+	category: ErrorCategory;
+	status?: number;
 	code?: string;
 	requestId?: string;
 	fields?: FieldError[];
 	data?: unknown;
+	retries?: RetryMetadata;
+	cause?: unknown;
 
+	constructor(
+		message: string,
+		opts: {
+			category: ErrorCategory;
+			status?: number;
+			code?: string;
+			requestId?: string;
+			fields?: FieldError[];
+			data?: unknown;
+			retries?: RetryMetadata;
+			cause?: unknown;
+		},
+	) {
+		super(message);
+		this.name = this.constructor.name;
+		this.category = opts.category;
+		this.status = opts.status;
+		this.code = opts.code;
+		this.requestId = opts.requestId;
+		this.fields = opts.fields;
+		this.data = opts.data;
+		this.retries = opts.retries;
+		this.cause = opts.cause;
+	}
+}
+
+export class ConfigError extends ModelRelayError {
+	constructor(message: string, data?: unknown) {
+		super(message, { category: "config", status: 400, data });
+	}
+}
+
+export class TransportError extends ModelRelayError {
+	kind: TransportErrorKind;
+
+	constructor(
+		message: string,
+		opts: { kind: TransportErrorKind; retries?: RetryMetadata; cause?: unknown },
+	) {
+		super(message, {
+			category: "transport",
+			status: opts.kind === "timeout" ? 408 : 0,
+			retries: opts.retries,
+			cause: opts.cause,
+			data: opts.cause,
+		});
+		this.kind = opts.kind;
+	}
+}
+
+export class APIError extends ModelRelayError {
 	constructor(
 		message: string,
 		opts: {
@@ -15,21 +71,25 @@ export class ModelRelayError extends Error {
 			requestId?: string;
 			fields?: FieldError[];
 			data?: unknown;
+			retries?: RetryMetadata;
 		},
 	) {
-		super(message);
-		this.name = "ModelRelayError";
-		this.status = opts.status;
-		this.code = opts.code;
-		this.requestId = opts.requestId;
-		this.fields = opts.fields;
-		this.data = opts.data;
+		super(message, {
+			category: "api",
+			status: opts.status,
+			code: opts.code,
+			requestId: opts.requestId,
+			fields: opts.fields,
+			data: opts.data,
+			retries: opts.retries,
+		});
 	}
 }
 
 export async function parseErrorResponse(
 	response: Response,
-): Promise<ModelRelayError> {
+	retries?: RetryMetadata,
+): Promise<APIError> {
 	const requestId =
 		response.headers.get("X-ModelRelay-Chat-Request-Id") ||
 		response.headers.get("X-Request-Id") ||
@@ -45,7 +105,7 @@ export async function parseErrorResponse(
 	}
 
 	if (!bodyText) {
-		return new ModelRelayError(fallbackMessage, { status, requestId });
+		return new APIError(fallbackMessage, { status, requestId, retries });
 	}
 
 	try {
@@ -69,7 +129,7 @@ export async function parseErrorResponse(
 				typeof errPayload?.status === "number"
 					? (errPayload.status as number)
 					: status;
-			return new ModelRelayError(message, {
+			return new APIError(message, {
 				status: parsedStatus,
 				code,
 				fields,
@@ -78,11 +138,12 @@ export async function parseErrorResponse(
 					(parsedObj?.requestId as string) ||
 					requestId,
 				data: parsed,
+				retries,
 			});
 		}
 		if (parsedObj?.message || parsedObj?.code) {
 			const message = (parsedObj.message as string) || fallbackMessage;
-			return new ModelRelayError(message, {
+			return new APIError(message, {
 				status,
 				code: parsedObj.code as string,
 				fields: parsedObj.fields as FieldError[],
@@ -91,15 +152,17 @@ export async function parseErrorResponse(
 					(parsedObj?.requestId as string) ||
 					requestId,
 				data: parsed,
+				retries,
 			});
 		}
-		return new ModelRelayError(fallbackMessage, {
+		return new APIError(fallbackMessage, {
 			status,
 			requestId,
 			data: parsed,
+			retries,
 		});
 	} catch {
 		// Not JSON, use raw text
-		return new ModelRelayError(bodyText, { status, requestId });
+		return new APIError(bodyText, { status, requestId, retries });
 	}
 }

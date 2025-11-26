@@ -1,7 +1,7 @@
 import type { AuthClient } from "./auth";
-import { ModelRelayError, parseErrorResponse } from "./errors";
+import { ConfigError, parseErrorResponse } from "./errors";
 import type { HTTPClient } from "./http";
-import type {
+import {
 	APIChatResponse,
 	APIChatUsage,
 	ChatCompletionCreateParams,
@@ -11,6 +11,18 @@ import type {
 	ChatMessage,
 	RetryConfig,
 	Usage,
+	ProviderId,
+	ModelId,
+	StopReason,
+	modelToString,
+	providerToString,
+	normalizeStopReason,
+	normalizeModelId,
+	normalizeProvider,
+	MetricsCallbacks,
+	TraceCallbacks,
+	mergeMetrics,
+	mergeTrace,
 } from "./types";
 
 const REQUEST_ID_HEADER = "X-ModelRelay-Chat-Request-Id";
@@ -41,9 +53,21 @@ export interface ChatRequestOptions {
 	 */
 	timeoutMs?: number;
 	/**
+	 * Override the connect timeout in milliseconds (set to 0 to disable).
+	 */
+	connectTimeoutMs?: number;
+	/**
 	 * Override retry behavior for this call. Set to `false` to disable retries.
 	 */
 	retry?: RetryConfig | false;
+	/**
+	 * Per-call metrics callbacks (merged over client defaults).
+	 */
+	metrics?: MetricsCallbacks;
+	/**
+	 * Per-call trace/log hooks (merged over client defaults).
+	 */
+	trace?: TraceCallbacks;
 }
 
 export class ChatClient {
@@ -52,12 +76,18 @@ export class ChatClient {
 	constructor(
 		http: HTTPClient,
 		auth: AuthClient,
-		cfg: { defaultMetadata?: Record<string, string> } = {},
+		cfg: {
+			defaultMetadata?: Record<string, string>;
+			metrics?: MetricsCallbacks;
+			trace?: TraceCallbacks;
+		} = {},
 	) {
 		this.completions = new ChatCompletionsClient(
 			http,
 			auth,
 			cfg.defaultMetadata,
+			cfg.metrics,
+			cfg.trace,
 		);
 	}
 }
@@ -66,15 +96,21 @@ export class ChatCompletionsClient {
 	private readonly http: HTTPClient;
 	private readonly auth: AuthClient;
 	private readonly defaultMetadata?: Record<string, string>;
+	private readonly metrics?: MetricsCallbacks;
+	private readonly trace?: TraceCallbacks;
 
 	constructor(
 		http: HTTPClient,
 		auth: AuthClient,
 		defaultMetadata?: Record<string, string>,
+		metrics?: MetricsCallbacks,
+		trace?: TraceCallbacks,
 	) {
 		this.http = http;
 		this.auth = auth;
 		this.defaultMetadata = defaultMetadata;
+		this.metrics = metrics;
+		this.trace = trace;
 	}
 
 	async create(
@@ -94,19 +130,17 @@ export class ChatCompletionsClient {
 		options: ChatRequestOptions = {},
 	): Promise<ChatCompletionResponse | ChatCompletionsStream> {
 		const stream = options.stream ?? params.stream ?? true;
-		if (!params?.model?.trim()) {
-			throw new ModelRelayError("model is required", { status: 400 });
+		const metrics = mergeMetrics(this.metrics, options.metrics);
+		const trace = mergeTrace(this.trace, options.trace);
+		const modelValue = modelToString(params.model).trim();
+		if (!modelValue) {
+			throw new ConfigError("model is required");
 		}
 		if (!params?.messages?.length) {
-			throw new ModelRelayError("at least one message is required", {
-				status: 400,
-			});
+			throw new ConfigError("at least one message is required");
 		}
 		if (!hasUserMessage(params.messages)) {
-			throw new ModelRelayError(
-				"at least one user message is required",
-				{ status: 400 },
-			);
+			throw new ConfigError("at least one user message is required");
 		}
 
 		const authHeaders = await this.auth.authForChat(params.endUserId);
@@ -119,6 +153,13 @@ export class ChatCompletionsClient {
 		if (requestId) {
 			headers[REQUEST_ID_HEADER] = requestId;
 		}
+		const baseContext = {
+			method: "POST",
+			path: "/llm/proxy",
+			provider: params.provider,
+			model: params.model,
+			requestId,
+		};
 		const response = await this.http.request("/llm/proxy", {
 			method: "POST",
 			body,
@@ -130,7 +171,11 @@ export class ChatCompletionsClient {
 			signal: options.signal,
 			timeoutMs: options.timeoutMs ?? (stream ? 0 : undefined),
 			useDefaultTimeout: !stream,
+			connectTimeoutMs: options.connectTimeoutMs,
 			retry: options.retry,
+			metrics,
+			trace,
+			context: baseContext,
 		});
 		const resolvedRequestId =
 			requestIdFromHeaders(response.headers) || requestId || undefined;
@@ -139,9 +184,28 @@ export class ChatCompletionsClient {
 		}
 		if (!stream) {
 			const payload = (await response.json()) as APIChatResponse;
-			return normalizeChatResponse(payload, resolvedRequestId);
+			const result = normalizeChatResponse(payload, resolvedRequestId);
+			if (metrics?.usage) {
+				const ctx = {
+					...baseContext,
+					requestId: resolvedRequestId ?? baseContext.requestId,
+					responseId: result.id,
+				};
+				metrics.usage({ usage: result.usage, context: ctx });
+			}
+			return result;
 		}
-		return new ChatCompletionsStream(response, resolvedRequestId);
+		const streamContext = {
+			...baseContext,
+			requestId: resolvedRequestId ?? baseContext.requestId,
+		};
+		return new ChatCompletionsStream(
+			response,
+			resolvedRequestId,
+			streamContext,
+			metrics,
+			trace,
+		);
 	}
 }
 
@@ -150,16 +214,32 @@ export class ChatCompletionsStream
 {
 	private readonly response: Response;
 	private readonly requestId?: string;
+	private context: RequestContext;
+	private readonly metrics?: MetricsCallbacks;
+	private readonly trace?: TraceCallbacks;
+	private readonly startedAt: number;
+	private firstTokenEmitted = false;
 	private closed = false;
 
-	constructor(response: Response, requestId?: string) {
+	constructor(
+		response: Response,
+		requestId: string | undefined,
+		context: RequestContext,
+		metrics?: MetricsCallbacks,
+		trace?: TraceCallbacks,
+	) {
 		if (!response.body) {
-			throw new ModelRelayError("streaming response is missing a body", {
-				status: 500,
-			});
+			throw new ConfigError("streaming response is missing a body");
 		}
 		this.response = response;
 		this.requestId = requestId;
+		this.context = context;
+		this.metrics = metrics;
+		this.trace = trace;
+		this.startedAt =
+			this.metrics?.streamFirstToken || this.trace?.streamEvent || this.trace?.streamError
+				? Date.now()
+				: 0;
 	}
 
 	async cancel(reason?: unknown): Promise<void> {
@@ -177,9 +257,7 @@ export class ChatCompletionsStream
 		}
 		const body = this.response.body;
 		if (!body) {
-			throw new ModelRelayError("streaming response is missing a body", {
-				status: 500,
-			});
+			throw new ConfigError("streaming response is missing a body");
 		}
 		const reader = body.getReader();
 		const decoder = new TextDecoder();
@@ -197,6 +275,7 @@ export class ChatCompletionsStream
 					for (const evt of events) {
 						const parsed = mapChatEvent(evt, this.requestId);
 						if (parsed) {
+							this.handleStreamEvent(parsed);
 							yield parsed;
 						}
 					}
@@ -208,14 +287,55 @@ export class ChatCompletionsStream
 				for (const evt of events) {
 					const parsed = mapChatEvent(evt, this.requestId);
 					if (parsed) {
+						this.handleStreamEvent(parsed);
 						yield parsed;
 					}
 				}
 			}
+		} catch (err) {
+			this.recordFirstToken(err);
+			this.trace?.streamError?.({ context: this.context, error: err });
+			throw err;
 		} finally {
 			this.closed = true;
 			reader.releaseLock();
 		}
+	}
+
+	private handleStreamEvent(evt: ChatCompletionEvent) {
+		const context = this.enrichContext(evt);
+		this.context = context;
+		this.trace?.streamEvent?.({ context, event: evt });
+		if (
+			evt.type === "message_start" ||
+			evt.type === "message_delta" ||
+			evt.type === "message_stop"
+		) {
+			this.recordFirstToken();
+		}
+		if (evt.type === "message_stop" && evt.usage && this.metrics?.usage) {
+			this.metrics.usage({ usage: evt.usage, context });
+		}
+	}
+
+	private enrichContext(evt: ChatCompletionEvent): RequestContext {
+		return {
+			...this.context,
+			responseId: evt.responseId || this.context.responseId,
+			requestId: evt.requestId || this.context.requestId,
+			model: evt.model || this.context.model,
+		};
+	}
+
+	private recordFirstToken(error?: unknown) {
+		if (!this.metrics?.streamFirstToken || this.firstTokenEmitted) return;
+		this.firstTokenEmitted = true;
+		const latencyMs = this.startedAt ? Date.now() - this.startedAt : 0;
+		this.metrics.streamFirstToken({
+			latencyMs,
+			error: error ? String(error) : undefined,
+			context: this.context,
+		});
 	}
 }
 
@@ -295,8 +415,8 @@ function mapChatEvent(
 	const type = normalizeEventType(raw.event, p);
 	const usage = normalizeUsage(p.usage);
 	const responseId = p.response_id || p.responseId || p.id || p?.message?.id;
-	const model = p.model || p?.message?.model;
-	const stopReason = p.stop_reason || p.stopReason;
+	const model = normalizeModelId(p.model || p?.message?.model);
+	const stopReason = normalizeStopReason(p.stop_reason || p.stopReason);
 	const textDelta = extractTextDelta(p);
 
 	return {
@@ -359,14 +479,14 @@ function normalizeChatResponse(
 	const p = payload as any;
 	return {
 		id: p?.id,
-		provider: p?.provider,
+		provider: normalizeProvider(p?.provider),
 		content: Array.isArray(p?.content)
 			? p.content
 			: p?.content
 				? [String(p.content)]
 				: [],
-		stopReason: p?.stop_reason ?? p?.stopReason,
-		model: p?.model,
+		stopReason: normalizeStopReason(p?.stop_reason ?? p?.stopReason),
+		model: normalizeModelId(p?.model),
 		usage: normalizeUsage(p?.usage),
 		requestId,
 	};
@@ -376,11 +496,15 @@ function normalizeUsage(payload?: APIChatUsage): Usage {
 	if (!payload) {
 		return { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
 	}
-	return {
+	const usage = {
 		inputTokens: Number(payload.input_tokens ?? payload.inputTokens ?? 0),
 		outputTokens: Number(payload.output_tokens ?? payload.outputTokens ?? 0),
 		totalTokens: Number(payload.total_tokens ?? payload.totalTokens ?? 0),
 	};
+	if (!usage.totalTokens) {
+		usage.totalTokens = usage.inputTokens + usage.outputTokens;
+	}
+	return usage;
 }
 
 function buildProxyBody(
@@ -388,11 +512,11 @@ function buildProxyBody(
 	metadata?: Record<string, string>,
 ): Record<string, unknown> {
 	const body: Record<string, unknown> = {
-		model: params.model,
+		model: modelToString(params.model),
 		messages: normalizeMessages(params.messages),
 	};
 	if (typeof params.maxTokens === "number") body.max_tokens = params.maxTokens;
-	if (params.provider) body.provider = params.provider;
+	if (params.provider) body.provider = providerToString(params.provider);
 	if (typeof params.temperature === "number")
 		body.temperature = params.temperature;
 	if (metadata && Object.keys(metadata).length > 0) body.metadata = metadata;

@@ -1,4 +1,4 @@
-import { ModelRelayError } from "./errors";
+import { ConfigError, ModelRelayError } from "./errors";
 import type { HTTPClient } from "./http";
 import type { APIKey, APIKeyCreateRequest } from "./types";
 
@@ -42,7 +42,7 @@ export class ApiKeysClient {
 
 	async create(req: APIKeyCreateRequest): Promise<APIKey> {
 		if (!req?.label?.trim()) {
-			throw new ModelRelayError("label is required", { status: 400 });
+			throw new ConfigError("label is required");
 		}
 		const body: Record<string, unknown> = {
 			label: req.label,
@@ -67,7 +67,7 @@ export class ApiKeysClient {
 
 	async delete(id: string): Promise<void> {
 		if (!id?.trim()) {
-			throw new ModelRelayError("id is required", { status: 400 });
+			throw new ConfigError("id is required");
 		}
 		await this.http.request(`/api-keys/${encodeURIComponent(id)}`, {
 			method: "DELETE",

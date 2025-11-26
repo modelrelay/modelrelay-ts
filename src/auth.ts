@@ -1,4 +1,4 @@
-import { ModelRelayError } from "./errors";
+import { ConfigError } from "./errors";
 import type { HTTPClient } from "./http";
 import type {
 	APIFrontendToken,
@@ -43,18 +43,12 @@ export class AuthClient {
 			request?.publishableKey ||
 			(isPublishableKey(this.apiKey) ? this.apiKey : undefined);
 		if (!publishableKey) {
-			throw new ModelRelayError(
-				"publishable key required to issue frontend tokens",
-				{ status: 400 },
-			);
+			throw new ConfigError("publishable key required to issue frontend tokens");
 		}
 
 		const userId = request?.userId || this.endUser?.id;
 		if (!userId) {
-			throw new ModelRelayError(
-				"endUserId is required to mint a frontend token",
-				{ status: 400 },
-			);
+			throw new ConfigError("endUserId is required to mint a frontend token");
 		}
 		const deviceId = request?.deviceId || this.endUser?.deviceId;
 		const ttlSeconds = request?.ttlSeconds ?? this.endUser?.ttlSeconds;
@@ -104,9 +98,7 @@ export class AuthClient {
 			return { accessToken: this.accessToken };
 		}
 		if (!this.apiKey) {
-			throw new ModelRelayError("API key or token is required", {
-				status: 401,
-			});
+			throw new ConfigError("API key or token is required");
 		}
 		if (isPublishableKey(this.apiKey)) {
 			const token = await this.frontendToken({
@@ -127,9 +119,7 @@ export class AuthClient {
 			return { accessToken: this.accessToken };
 		}
 		if (!this.apiKey) {
-			throw new ModelRelayError("API key or token is required", {
-				status: 401,
-			});
+			throw new ConfigError("API key or token is required");
 		}
 		return { apiKey: this.apiKey };
 	}

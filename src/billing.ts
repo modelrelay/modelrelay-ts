@@ -1,5 +1,5 @@
 import type { AuthClient } from "./auth";
-import { ModelRelayError } from "./errors";
+import { ConfigError, ModelRelayError } from "./errors";
 import type { HTTPClient } from "./http";
 import type {
 	APICheckoutResponse,
@@ -23,12 +23,10 @@ export class BillingClient {
 	 */
 	async checkout(params: CheckoutRequest): Promise<CheckoutResponse> {
 		if (!params?.endUserId?.trim()) {
-			throw new ModelRelayError("endUserId is required", { status: 400 });
+			throw new ConfigError("endUserId is required");
 		}
 		if (!params.successUrl?.trim() || !params.cancelUrl?.trim()) {
-			throw new ModelRelayError("successUrl and cancelUrl are required", {
-				status: 400,
-			});
+			throw new ConfigError("successUrl and cancelUrl are required");
 		}
 		const authHeaders = this.auth.authForBilling();
 		const body: Record<string, unknown> = {

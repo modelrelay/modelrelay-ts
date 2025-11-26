@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { ModelRelay } from "../src";
 import { ChatCompletionsStream } from "../src/chat";
+import { APIError, ConfigError, TransportError } from "../src/errors";
 
 const future = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
@@ -274,6 +275,113 @@ describe("ModelRelay TypeScript SDK", () => {
 		expect(attempts).toBe(2);
 	});
 
+	it("maps typed stop reasons, models, providers, and computes usage totals", async () => {
+		const fetchMock = vi.fn(async (url, init) => {
+			const path = String(url);
+			if (path.endsWith("/llm/proxy")) {
+				// biome-ignore lint/suspicious/noExplicitAny: init.body is untyped
+				const body = JSON.parse(String(init?.body as any));
+				expect(body.model).toBe("custom/model-x");
+				expect(body.provider).toBe("my-provider");
+				return new Response(
+					JSON.stringify({
+						id: "resp-typed",
+						provider: "my-provider",
+						content: ["hi"],
+						model: "custom/model-x",
+						stop_reason: "custom_stop",
+						usage: { input_tokens: 2, output_tokens: 3 },
+					}),
+					{ status: 200, headers: { "Content-Type": "application/json" } },
+				);
+			}
+			throw new Error(`unexpected URL: ${url}`);
+		});
+
+		const client = new ModelRelay({
+			key: "mr_sk_typed",
+			fetch: fetchMock as any,
+		});
+
+		const resp = await client.chat.completions.create(
+			{
+				model: { other: "custom/model-x" },
+				provider: { other: "my-provider" },
+				messages: [{ role: "user", content: "hi" }],
+				stream: false,
+			},
+			{ stream: false },
+		);
+
+	expect(resp.stopReason).toMatchObject({ other: "custom_stop" });
+	expect(resp.provider).toMatchObject({ other: "my-provider" });
+	expect(resp.model).toMatchObject({ other: "custom/model-x" });
+	expect(resp.usage.totalTokens).toBe(5);
+});
+
+it("emits metrics and trace hooks for http + streaming", async () => {
+	const httpCalls: Array<{ status?: number; path?: string }> = [];
+	const firstCalls: number[] = [];
+	const usageCalls: number[] = [];
+	const traceEvents: string[] = [];
+
+	const fetchMock = vi.fn(async (url) => {
+		const path = String(url);
+		if (path.endsWith("/llm/proxy")) {
+			return buildSSEResponse([
+				{
+					event: "message_start",
+					data: { response_id: "resp-metrics" },
+				},
+				{
+					event: "message_delta",
+					data: { response_id: "resp-metrics", delta: { text: "hi" } },
+				},
+				{
+					event: "message_stop",
+					data: {
+						response_id: "resp-metrics",
+						usage: { input_tokens: 1, output_tokens: 2 },
+					},
+				},
+			]);
+		}
+		throw new Error(`unexpected URL: ${url}`);
+	});
+
+	const client = new ModelRelay({
+		key: "mr_sk_metrics",
+		fetch: fetchMock as any,
+		metrics: {
+			httpRequest: (m) =>
+				httpCalls.push({ status: m.status, path: m.context.path }),
+			streamFirstToken: (m) => firstCalls.push(m.latencyMs),
+			usage: (m) => usageCalls.push(m.usage.totalTokens),
+		},
+		trace: {
+			streamEvent: ({ event }) => traceEvents.push(event.type),
+		},
+	});
+
+	const stream = await client.chat.completions.create({
+		model: "echo-1",
+		messages: [{ role: "user", content: "hi" }],
+	});
+
+	for await (const _ of stream as any as ChatCompletionsStream) {
+		// consume all events
+	}
+
+	expect(httpCalls[0]?.path).toBe("/llm/proxy");
+	expect(firstCalls.length).toBe(1);
+	expect(usageCalls[0]).toBe(3);
+	expect(traceEvents).toEqual([
+		"message_start",
+		"message_delta",
+		"message_stop",
+	]);
+});
+
 	it("does not retry when caller aborts", async () => {
 		let attempts = 0;
 		const fetchMock = vi.fn(async (url) => {
@@ -375,6 +483,78 @@ describe("ModelRelay TypeScript SDK", () => {
 
 		await client.apiKeys.delete("key-2");
 		expect(fetchMock).toHaveBeenCalledTimes(3);
+	});
+
+	it("surfaces retry metadata on repeated 5xx responses", async () => {
+		const fetchMock = vi.fn(async (url) => {
+			if (String(url).endsWith("/llm/proxy")) {
+				return new Response("server error", { status: 503 });
+			}
+			throw new Error(`unexpected URL: ${url}`);
+		});
+
+		const client = new ModelRelay({
+			key: "mr_sk_retry_meta",
+			fetch: fetchMock as any,
+			retry: { maxAttempts: 2, baseBackoffMs: 0, maxBackoffMs: 0 },
+		});
+
+		await expect(
+			client.chat.completions.create(
+				{
+					model: "echo-1",
+					messages: [{ role: "user", content: "retry me" }],
+					stream: false,
+				},
+				{ stream: false },
+			),
+		).rejects.toMatchObject({
+			category: "api",
+			retries: { attempts: 2, lastStatus: 503 },
+		});
+	});
+
+	it("throws transport timeout errors for per-call timeout overrides", async () => {
+		const fetchMock = vi.fn(
+			async (_url, init?: RequestInit): Promise<Response> =>
+				new Promise((_, reject) => {
+					(init?.signal as AbortSignal | undefined)?.addEventListener(
+						"abort",
+						() => reject(new DOMException("timeout", "AbortError")),
+					);
+				}),
+		);
+
+		const client = new ModelRelay({
+			key: "mr_sk_timeout",
+			fetch: fetchMock as any,
+			timeoutMs: 5_000, // default higher than per-call
+			connectTimeoutMs: 5_000,
+			retry: false,
+		});
+
+		await expect(
+			client.chat.completions.create(
+				{
+					model: "echo-1",
+					messages: [{ role: "user", content: "hello" }],
+					stream: false,
+				},
+				{ stream: false, timeoutMs: 10 },
+			),
+		).rejects.toBeInstanceOf(TransportError);
+	});
+
+	it("validates baseUrl and throws ConfigError", () => {
+		expect(
+			() =>
+				new ModelRelay({
+					key: "mr_sk_bad",
+					baseUrl: "ftp://invalid",
+					// biome-ignore lint/suspicious/noExplicitAny: fetch stub
+					fetch: (() => {}) as any,
+				}),
+		).toThrow(ConfigError);
 	});
 });
 

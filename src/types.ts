@@ -5,7 +5,52 @@ export const DEFAULT_BASE_URL = "https://api.modelrelay.ai/api/v1";
 export const STAGING_BASE_URL = "https://api-stg.modelrelay.ai/api/v1";
 export const SANDBOX_BASE_URL = "https://api.sandbox.modelrelay.ai/api/v1";
 export const DEFAULT_CLIENT_HEADER = `modelrelay-ts/${SDK_VERSION}`;
+export const DEFAULT_CONNECT_TIMEOUT_MS = 5_000;
 export const DEFAULT_REQUEST_TIMEOUT_MS = 60_000;
+
+export type NonEmptyArray<T> = [T, ...T[]];
+
+export const StopReasons = {
+	Completed: "completed",
+	Stop: "stop",
+	StopSequence: "stop_sequence",
+	EndTurn: "end_turn",
+	MaxTokens: "max_tokens",
+	MaxLength: "max_len",
+	MaxContext: "max_context",
+	ToolCalls: "tool_calls",
+	TimeLimit: "time_limit",
+	ContentFilter: "content_filter",
+	Incomplete: "incomplete",
+	Unknown: "unknown",
+} as const;
+export type KnownStopReason = (typeof StopReasons)[keyof typeof StopReasons];
+export type StopReason =
+	| KnownStopReason
+	| { other: string };
+
+export const Providers = {
+	OpenAI: "openai",
+	Anthropic: "anthropic",
+	Grok: "grok",
+	OpenRouter: "openrouter",
+	Echo: "echo",
+} as const;
+export type KnownProvider = (typeof Providers)[keyof typeof Providers];
+export type ProviderId = KnownProvider | { other: string };
+
+export const Models = {
+	OpenAIGpt4o: "openai/gpt-4o",
+	OpenAIGpt4oMini: "openai/gpt-4o-mini",
+	AnthropicClaude35HaikuLatest: "anthropic/claude-3-5-haiku-latest",
+	AnthropicClaude35SonnetLatest: "anthropic/claude-3-5-sonnet-latest",
+	OpenRouterClaude35Haiku: "anthropic/claude-3.5-haiku",
+	Grok2: "grok-2",
+	Grok4Fast: "grok-4-fast",
+	Echo1: "echo-1",
+} as const;
+export type KnownModel = (typeof Models)[keyof typeof Models];
+export type ModelId = KnownModel | { other: string } | string;
 
 export interface ModelRelayOptions {
 	/**
@@ -31,6 +76,10 @@ export interface ModelRelayOptions {
 	 */
 	clientHeader?: string;
 	/**
+	 * Default connect timeout in milliseconds (applies to each attempt).
+	 */
+	connectTimeoutMs?: number;
+	/**
 	 * Default request timeout in milliseconds (non-streaming). Set to 0 to disable.
 	 */
 	timeoutMs?: number;
@@ -46,6 +95,14 @@ export interface ModelRelayOptions {
 	 * Default metadata merged into every chat completion request.
 	 */
 	defaultMetadata?: Record<string, string>;
+	/**
+	 * Optional metrics callbacks for latency/usage.
+	 */
+	metrics?: MetricsCallbacks;
+	/**
+	 * Optional trace/log hooks for request + stream lifecycle.
+	 */
+	trace?: TraceCallbacks;
 }
 
 export type Environment = "production" | "staging" | "sandbox";
@@ -127,9 +184,9 @@ export interface ChatMessage {
 }
 
 export interface ChatCompletionCreateParams {
-	model: string;
-	messages: ChatMessage[];
-	provider?: string;
+	model: ModelId;
+	messages: NonEmptyArray<ChatMessage>;
+	provider?: ProviderId;
 	maxTokens?: number;
 	temperature?: number;
 	metadata?: Record<string, string>;
@@ -151,10 +208,10 @@ export interface ChatCompletionCreateParams {
 
 export interface ChatCompletionResponse {
 	id: string;
-	provider: string;
+	provider?: ProviderId;
 	content: string[];
-	stopReason?: string;
-	model: string;
+	stopReason?: StopReason;
+	model?: ModelId;
 	usage: Usage;
 	requestId?: string;
 }
@@ -169,6 +226,146 @@ export interface RetryConfig {
 	baseBackoffMs?: number;
 	maxBackoffMs?: number;
 	retryPost?: boolean;
+}
+
+export interface RetryMetadata {
+	attempts: number;
+	lastStatus?: number;
+	lastError?: string;
+}
+
+export type TransportErrorKind = "timeout" | "connect" | "request" | "other";
+
+export interface RequestContext {
+	method: string;
+	path: string;
+	provider?: ProviderId;
+	model?: ModelId;
+	requestId?: string;
+	responseId?: string;
+}
+
+export interface HttpRequestMetrics {
+	latencyMs: number;
+	status?: number;
+	error?: string;
+	retries?: RetryMetadata;
+	context: RequestContext;
+}
+
+export interface StreamFirstTokenMetrics {
+	latencyMs: number;
+	error?: string;
+	context: RequestContext;
+}
+
+export interface TokenUsageMetrics {
+	usage: Usage;
+	context: RequestContext;
+}
+
+export interface MetricsCallbacks {
+	httpRequest?: (metrics: HttpRequestMetrics) => void;
+	streamFirstToken?: (metrics: StreamFirstTokenMetrics) => void;
+	usage?: (metrics: TokenUsageMetrics) => void;
+}
+
+export interface TraceCallbacks {
+	requestStart?: (context: RequestContext) => void;
+	requestFinish?: (info: {
+		context: RequestContext;
+		status?: number;
+		error?: unknown;
+		retries?: RetryMetadata;
+		latencyMs: number;
+	}) => void;
+	streamEvent?: (info: {
+		context: RequestContext;
+		event: ChatCompletionEvent;
+	}) => void;
+	streamError?: (info: { context: RequestContext; error: unknown }) => void;
+}
+
+export function mergeMetrics(
+	base?: MetricsCallbacks,
+	override?: MetricsCallbacks,
+): MetricsCallbacks | undefined {
+	if (!base && !override) return undefined;
+	return {
+		...(base || {}),
+		...(override || {}),
+	};
+}
+
+export function mergeTrace(
+	base?: TraceCallbacks,
+	override?: TraceCallbacks,
+): TraceCallbacks | undefined {
+	if (!base && !override) return undefined;
+	return {
+		...(base || {}),
+		...(override || {}),
+	};
+}
+
+export function normalizeStopReason(value?: unknown): StopReason | undefined {
+	if (value === undefined || value === null) return undefined;
+	const str = String(value).trim();
+	const lower = str.toLowerCase();
+	for (const reason of Object.values(StopReasons)) {
+		if (lower === reason) return reason as KnownStopReason;
+	}
+	switch (lower) {
+		case "length":
+			return StopReasons.MaxLength;
+		default:
+			return { other: str };
+	}
+}
+
+export function stopReasonToString(
+	value?: StopReason,
+): string | undefined {
+	if (!value) return undefined;
+	if (typeof value === "string") return value;
+	return value.other?.trim() || undefined;
+}
+
+export function normalizeProvider(
+	value?: unknown,
+): ProviderId | undefined {
+	if (value === undefined || value === null) return undefined;
+	const str = String(value).trim();
+	if (!str) return undefined;
+	const lower = str.toLowerCase();
+	for (const p of Object.values(Providers)) {
+		if (lower === p) return p as KnownProvider;
+	}
+	return { other: str };
+}
+
+export function providerToString(
+	value?: ProviderId,
+): string | undefined {
+	if (!value) return undefined;
+	if (typeof value === "string") return value;
+	return value.other?.trim() || undefined;
+}
+
+export function normalizeModelId(value: unknown): ModelId | undefined {
+	if (value === undefined || value === null) return undefined;
+	const str = String(value).trim();
+	if (!str) return undefined;
+	const lower = str.toLowerCase();
+	for (const m of Object.values(Models)) {
+		if (lower === m) return m as KnownModel;
+	}
+	return { other: str };
+}
+
+export function modelToString(value: ModelId): string {
+	if (typeof value === "string") return value;
+	return value.other?.trim() || "";
 }
 
 export type ChatEventType =
@@ -193,10 +390,10 @@ export interface MessageDeltaData {
 }
 
 export interface MessageStopData {
-	stopReason?: string;
+	stopReason?: StopReason;
 	usage?: Usage;
 	responseId?: string;
-	model?: string;
+	model?: ModelId;
 	[key: string]: unknown;
 }
 
@@ -206,8 +403,8 @@ export interface ChatCompletionEvent<T = unknown> {
 	data?: T;
 	textDelta?: string;
 	responseId?: string;
-	model?: string;
-	stopReason?: string;
+	model?: ModelId;
+	stopReason?: StopReason;
 	usage?: Usage;
 	requestId?: string;
 	raw: string;
