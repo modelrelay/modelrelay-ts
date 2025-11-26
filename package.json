@@ -1,6 +1,6 @@
 {
 	"name": "@modelrelay/sdk",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"description": "TypeScript SDK for the ModelRelay API",
 	"type": "module",
 	"main": "dist/index.cjs",
@@ -8,11 +8,12 @@
 	"types": "dist/index.d.ts",
 	"exports": {
 		".": {
+			"types": "./dist/index.d.ts",
 			"import": "./dist/index.js",
-			"require": "./dist/index.cjs",
-			"types": "./dist/index.d.ts"
+			"require": "./dist/index.cjs"
 		}
 	},
+	"publishConfig": { "access": "public" },
 	"files": [
 		"dist"
 	],
@@ -28,8 +29,8 @@
 		"sdk",
 		"typescript"
 	],
-	"author": "ModelRelay",
-	"license": "MIT",
+	"author": "Shane Vitarana",
+	"license": "Apache-2.0",
 	"devDependencies": {
 		"tsup": "^8.2.4",
 		"typescript": "^5.6.3",

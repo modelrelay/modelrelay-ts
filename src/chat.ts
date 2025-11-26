@@ -9,6 +9,7 @@ import type {
 	ChatCompletionResponse,
 	ChatEventType,
 	ChatMessage,
+	RetryConfig,
 	Usage,
 } from "./types";
 
@@ -27,23 +28,53 @@ export interface ChatRequestOptions {
 	 * Optional request id header. `params.requestId` takes precedence if provided.
 	 */
 	requestId?: string;
+	/**
+	 * Additional HTTP headers for this request.
+	 */
+	headers?: Record<string, string>;
+	/**
+	 * Additional metadata merged into the request body.
+	 */
+	metadata?: Record<string, string>;
+	/**
+	 * Override the per-request timeout in milliseconds (set to 0 to disable).
+	 */
+	timeoutMs?: number;
+	/**
+	 * Override retry behavior for this call. Set to `false` to disable retries.
+	 */
+	retry?: RetryConfig | false;
 }
 
 export class ChatClient {
 	readonly completions: ChatCompletionsClient;
 
-	constructor(http: HTTPClient, auth: AuthClient) {
-		this.completions = new ChatCompletionsClient(http, auth);
+	constructor(
+		http: HTTPClient,
+		auth: AuthClient,
+		cfg: { defaultMetadata?: Record<string, string> } = {},
+	) {
+		this.completions = new ChatCompletionsClient(
+			http,
+			auth,
+			cfg.defaultMetadata,
+		);
 	}
 }
 
 export class ChatCompletionsClient {
 	private readonly http: HTTPClient;
 	private readonly auth: AuthClient;
+	private readonly defaultMetadata?: Record<string, string>;
 
-	constructor(http: HTTPClient, auth: AuthClient) {
+	constructor(
+		http: HTTPClient,
+		auth: AuthClient,
+		defaultMetadata?: Record<string, string>,
+	) {
 		this.http = http;
 		this.auth = auth;
+		this.defaultMetadata = defaultMetadata;
 	}
 
 	async create(
@@ -71,11 +102,20 @@ export class ChatCompletionsClient {
 				status: 400,
 			});
 		}
+		if (!hasUserMessage(params.messages)) {
+			throw new ModelRelayError(
+				"at least one user message is required",
+				{ status: 400 },
+			);
+		}
 
 		const authHeaders = await this.auth.authForChat(params.endUserId);
-		const body = buildProxyBody(params);
+		const body = buildProxyBody(
+			params,
+			mergeMetadata(this.defaultMetadata, params.metadata, options.metadata),
+		);
 		const requestId = params.requestId || options.requestId;
-		const headers: Record<string, string> = {};
+		const headers: Record<string, string> = { ...(options.headers || {}) };
 		if (requestId) {
 			headers[REQUEST_ID_HEADER] = requestId;
 		}
@@ -88,6 +128,9 @@ export class ChatCompletionsClient {
 			accept: stream ? "text/event-stream" : "application/json",
 			raw: true,
 			signal: options.signal,
+			timeoutMs: options.timeoutMs ?? (stream ? 0 : undefined),
+			useDefaultTimeout: !stream,
+			retry: options.retry,
 		});
 		const resolvedRequestId =
 			requestIdFromHeaders(response.headers) || requestId || undefined;
@@ -342,6 +385,7 @@ function normalizeUsage(payload?: APIChatUsage): Usage {
 
 function buildProxyBody(
 	params: ChatCompletionCreateParams,
+	metadata?: Record<string, string>,
 ): Record<string, unknown> {
 	const body: Record<string, unknown> = {
 		model: params.model,
@@ -351,7 +395,7 @@ function buildProxyBody(
 	if (params.provider) body.provider = params.provider;
 	if (typeof params.temperature === "number")
 		body.temperature = params.temperature;
-	if (params.metadata) body.metadata = params.metadata;
+	if (metadata && Object.keys(metadata).length > 0) body.metadata = metadata;
 	if (params.stop?.length) body.stop = params.stop;
 	if (params.stopSequences?.length) body.stop_sequences = params.stopSequences;
 	return body;
@@ -369,6 +413,29 @@ function normalizeMessages(
 function requestIdFromHeaders(headers: Headers): string | undefined {
 	return (
 		headers.get(REQUEST_ID_HEADER) ||
+		headers.get("X-Request-Id") ||
 		undefined
+	);
+}
+
+function mergeMetadata(
+	...sources: Array<Record<string, string> | undefined>
+): Record<string, string> | undefined {
+	const merged: Record<string, string> = {};
+	for (const src of sources) {
+		if (!src) continue;
+		for (const [key, value] of Object.entries(src)) {
+			const k = key?.trim();
+			const v = value?.trim();
+			if (!k || !v) continue;
+			merged[k] = v;
+		}
+	}
+	return Object.keys(merged).length ? merged : undefined;
+}
+
+function hasUserMessage(messages: ChatMessage[]): boolean {
+	return messages.some(
+		(msg) => msg.role?.toLowerCase?.() === "user" && !!msg.content,
 	);
 }
