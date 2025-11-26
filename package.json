@@ -28,7 +28,7 @@
 		"sdk",
 		"typescript"
 	],
-	"author": "ModelRelay",
+	"author": "Shane Vitarana",
 	"license": "Apache-2.0",
 	"devDependencies": {
 		"tsup": "^8.2.4",
