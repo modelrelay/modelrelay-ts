@@ -1,5 +1,11 @@
+import pkg from "../package.json";
+
+export const SDK_VERSION = pkg.version || "0.0.0";
 export const DEFAULT_BASE_URL = "https://api.modelrelay.ai/api/v1";
-export const DEFAULT_CLIENT_HEADER = "modelrelay-js/0.1";
+export const STAGING_BASE_URL = "https://api-stg.modelrelay.ai/api/v1";
+export const SANDBOX_BASE_URL = "https://api.sandbox.modelrelay.ai/api/v1";
+export const DEFAULT_CLIENT_HEADER = `modelrelay-ts/${SDK_VERSION}`;
+export const DEFAULT_REQUEST_TIMEOUT_MS = 60_000;
 
 export interface ModelRelayOptions {
 	/**
@@ -10,6 +16,10 @@ export interface ModelRelayOptions {
 	 * Bearer token to call the API directly (server or frontend token).
 	 */
 	token?: string;
+	/**
+	 * Optional environment preset; overridden by `baseUrl` when provided.
+	 */
+	environment?: Environment;
 	baseUrl?: string;
 	fetch?: typeof fetch;
 	/**
@@ -20,7 +30,25 @@ export interface ModelRelayOptions {
 	 * Optional client header override for telemetry.
 	 */
 	clientHeader?: string;
+	/**
+	 * Default request timeout in milliseconds (non-streaming). Set to 0 to disable.
+	 */
+	timeoutMs?: number;
+	/**
+	 * Retry configuration applied to all requests (can be overridden per call). Set to `false` to disable retries.
+	 */
+	retry?: RetryConfig | false;
+	/**
+	 * Default HTTP headers applied to every request.
+	 */
+	defaultHeaders?: Record<string, string>;
+	/**
+	 * Default metadata merged into every chat completion request.
+	 */
+	defaultMetadata?: Record<string, string>;
 }
+
+export type Environment = "production" | "staging" | "sandbox";
 
 export interface FrontendIdentity {
 	id: string;
@@ -136,6 +164,13 @@ export interface FieldError {
 	message: string;
 }
 
+export interface RetryConfig {
+	maxAttempts?: number;
+	baseBackoffMs?: number;
+	maxBackoffMs?: number;
+	retryPost?: boolean;
+}
+
 export type ChatEventType =
 	| "message_start"
 	| "message_delta"
@@ -242,4 +277,21 @@ export interface APIChatResponse {
 	delta?: string | { text?: string; content?: string };
 	type?: string;
 	event?: string;
+}
+
+export interface APIKey {
+	id: string;
+	label: string;
+	kind: string;
+	createdAt: Date;
+	expiresAt?: Date;
+	lastUsedAt?: Date;
+	redactedKey: string;
+	secretKey?: string;
+}
+
+export interface APIKeyCreateRequest {
+	label: string;
+	expiresAt?: Date;
+	kind?: string;
 }

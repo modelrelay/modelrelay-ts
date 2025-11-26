@@ -185,6 +185,197 @@ describe("ModelRelay TypeScript SDK", () => {
 		expect(checkout.session.expiresAt).toBeInstanceOf(Date);
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 	});
+
+	it("applies default client header and merges metadata", async () => {
+		const fetchMock = vi.fn(async (url, init) => {
+			const path = String(url);
+			if (path.endsWith("/llm/proxy")) {
+				const headers = new Headers(init?.headers as HeadersInit);
+				expect(headers.get("X-ModelRelay-Client")).toMatch(
+					/^modelrelay-ts\//,
+				);
+				// biome-ignore lint/suspicious/noExplicitAny: init.body is untyped
+				const body = JSON.parse(String(init?.body as any));
+				expect(body.metadata.trace_id).toBe("trace-123");
+				expect(body.metadata.env).toBe("staging");
+				expect(body.metadata.user).toBe("bob");
+				return new Response(
+					JSON.stringify({
+						id: "resp-123",
+						provider: "echo",
+						content: "hi",
+						model: "echo-1",
+						usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
+					}),
+					{ status: 200, headers: { "Content-Type": "application/json" } },
+				);
+			}
+			throw new Error(`unexpected URL: ${url}`);
+		});
+
+		const client = new ModelRelay({
+			key: "mr_sk_default_header",
+			defaultMetadata: { trace_id: "trace-123", env: "prod" },
+			fetch: fetchMock as any,
+		});
+
+		const resp = await client.chat.completions.create(
+			{
+				model: "echo-1",
+				messages: [{ role: "user", content: "hi" }],
+				metadata: { env: "staging" },
+				stream: false,
+			},
+			{ metadata: { user: "bob" }, stream: false },
+		);
+
+		expect(resp.content[0]).toBe("hi");
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
+
+	it("retries failed requests using backoff config", async () => {
+		let attempts = 0;
+		const fetchMock = vi.fn(async (url) => {
+			attempts += 1;
+			if (String(url).endsWith("/llm/proxy")) {
+				if (attempts === 1) {
+					return new Response("server error", { status: 500 });
+				}
+				return new Response(
+					JSON.stringify({
+						id: "retry-1",
+						provider: "echo",
+						content: ["ok"],
+						model: "echo-1",
+						usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
+					}),
+					{ status: 200, headers: { "Content-Type": "application/json" } },
+				);
+			}
+			throw new Error(`unexpected URL: ${url}`);
+		});
+
+		const client = new ModelRelay({
+			key: "mr_sk_retry",
+			fetch: fetchMock as any,
+			retry: { maxAttempts: 2, baseBackoffMs: 0, maxBackoffMs: 1 },
+		});
+
+		const resp = await client.chat.completions.create(
+			{
+				model: "echo-1",
+				messages: [{ role: "user", content: "retry" }],
+				stream: false,
+			},
+			{ stream: false },
+		);
+
+		expect(resp.content.join("")).toBe("ok");
+		expect(attempts).toBe(2);
+	});
+
+	it("does not retry when caller aborts", async () => {
+		let attempts = 0;
+		const fetchMock = vi.fn(async (url) => {
+			attempts += 1;
+			if (attempts === 1) {
+				return new Promise((_resolve, reject) => {
+					setTimeout(
+						() =>
+							reject(
+								new DOMException("The operation was aborted", "AbortError"),
+							),
+						5,
+					);
+				});
+			}
+			return new Response("ok");
+		});
+
+		const client = new ModelRelay({
+			key: "mr_sk_abort",
+			fetch: fetchMock as any,
+			retry: { maxAttempts: 3, baseBackoffMs: 0, maxBackoffMs: 0 },
+		});
+
+		const ac = new AbortController();
+		ac.abort("user-cancelled");
+
+		await expect(
+			client.chat.completions.create(
+				{
+					model: "echo-1",
+					messages: [{ role: "user", content: "cancel" }],
+					stream: false,
+				},
+				{ stream: false, signal: ac.signal },
+			),
+		).rejects.toThrow(/aborted/i);
+
+		expect(attempts).toBe(1);
+	});
+
+	it("manages API keys (list/create/delete)", async () => {
+		const nowIso = new Date("2025-01-01T00:00:00Z").toISOString();
+		const fetchMock = vi.fn(async (url, init) => {
+			const path = String(url);
+			if (path.endsWith("/api-keys") && (!init || init.method === "GET")) {
+				return new Response(
+					JSON.stringify({
+						api_keys: [
+							{
+								id: "key-1",
+								label: "existing",
+								kind: "secret",
+								created_at: nowIso,
+								redacted_key: "mr_sk_***",
+							},
+						],
+					}),
+					{ status: 200, headers: { "Content-Type": "application/json" } },
+				);
+			}
+			if (path.endsWith("/api-keys") && init?.method === "POST") {
+				return new Response(
+					JSON.stringify({
+						api_key: {
+							id: "key-2",
+							label: "new key",
+							kind: "secret",
+							created_at: nowIso,
+							expires_at: nowIso,
+							redacted_key: "mr_sk_new",
+							secret_key: "mr_sk_full",
+						},
+					}),
+					{ status: 201, headers: { "Content-Type": "application/json" } },
+				);
+			}
+			if (path.endsWith("/api-keys/key-2") && init?.method === "DELETE") {
+				return new Response(null, { status: 204 });
+			}
+			throw new Error(`unexpected URL: ${url}`);
+		});
+
+		const client = new ModelRelay({
+			key: "mr_sk_api_keys",
+			fetch: fetchMock as any,
+		});
+
+		const list = await client.apiKeys.list();
+		expect(list[0].label).toBe("existing");
+		expect(list[0].createdAt).toBeInstanceOf(Date);
+
+		const created = await client.apiKeys.create({
+			label: "new key",
+			expiresAt: new Date(nowIso),
+		});
+		expect(created.secretKey).toBe("mr_sk_full");
+		expect(created.expiresAt?.toISOString()).toBe(nowIso);
+
+		await client.apiKeys.delete("key-2");
+		expect(fetchMock).toHaveBeenCalledTimes(3);
+	});
 });
 
 function buildSSEResponse(
