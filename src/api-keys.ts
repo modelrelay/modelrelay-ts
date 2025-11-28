@@ -7,22 +7,15 @@ interface APIKeyRecord {
 	label?: string;
 	kind?: string;
 	created_at?: string;
-	createdAt?: string;
 	expires_at?: string | null;
-	expiresAt?: string | null;
 	last_used_at?: string | null;
-	lastUsedAt?: string | null;
 	redacted_key?: string;
-	redactedKey?: string;
 	secret_key?: string | null;
-	secretKey?: string | null;
 }
 
 interface APIKeysResponse {
 	api_keys?: APIKeyRecord[];
-	apiKeys?: APIKeyRecord[];
 	api_key?: APIKeyRecord;
-	apiKey?: APIKeyRecord;
 }
 
 export class ApiKeysClient {
@@ -36,7 +29,7 @@ export class ApiKeysClient {
 		const payload = await this.http.json<APIKeysResponse>("/api-keys", {
 			method: "GET",
 		});
-		const items = payload.api_keys || payload.apiKeys || [];
+		const items = payload.api_keys || [];
 		return items.map(normalizeApiKey).filter(Boolean) as APIKey[];
 	}
 
@@ -56,7 +49,7 @@ export class ApiKeysClient {
 			method: "POST",
 			body,
 		});
-		const record = payload.api_key || payload.apiKey;
+		const record = payload.api_key;
 		if (!record) {
 			throw new ModelRelayError("missing api_key in response", {
 				status: 500,
@@ -76,9 +69,9 @@ export class ApiKeysClient {
 }
 
 function normalizeApiKey(record: APIKeyRecord | undefined): APIKey {
-	const created = record?.created_at || record?.createdAt || "";
-	const expires = record?.expires_at ?? record?.expiresAt ?? undefined;
-	const lastUsed = record?.last_used_at ?? record?.lastUsedAt ?? undefined;
+	const created = record?.created_at || "";
+	const expires = record?.expires_at ?? undefined;
+	const lastUsed = record?.last_used_at ?? undefined;
 	return {
 		id: record?.id || "",
 		label: record?.label || "",
@@ -86,7 +79,7 @@ function normalizeApiKey(record: APIKeyRecord | undefined): APIKey {
 		createdAt: created ? new Date(created) : new Date(),
 		expiresAt: expires ? new Date(expires) : undefined,
 		lastUsedAt: lastUsed ? new Date(lastUsed) : undefined,
-		redactedKey: record?.redacted_key || record?.redactedKey || "",
-		secretKey: record?.secret_key ?? record?.secretKey ?? undefined,
+		redactedKey: record?.redacted_key || "",
+		secretKey: record?.secret_key ?? undefined,
 	};
 }

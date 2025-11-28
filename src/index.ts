@@ -4,6 +4,8 @@ import { BillingClient } from "./billing";
 import { ChatClient, ChatCompletionsStream } from "./chat";
 import { ConfigError } from "./errors";
 import { HTTPClient } from "./http";
+import { ProjectsClient } from "./projects";
+import { RequestPlansClient } from "./request-plans";
 import {
 	DEFAULT_BASE_URL,
 	DEFAULT_CLIENT_HEADER,
@@ -18,6 +20,8 @@ export class ModelRelay {
 	readonly chat: ChatClient;
 	readonly auth: AuthClient;
 	readonly apiKeys: ApiKeysClient;
+	readonly projects: ProjectsClient;
+	readonly requestPlans: RequestPlansClient;
 	readonly baseUrl: string;
 
 	constructor(options: ModelRelayOptions) {
@@ -53,6 +57,8 @@ export class ModelRelay {
 			trace: cfg.trace,
 		});
 		this.apiKeys = new ApiKeysClient(http);
+		this.projects = new ProjectsClient(http);
+		this.requestPlans = new RequestPlansClient(http);
 	}
 }
 
@@ -65,6 +71,8 @@ export {
 	ConfigError,
 	DEFAULT_BASE_URL,
 	isPublishableKey,
+	ProjectsClient,
+	RequestPlansClient,
 };
 
 export * from "./types";

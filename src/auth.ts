@@ -136,16 +136,16 @@ function normalizeFrontendToken(
 	payload: APIFrontendToken,
 	meta: { userId: string; publishableKey: string; deviceId?: string },
 ): FrontendToken {
-	const expiresAt = payload.expires_at || payload.expiresAt;
+	const expiresAt = payload.expires_at;
 	return {
 		token: payload.token,
 		expiresAt: expiresAt ? new Date(expiresAt) : undefined,
-		expiresIn: payload.expires_in ?? payload.expiresIn,
-		tokenType: payload.token_type ?? payload.tokenType,
-		keyId: payload.key_id ?? payload.keyId,
-		sessionId: payload.session_id ?? payload.sessionId,
-		tokenScope: payload.token_scope ?? payload.tokenScope,
-		tokenSource: payload.token_source ?? payload.tokenSource,
+		expiresIn: payload.expires_in,
+		tokenType: payload.token_type,
+		keyId: payload.key_id,
+		sessionId: payload.session_id,
+		tokenScope: payload.token_scope,
+		tokenSource: payload.token_source,
 		endUserId: meta.userId,
 		publishableKey: meta.publishableKey,
 		deviceId: meta.deviceId,

@@ -414,9 +414,9 @@ function mapChatEvent(
 
 	const type = normalizeEventType(raw.event, p);
 	const usage = normalizeUsage(p.usage);
-	const responseId = p.response_id || p.responseId || p.id || p?.message?.id;
+	const responseId = p.response_id || p.id || p?.message?.id;
 	const model = normalizeModelId(p.model || p?.message?.model);
-	const stopReason = normalizeStopReason(p.stop_reason || p.stopReason);
+	const stopReason = normalizeStopReason(p.stop_reason);
 	const textDelta = extractTextDelta(p);
 
 	return {
@@ -485,7 +485,7 @@ function normalizeChatResponse(
 			: p?.content
 				? [String(p.content)]
 				: [],
-		stopReason: normalizeStopReason(p?.stop_reason ?? p?.stopReason),
+		stopReason: normalizeStopReason(p?.stop_reason),
 		model: normalizeModelId(p?.model),
 		usage: normalizeUsage(p?.usage),
 		requestId,
@@ -497,9 +497,9 @@ function normalizeUsage(payload?: APIChatUsage): Usage {
 		return { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
 	}
 	const usage = {
-		inputTokens: Number(payload.input_tokens ?? payload.inputTokens ?? 0),
-		outputTokens: Number(payload.output_tokens ?? payload.outputTokens ?? 0),
-		totalTokens: Number(payload.total_tokens ?? payload.totalTokens ?? 0),
+		inputTokens: Number(payload.input_tokens ?? 0),
+		outputTokens: Number(payload.output_tokens ?? 0),
+		totalTokens: Number(payload.total_tokens ?? 0),
 	};
 	if (!usage.totalTokens) {
 		usage.totalTokens = usage.inputTokens + usage.outputTokens;

@@ -192,6 +192,24 @@ export interface UsageSummary {
 	state?: string;
 }
 
+export interface RequestPlan {
+	planId: string;
+	displayName?: string;
+	actionsLimit: number;
+}
+
+export interface Project {
+	id: string;
+	plan: string;
+	planStatus?: string;
+	planDisplay?: string;
+	planType?: string;
+	actionsLimit?: number;
+	actionsUsed?: number;
+	windowStart?: Date;
+	windowEnd?: Date;
+}
+
 export interface ChatMessage {
 	role: string;
 	content: string;
@@ -429,19 +447,12 @@ export interface ChatCompletionEvent<T = unknown> {
 export interface APIFrontendToken {
 	token: string;
 	expires_at?: string;
-	expiresAt?: string;
 	expires_in?: number;
-	expiresIn?: number;
 	token_type?: string;
-	tokenType?: string;
 	key_id?: string;
-	keyId?: string;
 	session_id?: string;
-	sessionId?: string;
 	token_scope?: string[];
-	tokenScope?: string[];
 	token_source?: string;
-	tokenSource?: string;
 }
 
 export interface APIEndUserRef {
@@ -468,9 +479,6 @@ export interface APIChatUsage {
 	input_tokens?: number;
 	output_tokens?: number;
 	total_tokens?: number;
-	inputTokens?: number;
-	outputTokens?: number;
-	totalTokens?: number;
 }
 
 export interface APIChatResponse {
@@ -478,12 +486,10 @@ export interface APIChatResponse {
 	provider?: string;
 	content?: string | string[];
 	stop_reason?: string;
-	stopReason?: string;
 	model?: string;
 	usage?: APIChatUsage;
 	// Streaming event payload variations
 	response_id?: string;
-	responseId?: string;
 	message?: { id?: string; model?: string };
 	delta?: string | { text?: string; content?: string };
 	type?: string;
