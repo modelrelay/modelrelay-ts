@@ -179,6 +179,19 @@ export interface Usage {
 	totalTokens: number;
 }
 
+export interface UsageSummary {
+	plan: string;
+	planType?: string;
+	windowStart?: Date | string;
+	windowEnd?: Date | string;
+	limit?: number;
+	used?: number;
+	actionsLimit?: number;
+	actionsUsed?: number;
+	remaining?: number;
+	state?: string;
+}
+
 export interface ChatMessage {
 	role: string;
 	content: string;
