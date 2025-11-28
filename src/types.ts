@@ -42,6 +42,7 @@ export type ProviderId = KnownProvider | { other: string };
 export const Models = {
 	OpenAIGpt4o: "openai/gpt-4o",
 	OpenAIGpt4oMini: "openai/gpt-4o-mini",
+	OpenAIGpt51: "openai/gpt-5.1",
 	AnthropicClaude35HaikuLatest: "anthropic/claude-3-5-haiku-latest",
 	AnthropicClaude35SonnetLatest: "anthropic/claude-3-5-sonnet-latest",
 	OpenRouterClaude35Haiku: "anthropic/claude-3.5-haiku",
