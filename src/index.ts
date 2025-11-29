@@ -1,11 +1,7 @@
 import { AuthClient, isPublishableKey } from "./auth";
-import { ApiKeysClient } from "./api-keys";
-import { BillingClient } from "./billing";
 import { ChatClient, ChatCompletionsStream } from "./chat";
 import { ConfigError } from "./errors";
 import { HTTPClient } from "./http";
-import { ProjectsClient } from "./projects";
-import { RequestPlansClient } from "./request-plans";
 import {
 	DEFAULT_BASE_URL,
 	DEFAULT_CLIENT_HEADER,
@@ -16,12 +12,8 @@ import {
 } from "./types";
 
 export class ModelRelay {
-	readonly billing: BillingClient;
 	readonly chat: ChatClient;
 	readonly auth: AuthClient;
-	readonly apiKeys: ApiKeysClient;
-	readonly projects: ProjectsClient;
-	readonly requestPlans: RequestPlansClient;
 	readonly baseUrl: string;
 
 	constructor(options: ModelRelayOptions) {
@@ -47,32 +39,24 @@ export class ModelRelay {
 		const auth = new AuthClient(http, {
 			apiKey: cfg.key,
 			accessToken: cfg.token,
-			endUser: cfg.endUser,
+			customer: cfg.customer,
 		});
 		this.auth = auth;
-		this.billing = new BillingClient(http, auth);
 		this.chat = new ChatClient(http, auth, {
 			defaultMetadata: cfg.defaultMetadata,
 			metrics: cfg.metrics,
 			trace: cfg.trace,
 		});
-		this.apiKeys = new ApiKeysClient(http);
-		this.projects = new ProjectsClient(http);
-		this.requestPlans = new RequestPlansClient(http);
 	}
 }
 
 export {
 	AuthClient,
-	ApiKeysClient,
-	BillingClient,
 	ChatClient,
 	ChatCompletionsStream,
 	ConfigError,
 	DEFAULT_BASE_URL,
 	isPublishableKey,
-	ProjectsClient,
-	RequestPlansClient,
 };
 
 export * from "./types";

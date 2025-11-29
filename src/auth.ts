@@ -2,7 +2,7 @@ import { ConfigError } from "./errors";
 import type { HTTPClient } from "./http";
 import type {
 	APIFrontendToken,
-	FrontendIdentity,
+	FrontendCustomer,
 	FrontendToken,
 	FrontendTokenRequest,
 } from "./types";
@@ -10,7 +10,7 @@ import type {
 interface AuthConfig {
 	apiKey?: string;
 	accessToken?: string;
-	endUser?: FrontendIdentity;
+	customer?: FrontendCustomer;
 }
 
 export interface AuthHeaders {
@@ -22,14 +22,14 @@ export class AuthClient {
 	private readonly http: HTTPClient;
 	private readonly apiKey?: string;
 	private readonly accessToken?: string;
-	private readonly endUser?: FrontendIdentity;
+	private readonly customer?: FrontendCustomer;
 	private cachedFrontend: Map<string, FrontendToken> = new Map();
 
 	constructor(http: HTTPClient, cfg: AuthConfig) {
 		this.http = http;
 		this.apiKey = cfg.apiKey;
 		this.accessToken = cfg.accessToken;
-		this.endUser = cfg.endUser;
+		this.customer = cfg.customer;
 	}
 
 	/**
@@ -46,14 +46,14 @@ export class AuthClient {
 			throw new ConfigError("publishable key required to issue frontend tokens");
 		}
 
-		const userId = request?.userId || this.endUser?.id;
-		if (!userId) {
-			throw new ConfigError("endUserId is required to mint a frontend token");
+		const customerId = request?.customerId || this.customer?.id;
+		if (!customerId) {
+			throw new ConfigError("customerId is required to mint a frontend token");
 		}
-		const deviceId = request?.deviceId || this.endUser?.deviceId;
-		const ttlSeconds = request?.ttlSeconds ?? this.endUser?.ttlSeconds;
+		const deviceId = request?.deviceId || this.customer?.deviceId;
+		const ttlSeconds = request?.ttlSeconds ?? this.customer?.ttlSeconds;
 
-		const cacheKey = `${publishableKey}:${userId}:${deviceId || ""}`;
+		const cacheKey = `${publishableKey}:${customerId}:${deviceId || ""}`;
 		const cached = this.cachedFrontend.get(cacheKey);
 		if (cached && isTokenReusable(cached)) {
 			return cached;
@@ -61,7 +61,9 @@ export class AuthClient {
 
 		const payload: Record<string, unknown> = {
 			publishable_key: publishableKey,
-			user_id: userId,
+			customer_id: customerId,
+			// Temporary shim for older servers; remove once deprecated.
+			user_id: customerId,
 		};
 		if (deviceId) {
 			payload.device_id = deviceId;
@@ -79,7 +81,7 @@ export class AuthClient {
 		);
 		const token = normalizeFrontendToken(response, {
 			publishableKey,
-			userId,
+			customerId,
 			deviceId,
 		});
 		this.cachedFrontend.set(cacheKey, token);
@@ -91,8 +93,8 @@ export class AuthClient {
 	 * Publishable keys are automatically exchanged for frontend tokens.
 	 */
 	async authForChat(
-		endUserId?: string,
-		overrides?: Partial<FrontendIdentity>,
+		customerId?: string,
+		overrides?: Partial<FrontendCustomer>,
 	): Promise<AuthHeaders> {
 		if (this.accessToken) {
 			return { accessToken: this.accessToken };
@@ -102,7 +104,7 @@ export class AuthClient {
 		}
 		if (isPublishableKey(this.apiKey)) {
 			const token = await this.frontendToken({
-				userId: endUserId || overrides?.id,
+				customerId: customerId || overrides?.id,
 				deviceId: overrides?.deviceId,
 				ttlSeconds: overrides?.ttlSeconds,
 			});
@@ -134,7 +136,7 @@ export function isPublishableKey(value?: string | null): boolean {
 
 function normalizeFrontendToken(
 	payload: APIFrontendToken,
-	meta: { userId: string; publishableKey: string; deviceId?: string },
+	meta: { customerId: string; publishableKey: string; deviceId?: string },
 ): FrontendToken {
 	const expiresAt = payload.expires_at;
 	return {
@@ -146,7 +148,7 @@ function normalizeFrontendToken(
 		sessionId: payload.session_id,
 		tokenScope: payload.token_scope,
 		tokenSource: payload.token_source,
-		endUserId: meta.userId,
+		customerId: meta.customerId,
 		publishableKey: meta.publishableKey,
 		deviceId: meta.deviceId,
 	};

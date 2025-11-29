@@ -1,6 +1,6 @@
 # ModelRelay TypeScript SDK
 
-Typed client for browsers and Node.js that wraps the ModelRelay API. It exchanges publishable keys for frontend tokens, starts Stripe Checkout for end users, and proxies chat completions with SSE handling.
+Typed client for browsers and Node.js that wraps the ModelRelay API for **consuming** LLM/usage endpoints. It exchanges publishable keys for frontend tokens and proxies chat completions with SSE handling.
 
 ## Installation
 
@@ -20,15 +20,7 @@ const mr = new ModelRelay({
   endUser: { id: "user-123" } // required when using publishable keys
 });
 
-// 1. Start an end-user Stripe checkout.
-await mr.billing.checkout({
-  endUserId: "user-123",
-  planId: "pro-plan",
-  successUrl: window.location.origin + "/success",
-  cancelUrl: window.location.origin + "/cancel"
-});
-
-// 2. Stream chat completions (publishable keys are exchanged for a frontend token automatically).
+// Stream chat completions (publishable keys are exchanged for a frontend token automatically).
 const stream = await mr.chat.completions.create({
   model: "grok-4-1-fast-reasoning",
   messages: [{ role: "user", content: "Hello" }]
@@ -41,7 +33,7 @@ for await (const event of stream) {
 }
 ```
 
-### Manual frontend token exchange
+### Manual frontend token exchange (optional)
 
 If you need to mint the token yourself (e.g., to store in your app state):
 

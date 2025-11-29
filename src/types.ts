@@ -69,9 +69,9 @@ export interface ModelRelayOptions {
 	baseUrl?: string;
 	fetch?: typeof fetch;
 	/**
-	 * Default end-user metadata used when exchanging publishable keys for frontend tokens.
+	 * Default customer metadata used when exchanging publishable keys for frontend tokens.
 	 */
-	endUser?: FrontendIdentity;
+	customer?: FrontendCustomer;
 	/**
 	 * Optional client header override for telemetry.
 	 */
@@ -108,7 +108,7 @@ export interface ModelRelayOptions {
 
 export type Environment = "production" | "staging" | "sandbox";
 
-export interface FrontendIdentity {
+export interface FrontendCustomer {
 	id: string;
 	deviceId?: string;
 	ttlSeconds?: number;
@@ -116,7 +116,7 @@ export interface FrontendIdentity {
 
 export interface FrontendTokenRequest {
 	publishableKey?: string;
-	userId: string;
+	customerId: string;
 	deviceId?: string;
 	ttlSeconds?: number;
 }
@@ -131,9 +131,9 @@ export interface FrontendToken {
 	tokenScope?: string[];
 	tokenSource?: string;
 	/**
-	 * The end-user identifier used when issuing the token. Added client-side for caching.
+	 * The customer identifier used when issuing the token. Added client-side for caching.
 	 */
-	endUserId?: string;
+	customerId?: string;
 	/**
 	 * Publishable key used for issuance. Added client-side for caching.
 	 */
@@ -144,34 +144,6 @@ export interface FrontendToken {
 	deviceId?: string;
 }
 
-export interface CheckoutRequest {
-	endUserId: string;
-	deviceId?: string;
-	planId?: string;
-	plan?: string;
-	successUrl: string;
-	cancelUrl: string;
-}
-
-export interface CheckoutSession {
-	id: string;
-	plan: string;
-	status: string;
-	url: string;
-	expiresAt?: Date;
-	completedAt?: Date;
-}
-
-export interface EndUserRef {
-	id: string;
-	externalId: string;
-	ownerId: string;
-}
-
-export interface CheckoutResponse {
-	endUser: EndUserRef;
-	session: CheckoutSession;
-}
 
 export interface Usage {
 	inputTokens: number;
@@ -192,22 +164,12 @@ export interface UsageSummary {
 	state?: string;
 }
 
-export interface RequestPlan {
-	planId: string;
-	displayName?: string;
-	actionsLimit: number;
-}
-
 export interface Project {
 	id: string;
-	plan: string;
-	planStatus?: string;
-	planDisplay?: string;
-	planType?: string;
-	actionsLimit?: number;
-	actionsUsed?: number;
-	windowStart?: Date;
-	windowEnd?: Date;
+	name: string;
+	description?: string;
+	createdAt?: Date;
+	updatedAt?: Date;
 }
 
 export interface ChatMessage {
@@ -225,9 +187,9 @@ export interface ChatCompletionCreateParams {
 	stop?: string[];
 	stopSequences?: string[];
 	/**
-	 * When using publishable keys, an end-user id is required to mint a frontend token.
+	 * When using publishable keys, a customer id is required to mint a frontend token.
 	 */
-	endUserId?: string;
+	customerId?: string;
 	/**
 	 * Opt out of SSE streaming and request a blocking JSON response.
 	 */
@@ -455,7 +417,7 @@ export interface APIFrontendToken {
 	token_source?: string;
 }
 
-export interface APIEndUserRef {
+export interface APICustomerRef {
 	id: string;
 	external_id: string;
 	owner_id: string;
@@ -468,11 +430,6 @@ export interface APICheckoutSession {
 	url: string;
 	expires_at?: string;
 	completed_at?: string;
-}
-
-export interface APICheckoutResponse {
-	end_user?: APIEndUserRef;
-	session?: APICheckoutSession;
 }
 
 export interface APIChatUsage {
@@ -505,10 +462,4 @@ export interface APIKey {
 	lastUsedAt?: Date;
 	redactedKey: string;
 	secretKey?: string;
-}
-
-export interface APIKeyCreateRequest {
-	label: string;
-	expiresAt?: Date;
-	kind?: string;
 }

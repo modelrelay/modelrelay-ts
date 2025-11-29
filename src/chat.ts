@@ -23,6 +23,7 @@ import {
 	TraceCallbacks,
 	mergeMetrics,
 	mergeTrace,
+	RequestContext,
 } from "./types";
 
 const REQUEST_ID_HEADER = "X-ModelRelay-Chat-Request-Id";
@@ -143,7 +144,7 @@ export class ChatCompletionsClient {
 			throw new ConfigError("at least one user message is required");
 		}
 
-		const authHeaders = await this.auth.authForChat(params.endUserId);
+		const authHeaders = await this.auth.authForChat(params.customerId);
 		const body = buildProxyBody(
 			params,
 			mergeMetadata(this.defaultMetadata, params.metadata, options.metadata),
