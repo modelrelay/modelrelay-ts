@@ -1,6 +1,6 @@
 # ModelRelay TypeScript SDK
 
-Typed client for browsers and Node.js that wraps the ModelRelay API for **consuming** LLM/usage endpoints. It exchanges publishable keys for frontend tokens and proxies chat completions with SSE handling.
+Typed client for Node.js that wraps the ModelRelay API for **consuming** LLM/usage endpoints. Use secret API keys or bearer tokens issued by your backend; publishable-key frontend token flows have been removed.
 
 ## Installation
 
@@ -14,13 +14,12 @@ bun add @modelrelay/sdk
 ```ts
 import { ModelRelay } from "@modelrelay/sdk";
 
-// Use a publishable key for client-side apps.
+// Use a secret key or bearer token from your backend.
 const mr = new ModelRelay({
-  key: "mr_pk_...",
-  endUser: { id: "user-123" } // required when using publishable keys
+  key: "mr_sk_..."
 });
 
-// Stream chat completions (publishable keys are exchanged for a frontend token automatically).
+// Stream chat completions.
 const stream = await mr.chat.completions.create({
   model: "grok-4-1-fast-reasoning",
   messages: [{ role: "user", content: "Hello" }]
@@ -33,18 +32,9 @@ for await (const event of stream) {
 }
 ```
 
-### Manual frontend token exchange (optional)
-
-If you need to mint the token yourself (e.g., to store in your app state):
-
-```ts
-const token = await mr.auth.frontendToken({ userId: "user-123" });
-const chat = new ModelRelay({ token: token.token });
-```
-
 ### Server-side usage
 
-Provide a secret API key or bearer token instead of a publishable key:
+Provide a secret API key or bearer token:
 
 ```ts
 const mr = new ModelRelay({ key: "mr_sk_..." });
@@ -132,9 +122,7 @@ await mr.chat.completions.create(
 
 ## API surface
 
-- `auth.frontendToken()` — exchange publishable keys for short-lived frontend tokens (cached until expiry).
 - `chat.completions.create(params, options?)`
   - Supports streaming (default) or blocking JSON (`stream: false`).
   - Accepts per-call `requestId`, `headers`, `metadata`, `timeoutMs`, and `retry` overrides.
-- `billing.checkout()` — start an end-user Stripe Checkout session.
 - `apiKeys.list() | create() | delete(id)` — manage API keys when using secret keys or bearer tokens.
