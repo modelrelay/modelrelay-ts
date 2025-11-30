@@ -62,8 +62,6 @@ export class AuthClient {
 		const payload: Record<string, unknown> = {
 			publishable_key: publishableKey,
 			customer_id: customerId,
-			// Temporary shim for older servers; remove once deprecated.
-			user_id: customerId,
 		};
 		if (deviceId) {
 			payload.device_id = deviceId;
