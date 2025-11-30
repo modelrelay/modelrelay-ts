@@ -45,6 +45,7 @@ export const Models = {
 	OpenAIGpt51: "openai/gpt-5.1",
 	AnthropicClaude35HaikuLatest: "anthropic/claude-3-5-haiku-latest",
 	AnthropicClaude35SonnetLatest: "anthropic/claude-3-5-sonnet-latest",
+	AnthropicClaudeOpus45: "anthropic/claude-opus-4-5-20251101",
 	OpenRouterClaude35Haiku: "anthropic/claude-3.5-haiku",
 	Grok2: "grok-2",
 	Grok4Fast: "grok-4-fast",
