@@ -48,7 +48,8 @@ export const Models = {
 	AnthropicClaudeOpus45: "anthropic/claude-opus-4-5-20251101",
 	OpenRouterClaude35Haiku: "anthropic/claude-3.5-haiku",
 	Grok2: "grok-2",
-	Grok4Fast: "grok-4-fast",
+	Grok4_1FastNonReasoning: "grok-4-1-fast-non-reasoning",
+	Grok4_1FastReasoning: "grok-4-1-fast-reasoning",
 	Echo1: "echo-1",
 } as const;
 export type KnownModel = (typeof Models)[keyof typeof Models];
