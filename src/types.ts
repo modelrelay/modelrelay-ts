@@ -276,6 +276,72 @@ export interface Project {
 export interface ChatMessage {
 	role: string;
 	content: string;
+	toolCalls?: ToolCall[];
+	toolCallId?: string;
+}
+
+// --- Tool Types ---
+
+export const ToolTypes = {
+	Function: "function",
+	WebSearch: "web_search",
+	XSearch: "x_search",
+	CodeExecution: "code_execution",
+} as const;
+export type ToolType = (typeof ToolTypes)[keyof typeof ToolTypes];
+
+export interface FunctionTool {
+	name: string;
+	description?: string;
+	parameters?: Record<string, unknown>;
+}
+
+export interface WebSearchConfig {
+	allowedDomains?: string[];
+	excludedDomains?: string[];
+	maxUses?: number;
+}
+
+export interface XSearchConfig {
+	allowedHandles?: string[];
+	excludedHandles?: string[];
+	fromDate?: string;
+	toDate?: string;
+}
+
+export interface CodeExecConfig {
+	language?: string;
+	timeoutMs?: number;
+}
+
+export interface Tool {
+	type: ToolType;
+	function?: FunctionTool;
+	webSearch?: WebSearchConfig;
+	xSearch?: XSearchConfig;
+	codeExecution?: CodeExecConfig;
+}
+
+export const ToolChoiceTypes = {
+	Auto: "auto",
+	Required: "required",
+	None: "none",
+} as const;
+export type ToolChoiceType = (typeof ToolChoiceTypes)[keyof typeof ToolChoiceTypes];
+
+export interface ToolChoice {
+	type: ToolChoiceType;
+}
+
+export interface FunctionCall {
+	name: string;
+	arguments: string;
+}
+
+export interface ToolCall {
+	id: string;
+	type: ToolType;
+	function?: FunctionCall;
 }
 
 export interface ChatCompletionCreateParams {
@@ -287,6 +353,14 @@ export interface ChatCompletionCreateParams {
 	metadata?: Record<string, string>;
 	stop?: string[];
 	stopSequences?: string[];
+	/**
+	 * Tools available for the model to call.
+	 */
+	tools?: Tool[];
+	/**
+	 * Controls how the model responds to tool calls.
+	 */
+	toolChoice?: ToolChoice;
 	/**
 	 * When using publishable keys, a customer id is required to mint a frontend token.
 	 */
@@ -309,6 +383,7 @@ export interface ChatCompletionResponse {
 	model?: ModelId;
 	usage: Usage;
 	requestId?: string;
+	toolCalls?: ToolCall[];
 }
 
 export interface FieldError {
@@ -467,6 +542,9 @@ export type ChatEventType =
 	| "message_start"
 	| "message_delta"
 	| "message_stop"
+	| "tool_use_start"
+	| "tool_use_delta"
+	| "tool_use_stop"
 	| "ping"
 	| "custom";
 
@@ -492,11 +570,29 @@ export interface MessageStopData {
 	[key: string]: unknown;
 }
 
+/** Incremental update to a tool call during streaming. */
+export interface ToolCallDelta {
+	index: number;
+	id?: string;
+	type?: string;
+	function?: FunctionCallDelta;
+}
+
+/** Incremental function call data. */
+export interface FunctionCallDelta {
+	name?: string;
+	arguments?: string;
+}
+
 export interface ChatCompletionEvent<T = unknown> {
 	type: ChatEventType;
 	event: string;
 	data?: T;
 	textDelta?: string;
+	/** Incremental tool call update during streaming. */
+	toolCallDelta?: ToolCallDelta;
+	/** Completed tool calls when type is tool_use_stop or message_stop. */
+	toolCalls?: ToolCall[];
 	responseId?: string;
 	model?: ModelId;
 	stopReason?: StopReason;

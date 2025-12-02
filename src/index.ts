@@ -82,6 +82,51 @@ export type { Tier, PriceInterval } from "./tiers";
 export * from "./types";
 export * from "./errors";
 
+// Tool utilities - explicit exports for better discoverability
+export {
+	// Tool creation
+	createFunctionTool,
+	createFunctionToolFromSchema,
+	createWebSearchTool,
+	// Tool choice helpers
+	toolChoiceAuto,
+	toolChoiceRequired,
+	toolChoiceNone,
+	// Response helpers
+	hasToolCalls,
+	firstToolCall,
+	// Message helpers
+	toolResultMessage,
+	respondToToolCall,
+	assistantMessageWithToolCalls,
+	// Streaming accumulator
+	ToolCallAccumulator,
+	// Schema inference
+	zodToJsonSchema,
+	// Argument parsing
+	parseToolArgs,
+	tryParseToolArgs,
+	parseToolArgsRaw,
+	ToolArgsError,
+	// Tool registry
+	ToolRegistry,
+	// Retry utilities
+	formatToolErrorForModel,
+	hasRetryableErrors,
+	getRetryableErrors,
+	createRetryMessages,
+	executeWithRetry,
+} from "./tools";
+
+export type {
+	ZodLikeSchema,
+	JsonSchemaOptions,
+	Schema,
+	ToolHandler,
+	ToolExecutionResult,
+	RetryOptions,
+} from "./tools";
+
 function resolveBaseUrl(override?: string): string {
 	const base = override || DEFAULT_BASE_URL;
 	return base.replace(/\/+$/, "");

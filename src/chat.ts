@@ -24,6 +24,11 @@ import {
 	mergeMetrics,
 	mergeTrace,
 	RequestContext,
+	Tool,
+	ToolChoice,
+	ToolCall,
+	ToolCallDelta,
+	ToolTypes,
 } from "./types";
 
 const REQUEST_ID_HEADER = "X-ModelRelay-Chat-Request-Id";
@@ -310,7 +315,10 @@ export class ChatCompletionsStream
 		if (
 			evt.type === "message_start" ||
 			evt.type === "message_delta" ||
-			evt.type === "message_stop"
+			evt.type === "message_stop" ||
+			evt.type === "tool_use_start" ||
+			evt.type === "tool_use_delta" ||
+			evt.type === "tool_use_stop"
 		) {
 			this.recordFirstToken();
 		}
@@ -419,12 +427,16 @@ function mapChatEvent(
 	const model = normalizeModelId(p.model || p?.message?.model);
 	const stopReason = normalizeStopReason(p.stop_reason);
 	const textDelta = extractTextDelta(p);
+	const toolCallDelta = extractToolCallDelta(p, type);
+	const toolCalls = extractToolCalls(p, type);
 
 	return {
 		type,
 		event: raw.event || type,
 		data: p,
 		textDelta,
+		toolCallDelta,
+		toolCalls,
 		responseId,
 		model,
 		stopReason,
@@ -446,6 +458,12 @@ function normalizeEventType(eventName: string, payload: any): ChatEventType {
 			return "message_delta";
 		case "message_stop":
 			return "message_stop";
+		case "tool_use_start":
+			return "tool_use_start";
+		case "tool_use_delta":
+			return "tool_use_delta";
+		case "tool_use_stop":
+			return "tool_use_stop";
 		case "ping":
 			return "ping";
 		default:
@@ -458,6 +476,11 @@ function extractTextDelta(payload: any): string | undefined {
 	if (!payload || typeof payload !== "object") {
 		return undefined;
 	}
+	// Check for normalized text_delta field (ModelRelay format)
+	if (typeof payload.text_delta === "string" && payload.text_delta !== "") {
+		return payload.text_delta;
+	}
+	// Fallback: check legacy/provider-specific formats
 	if (typeof payload.delta === "string") {
 		return payload.delta;
 	}
@@ -472,13 +495,69 @@ function extractTextDelta(payload: any): string | undefined {
 	return undefined;
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: payload is untyped json
+function extractToolCallDelta(payload: any, type: ChatEventType): ToolCallDelta | undefined {
+	if (!payload || typeof payload !== "object") {
+		return undefined;
+	}
+	// Only extract tool call deltas for tool use events
+	if (type !== "tool_use_start" && type !== "tool_use_delta") {
+		return undefined;
+	}
+	// Check for tool_call_delta field (ModelRelay normalized format)
+	if (payload.tool_call_delta) {
+		const d = payload.tool_call_delta;
+		return {
+			index: d.index ?? 0,
+			id: d.id,
+			type: d.type,
+			function: d.function ? {
+				name: d.function.name,
+				arguments: d.function.arguments,
+			} : undefined,
+		};
+	}
+	// Check for direct fields (inline format)
+	if (typeof payload.index === "number" || payload.id || payload.name) {
+		return {
+			index: payload.index ?? 0,
+			id: payload.id,
+			type: payload.tool_type,
+			function: (payload.name || payload.arguments) ? {
+				name: payload.name,
+				arguments: payload.arguments,
+			} : undefined,
+		};
+	}
+	return undefined;
+}
+
+// biome-ignore lint/suspicious/noExplicitAny: payload is untyped json
+function extractToolCalls(payload: any, type: ChatEventType): ToolCall[] | undefined {
+	if (!payload || typeof payload !== "object") {
+		return undefined;
+	}
+	// Only extract tool calls on stop events
+	if (type !== "tool_use_stop" && type !== "message_stop") {
+		return undefined;
+	}
+	if (payload.tool_calls?.length) {
+		return normalizeToolCalls(payload.tool_calls);
+	}
+	// Single tool_call field for tool_use_stop
+	if (payload.tool_call) {
+		return normalizeToolCalls([payload.tool_call]);
+	}
+	return undefined;
+}
+
 function normalizeChatResponse(
 	payload: unknown,
 	requestId?: string,
 ): ChatCompletionResponse {
 	// biome-ignore lint/suspicious/noExplicitAny: payload is untyped json
 	const p = payload as any;
-	return {
+	const response: ChatCompletionResponse = {
 		id: p?.id,
 		provider: normalizeProvider(p?.provider),
 		content: Array.isArray(p?.content)
@@ -491,6 +570,21 @@ function normalizeChatResponse(
 		usage: normalizeUsage(p?.usage),
 		requestId,
 	};
+	if (p?.tool_calls?.length) {
+		response.toolCalls = normalizeToolCalls(p.tool_calls);
+	}
+	return response;
+}
+
+// biome-ignore lint/suspicious/noExplicitAny: payload is untyped json
+function normalizeToolCalls(toolCalls: any[]): ToolCall[] {
+	return toolCalls.map((tc) => ({
+		id: tc.id,
+		type: tc.type || ToolTypes.Function,
+		function: tc.function
+			? { name: tc.function.name, arguments: tc.function.arguments }
+			: undefined,
+	}));
 }
 
 function normalizeUsage(payload?: APIChatUsage): Usage {
@@ -523,16 +617,81 @@ function buildProxyBody(
 	if (metadata && Object.keys(metadata).length > 0) body.metadata = metadata;
 	if (params.stop?.length) body.stop = params.stop;
 	if (params.stopSequences?.length) body.stop_sequences = params.stopSequences;
+	if (params.tools?.length) body.tools = normalizeTools(params.tools);
+	if (params.toolChoice) body.tool_choice = normalizeToolChoice(params.toolChoice);
 	return body;
 }
 
-function normalizeMessages(
-	messages: ChatMessage[],
-): Array<{ role: string; content: string }> {
-	return messages.map((msg) => ({
-		role: msg.role || "user",
-		content: msg.content,
-	}));
+interface NormalizedMessage {
+	role: string;
+	content: string;
+	tool_calls?: Array<{
+		id: string;
+		type: string;
+		function?: { name: string; arguments: string };
+	}>;
+	tool_call_id?: string;
+}
+
+function normalizeMessages(messages: ChatMessage[]): NormalizedMessage[] {
+	return messages.map((msg) => {
+		const normalized: NormalizedMessage = {
+			role: msg.role || "user",
+			content: msg.content,
+		};
+		if (msg.toolCalls?.length) {
+			normalized.tool_calls = msg.toolCalls.map((tc) => ({
+				id: tc.id,
+				type: tc.type,
+				function: tc.function
+					? { name: tc.function.name, arguments: tc.function.arguments }
+					: undefined,
+			}));
+		}
+		if (msg.toolCallId) {
+			normalized.tool_call_id = msg.toolCallId;
+		}
+		return normalized;
+	});
+}
+
+function normalizeTools(tools: Tool[]): Array<Record<string, unknown>> {
+	return tools.map((tool) => {
+		const normalized: Record<string, unknown> = { type: tool.type };
+		if (tool.function) {
+			normalized.function = {
+				name: tool.function.name,
+				description: tool.function.description,
+				parameters: tool.function.parameters,
+			};
+		}
+		if (tool.webSearch) {
+			normalized.web_search = {
+				allowed_domains: tool.webSearch.allowedDomains,
+				excluded_domains: tool.webSearch.excludedDomains,
+				max_uses: tool.webSearch.maxUses,
+			};
+		}
+		if (tool.xSearch) {
+			normalized.x_search = {
+				allowed_handles: tool.xSearch.allowedHandles,
+				excluded_handles: tool.xSearch.excludedHandles,
+				from_date: tool.xSearch.fromDate,
+				to_date: tool.xSearch.toDate,
+			};
+		}
+		if (tool.codeExecution) {
+			normalized.code_execution = {
+				language: tool.codeExecution.language,
+				timeout_ms: tool.codeExecution.timeoutMs,
+			};
+		}
+		return normalized;
+	});
+}
+
+function normalizeToolChoice(tc: ToolChoice): Record<string, unknown> {
+	return { type: tc.type };
 }
 
 function requestIdFromHeaders(headers: Headers): string | undefined {
