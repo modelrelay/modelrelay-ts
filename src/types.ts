@@ -55,7 +55,112 @@ export const Models = {
 export type KnownModel = (typeof Models)[keyof typeof Models];
 export type ModelId = KnownModel | { other: string } | string;
 
-export interface ModelRelayOptions {
+/**
+ * Common configuration options for the ModelRelay client.
+ */
+export interface ModelRelayBaseOptions {
+	/**
+	 * Optional environment preset; overridden by `baseUrl` when provided.
+	 */
+	environment?: Environment;
+	baseUrl?: string;
+	fetch?: typeof fetch;
+	/**
+	 * Default customer metadata used when exchanging publishable keys for frontend tokens.
+	 */
+	customer?: FrontendCustomer;
+	/**
+	 * Optional client header override for telemetry.
+	 */
+	clientHeader?: string;
+	/**
+	 * Default connect timeout in milliseconds (applies to each attempt).
+	 */
+	connectTimeoutMs?: number;
+	/**
+	 * Default request timeout in milliseconds (non-streaming). Set to 0 to disable.
+	 */
+	timeoutMs?: number;
+	/**
+	 * Retry configuration applied to all requests (can be overridden per call). Set to `false` to disable retries.
+	 */
+	retry?: RetryConfig | false;
+	/**
+	 * Default HTTP headers applied to every request.
+	 */
+	defaultHeaders?: Record<string, string>;
+	/**
+	 * Default metadata merged into every chat completion request.
+	 */
+	defaultMetadata?: Record<string, string>;
+	/**
+	 * Optional metrics callbacks for latency/usage.
+	 */
+	metrics?: MetricsCallbacks;
+	/**
+	 * Optional trace/log hooks for request + stream lifecycle.
+	 */
+	trace?: TraceCallbacks;
+}
+
+/**
+ * Configuration options requiring an API key.
+ */
+export interface ModelRelayKeyOptions extends ModelRelayBaseOptions {
+	/**
+	 * API key (secret or publishable). Required.
+	 * - Secret keys (`mr_sk_...`) are for server-side API calls.
+	 * - Publishable keys (`mr_pk_...`) are for frontend token exchange.
+	 */
+	key: string;
+	/**
+	 * Optional bearer token (takes precedence over key for requests when provided).
+	 */
+	token?: string;
+}
+
+/**
+ * Configuration options requiring an access token.
+ */
+export interface ModelRelayTokenOptions extends ModelRelayBaseOptions {
+	/**
+	 * Optional API key.
+	 */
+	key?: string;
+	/**
+	 * Bearer token to call the API directly (server or frontend token). Required.
+	 */
+	token: string;
+}
+
+/**
+ * ModelRelay client configuration.
+ *
+ * You must provide at least one of `key` or `token` for authentication.
+ * This is enforced at compile time through discriminated union types.
+ *
+ * @example With API key (server-side)
+ * ```typescript
+ * const client = new ModelRelay({ key: "mr_sk_..." });
+ * ```
+ *
+ * @example With access token (frontend or after token exchange)
+ * ```typescript
+ * const client = new ModelRelay({ token: frontendToken });
+ * ```
+ *
+ * @example With publishable key (frontend token exchange)
+ * ```typescript
+ * const client = new ModelRelay({ key: "mr_pk_...", customer: { id: "user123" } });
+ * ```
+ */
+export type ModelRelayOptions = ModelRelayKeyOptions | ModelRelayTokenOptions;
+
+/**
+ * @deprecated Use ModelRelayOptions instead. This type allows empty configuration
+ * which will fail at runtime.
+ */
+export interface ModelRelayOptionsLegacy {
 	/**
 	 * API key (secret or publishable). Publishable keys are required for frontend token exchange.
 	 */
