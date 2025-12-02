@@ -2,8 +2,6 @@ import pkg from "../package.json";
 
 export const SDK_VERSION = pkg.version || "0.0.0";
 export const DEFAULT_BASE_URL = "https://api.modelrelay.ai/api/v1";
-export const STAGING_BASE_URL = "https://api-stg.modelrelay.ai/api/v1";
-export const SANDBOX_BASE_URL = "https://api.sandbox.modelrelay.ai/api/v1";
 export const DEFAULT_CLIENT_HEADER = `modelrelay-ts/${SDK_VERSION}`;
 export const DEFAULT_CONNECT_TIMEOUT_MS = 5_000;
 export const DEFAULT_REQUEST_TIMEOUT_MS = 60_000;
@@ -60,9 +58,8 @@ export type ModelId = KnownModel | { other: string } | string;
  */
 export interface ModelRelayBaseOptions {
 	/**
-	 * Optional environment preset; overridden by `baseUrl` when provided.
+	 * Optional base URL override. Defaults to production API.
 	 */
-	environment?: Environment;
 	baseUrl?: string;
 	fetch?: typeof fetch;
 	/**
@@ -170,9 +167,8 @@ export interface ModelRelayOptionsLegacy {
 	 */
 	token?: string;
 	/**
-	 * Optional environment preset; overridden by `baseUrl` when provided.
+	 * Optional base URL override. Defaults to production API.
 	 */
-	environment?: Environment;
 	baseUrl?: string;
 	fetch?: typeof fetch;
 	/**
@@ -212,8 +208,6 @@ export interface ModelRelayOptionsLegacy {
 	 */
 	trace?: TraceCallbacks;
 }
-
-export type Environment = "production" | "staging" | "sandbox";
 
 export interface FrontendCustomer {
 	id: string;

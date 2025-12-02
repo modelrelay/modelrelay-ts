@@ -8,9 +8,6 @@ import {
 	DEFAULT_BASE_URL,
 	DEFAULT_CLIENT_HEADER,
 	type ModelRelayOptions,
-	Environment,
-	STAGING_BASE_URL,
-	SANDBOX_BASE_URL,
 } from "./types";
 
 export class ModelRelay {
@@ -25,7 +22,7 @@ export class ModelRelay {
 		if (!cfg.key && !cfg.token) {
 			throw new ConfigError("Provide an API key or access token");
 		}
-		this.baseUrl = resolveBaseUrl(cfg.environment, cfg.baseUrl);
+		this.baseUrl = resolveBaseUrl(cfg.baseUrl);
 		const http = new HTTPClient({
 			baseUrl: this.baseUrl,
 			apiKey: cfg.key,
@@ -36,7 +33,6 @@ export class ModelRelay {
 			timeoutMs: cfg.timeoutMs,
 			retry: cfg.retry,
 			defaultHeaders: cfg.defaultHeaders,
-			environment: cfg.environment,
 			metrics: cfg.metrics,
 			trace: cfg.trace,
 		});
@@ -86,13 +82,7 @@ export type { Tier, PriceInterval } from "./tiers";
 export * from "./types";
 export * from "./errors";
 
-function resolveBaseUrl(env?: Environment, override?: string): string {
-	const base =
-		override ||
-		(env === "staging"
-			? STAGING_BASE_URL
-			: env === "sandbox"
-				? SANDBOX_BASE_URL
-				: DEFAULT_BASE_URL);
+function resolveBaseUrl(override?: string): string {
+	const base = override || DEFAULT_BASE_URL;
 	return base.replace(/\/+$/, "");
 }

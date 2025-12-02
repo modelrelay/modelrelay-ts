@@ -10,7 +10,6 @@ import {
 	DEFAULT_CLIENT_HEADER,
 	DEFAULT_CONNECT_TIMEOUT_MS,
 	DEFAULT_REQUEST_TIMEOUT_MS,
-	Environment,
 	RetryConfig,
 	RetryMetadata,
 	TransportErrorKind,
@@ -19,8 +18,6 @@ import {
 	RequestContext,
 	mergeMetrics,
 	mergeTrace,
-	STAGING_BASE_URL,
-	SANDBOX_BASE_URL,
 } from "./types";
 
 export interface RequestOptions {
@@ -96,14 +93,10 @@ export class HTTPClient {
 		timeoutMs?: number;
 		retry?: RetryConfig | false;
 		defaultHeaders?: Record<string, string>;
-		environment?: Environment;
 		metrics?: MetricsCallbacks;
 		trace?: TraceCallbacks;
 	}) {
-		const baseFromEnv = baseUrlForEnvironment(cfg.environment);
-		const resolvedBase = normalizeBaseUrl(
-			cfg.baseUrl || baseFromEnv || DEFAULT_BASE_URL,
-		);
+		const resolvedBase = normalizeBaseUrl(cfg.baseUrl || DEFAULT_BASE_URL);
 		if (!isValidHttpUrl(resolvedBase)) {
 			throw new ConfigError(
 				"baseUrl must start with http:// or https://",
@@ -372,13 +365,6 @@ function normalizeBaseUrl(value: string): string {
 
 function isValidHttpUrl(value: string): boolean {
 	return /^https?:\/\//i.test(value);
-}
-
-function baseUrlForEnvironment(env?: Environment): string | undefined {
-	if (!env || env === "production") return undefined;
-	if (env === "staging") return STAGING_BASE_URL;
-	if (env === "sandbox") return SANDBOX_BASE_URL;
-	return undefined;
 }
 
 function normalizeRetryConfig(
