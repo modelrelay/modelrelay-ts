@@ -1,5 +1,6 @@
 import { AuthClient, isPublishableKey } from "./auth";
 import { ChatClient, ChatCompletionsStream } from "./chat";
+import { CustomersClient } from "./customers";
 import { ConfigError } from "./errors";
 import { HTTPClient } from "./http";
 import {
@@ -14,6 +15,7 @@ import {
 export class ModelRelay {
 	readonly chat: ChatClient;
 	readonly auth: AuthClient;
+	readonly customers: CustomersClient;
 	readonly baseUrl: string;
 
 	constructor(options: ModelRelayOptions) {
@@ -47,6 +49,9 @@ export class ModelRelay {
 			metrics: cfg.metrics,
 			trace: cfg.trace,
 		});
+		this.customers = new CustomersClient(http, {
+			apiKey: cfg.key,
+		});
 	}
 }
 
@@ -55,9 +60,20 @@ export {
 	ChatClient,
 	ChatCompletionsStream,
 	ConfigError,
+	CustomersClient,
 	DEFAULT_BASE_URL,
 	isPublishableKey,
 };
+
+export type {
+	Customer,
+	CustomerCreateRequest,
+	CustomerUpsertRequest,
+	CustomerMetadata,
+	CheckoutSession,
+	CheckoutSessionRequest,
+	SubscriptionStatus,
+} from "./customers";
 
 export * from "./types";
 export * from "./errors";

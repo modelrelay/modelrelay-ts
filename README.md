@@ -126,3 +126,43 @@ await mr.chat.completions.create(
   - Supports streaming (default) or blocking JSON (`stream: false`).
   - Accepts per-call `requestId`, `headers`, `metadata`, `timeoutMs`, and `retry` overrides.
 - `apiKeys.list() | create() | delete(id)` — manage API keys when using secret keys or bearer tokens.
+- `customers` — manage customers with a secret key (see below).
+
+## Backend Customer Management
+
+Use a secret key (`mr_sk_*`) to manage customers from your backend:
+
+```ts
+import { ModelRelay } from "@modelrelay/sdk";
+
+const mr = new ModelRelay({ key: "mr_sk_..." });
+
+// Create or update a customer (upsert by external_id)
+const customer = await mr.customers.upsert({
+  tier_id: "your-tier-uuid",
+  external_id: "github-user-12345",  // your app's user ID
+  email: "user@example.com",
+});
+
+// List all customers
+const customers = await mr.customers.list();
+
+// Get a specific customer
+const customer = await mr.customers.get("customer-uuid");
+
+// Create a checkout session for subscription billing
+const session = await mr.customers.createCheckoutSession("customer-uuid", {
+  success_url: "https://myapp.com/billing/success",
+  cancel_url: "https://myapp.com/billing/cancel",
+});
+// Redirect user to session.url to complete payment
+
+// Check subscription status
+const status = await mr.customers.getSubscription("customer-uuid");
+if (status.active) {
+  // Grant access
+}
+
+// Delete a customer
+await mr.customers.delete("customer-uuid");
+```
