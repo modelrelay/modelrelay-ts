@@ -31,7 +31,6 @@ export const Providers = {
 	OpenAI: "openai",
 	Anthropic: "anthropic",
 	Grok: "grok",
-	OpenRouter: "openrouter",
 	Echo: "echo",
 } as const;
 export type KnownProvider = (typeof Providers)[keyof typeof Providers];
@@ -44,7 +43,7 @@ export const Models = {
 	AnthropicClaude35HaikuLatest: "anthropic/claude-3-5-haiku-latest",
 	AnthropicClaude35SonnetLatest: "anthropic/claude-3-5-sonnet-latest",
 	AnthropicClaudeOpus45: "anthropic/claude-opus-4-5-20251101",
-	OpenRouterClaude35Haiku: "anthropic/claude-3.5-haiku",
+	AnthropicClaude35Haiku: "anthropic/claude-3.5-haiku",
 	Grok2: "grok-2",
 	Grok4_1FastNonReasoning: "grok-4-1-fast-non-reasoning",
 	Grok4_1FastReasoning: "grok-4-1-fast-reasoning",
