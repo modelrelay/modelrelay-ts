@@ -1,6 +1,13 @@
 import { ConfigError } from "./errors";
 import type { HTTPClient } from "./http";
 
+// Simple email validation regex - validates basic email format
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function isValidEmail(email: string): boolean {
+	return EMAIL_REGEX.test(email);
+}
+
 /**
  * Customer metadata as an arbitrary key-value object.
  */
@@ -15,7 +22,7 @@ export interface Customer {
 	tier_id: string;
 	tier_code?: string;
 	external_id: string;
-	email?: string;
+	email: string;
 	metadata?: CustomerMetadata;
 	stripe_customer_id?: string;
 	stripe_subscription_id?: string;
@@ -32,7 +39,7 @@ export interface Customer {
 export interface CustomerCreateRequest {
 	tier_id: string;
 	external_id: string;
-	email?: string;
+	email: string;
 	metadata?: CustomerMetadata;
 }
 
@@ -42,7 +49,7 @@ export interface CustomerCreateRequest {
 export interface CustomerUpsertRequest {
 	tier_id: string;
 	external_id: string;
-	email?: string;
+	email: string;
 	metadata?: CustomerMetadata;
 }
 
@@ -129,6 +136,12 @@ export class CustomersClient {
 		if (!request.external_id?.trim()) {
 			throw new ConfigError("external_id is required");
 		}
+		if (!request.email?.trim()) {
+			throw new ConfigError("email is required");
+		}
+		if (!isValidEmail(request.email)) {
+			throw new ConfigError("invalid email format");
+		}
 		const response = await this.http.json<CustomerResponse>("/customers", {
 			method: "POST",
 			body: request,
@@ -167,6 +180,12 @@ export class CustomersClient {
 		}
 		if (!request.external_id?.trim()) {
 			throw new ConfigError("external_id is required");
+		}
+		if (!request.email?.trim()) {
+			throw new ConfigError("email is required");
+		}
+		if (!isValidEmail(request.email)) {
+			throw new ConfigError("invalid email format");
 		}
 		const response = await this.http.json<CustomerResponse>("/customers", {
 			method: "PUT",
