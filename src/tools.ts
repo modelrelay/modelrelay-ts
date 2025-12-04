@@ -4,11 +4,64 @@ import type {
 	ToolChoice,
 	ToolType,
 	FunctionTool,
+	FunctionCall,
 	ChatMessage,
 	ChatCompletionResponse,
 	ToolCallDelta,
 } from "./types";
 import { ToolTypes, ToolChoiceTypes } from "./types";
+
+// ============================================================================
+// Message Factory Functions
+// ============================================================================
+
+/**
+ * Creates a user message.
+ */
+export function createUserMessage(content: string): ChatMessage {
+	return { role: "user", content };
+}
+
+/**
+ * Creates an assistant message.
+ */
+export function createAssistantMessage(content: string): ChatMessage {
+	return { role: "assistant", content };
+}
+
+/**
+ * Creates a system message.
+ */
+export function createSystemMessage(content: string): ChatMessage {
+	return { role: "system", content };
+}
+
+// ============================================================================
+// ToolCall Factory Function
+// ============================================================================
+
+/**
+ * Creates a tool call object.
+ */
+export function createToolCall(
+	id: string,
+	name: string,
+	args: string,
+	type: ToolType = ToolTypes.Function,
+): ToolCall {
+	return {
+		id,
+		type,
+		function: createFunctionCall(name, args),
+	};
+}
+
+/**
+ * Creates a function call object.
+ */
+export function createFunctionCall(name: string, args: string): FunctionCall {
+	return { name, arguments: args };
+}
 
 // ============================================================================
 // Schema Inference Types

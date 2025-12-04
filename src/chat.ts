@@ -29,7 +29,9 @@ import {
 	ToolCall,
 	ToolCallDelta,
 	ToolTypes,
+	createUsage,
 } from "./types";
+import { createToolCall, createFunctionCall } from "./tools";
 
 const REQUEST_ID_HEADER = "X-ModelRelay-Chat-Request-Id";
 
@@ -578,28 +580,24 @@ function normalizeChatResponse(
 
 // biome-ignore lint/suspicious/noExplicitAny: payload is untyped json
 function normalizeToolCalls(toolCalls: any[]): ToolCall[] {
-	return toolCalls.map((tc) => ({
-		id: tc.id,
-		type: tc.type || ToolTypes.Function,
-		function: tc.function
-			? { name: tc.function.name, arguments: tc.function.arguments }
-			: undefined,
-	}));
+	return toolCalls.map((tc) =>
+		createToolCall(
+			tc.id,
+			tc.function?.name ?? "",
+			tc.function?.arguments ?? "",
+			tc.type || ToolTypes.Function,
+		),
+	);
 }
 
 function normalizeUsage(payload?: APIChatUsage): Usage {
 	if (!payload) {
-		return { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
+		return createUsage(0, 0, 0);
 	}
-	const usage = {
-		inputTokens: Number(payload.input_tokens ?? 0),
-		outputTokens: Number(payload.output_tokens ?? 0),
-		totalTokens: Number(payload.total_tokens ?? 0),
-	};
-	if (!usage.totalTokens) {
-		usage.totalTokens = usage.inputTokens + usage.outputTokens;
-	}
-	return usage;
+	const inputTokens = Number(payload.input_tokens ?? 0);
+	const outputTokens = Number(payload.output_tokens ?? 0);
+	const totalTokens = Number(payload.total_tokens ?? 0);
+	return createUsage(inputTokens, outputTokens, totalTokens || undefined);
 }
 
 function buildProxyBody(
@@ -644,7 +642,7 @@ function normalizeMessages(messages: ChatMessage[]): NormalizedMessage[] {
 				id: tc.id,
 				type: tc.type,
 				function: tc.function
-					? { name: tc.function.name, arguments: tc.function.arguments }
+					? createFunctionCall(tc.function.name, tc.function.arguments)
 					: undefined,
 			}));
 		}

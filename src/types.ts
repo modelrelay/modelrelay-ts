@@ -251,6 +251,21 @@ export interface Usage {
 	totalTokens: number;
 }
 
+/**
+ * Creates a Usage object with automatic totalTokens calculation if not provided.
+ */
+export function createUsage(
+	inputTokens: number,
+	outputTokens: number,
+	totalTokens?: number,
+): Usage {
+	return {
+		inputTokens,
+		outputTokens,
+		totalTokens: totalTokens ?? inputTokens + outputTokens,
+	};
+}
+
 export interface UsageSummary {
 	plan: string;
 	planType?: string;

@@ -1,4 +1,4 @@
-import { AuthClient, isPublishableKey } from "./auth";
+import { AuthClient, isPublishableKey, createApiKeyAuth, createAccessTokenAuth } from "./auth";
 import { ChatClient, ChatCompletionsStream } from "./chat";
 import { CustomersClient } from "./customers";
 import { TiersClient } from "./tiers";
@@ -65,7 +65,11 @@ export {
 	TiersClient,
 	DEFAULT_BASE_URL,
 	isPublishableKey,
+	createApiKeyAuth,
+	createAccessTokenAuth,
 };
+
+export type { AuthHeaders } from "./auth";
 
 export type {
 	Customer,
@@ -96,9 +100,15 @@ export {
 	hasToolCalls,
 	firstToolCall,
 	// Message helpers
+	createUserMessage,
+	createAssistantMessage,
+	createSystemMessage,
 	toolResultMessage,
 	respondToToolCall,
 	assistantMessageWithToolCalls,
+	// ToolCall helpers
+	createToolCall,
+	createFunctionCall,
 	// Streaming accumulator
 	ToolCallAccumulator,
 	// Schema inference

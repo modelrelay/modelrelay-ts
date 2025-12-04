@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { ModelRelay } from "../src";
+import { ModelRelay, createUserMessage } from "../src";
 import { ChatCompletionsStream } from "../src/chat";
 import { APIError, ConfigError, TransportError } from "../src/errors";
 
@@ -119,7 +119,7 @@ describe("ModelRelay TypeScript SDK", () => {
 
 		const stream = await client.chat.completions.create({
 			model: "openai/gpt-4o",
-			messages: [{ role: "user", content: "hi" }],
+			messages: [createUserMessage("hi")],
 			requestId: "req-123",
 		});
 
@@ -175,7 +175,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		const resp = await client.chat.completions.create(
 			{
 				model: "echo-1",
-				messages: [{ role: "user", content: "hi" }],
+				messages: [createUserMessage("hi")],
 				metadata: { env: "staging" },
 				stream: false,
 			},
@@ -217,7 +217,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		const resp = await client.chat.completions.create(
 			{
 				model: "echo-1",
-				messages: [{ role: "user", content: "retry" }],
+				messages: [createUserMessage("retry")],
 				stream: false,
 			},
 			{ stream: false },
@@ -259,7 +259,7 @@ describe("ModelRelay TypeScript SDK", () => {
 			{
 				model: { other: "custom/model-x" },
 				provider: { other: "my-provider" },
-				messages: [{ role: "user", content: "hi" }],
+				messages: [createUserMessage("hi")],
 				stream: false,
 			},
 			{ stream: false },
@@ -317,7 +317,7 @@ it("emits metrics and trace hooks for http + streaming", async () => {
 
 	const stream = await client.chat.completions.create({
 		model: "echo-1",
-		messages: [{ role: "user", content: "hi" }],
+		messages: [createUserMessage("hi")],
 	});
 
 	for await (const _ of stream as any as ChatCompletionsStream) {
@@ -365,7 +365,7 @@ it("emits metrics and trace hooks for http + streaming", async () => {
 			client.chat.completions.create(
 				{
 					model: "echo-1",
-					messages: [{ role: "user", content: "cancel" }],
+					messages: [createUserMessage("cancel")],
 					stream: false,
 				},
 				{ stream: false, signal: ac.signal },
@@ -393,7 +393,7 @@ it("emits metrics and trace hooks for http + streaming", async () => {
 			client.chat.completions.create(
 				{
 					model: "echo-1",
-					messages: [{ role: "user", content: "retry me" }],
+					messages: [createUserMessage("retry me")],
 					stream: false,
 				},
 				{ stream: false },
@@ -427,7 +427,7 @@ it("emits metrics and trace hooks for http + streaming", async () => {
 			client.chat.completions.create(
 				{
 					model: "echo-1",
-					messages: [{ role: "user", content: "hello" }],
+					messages: [createUserMessage("hello")],
 					stream: false,
 				},
 				{ stream: false, timeoutMs: 10 },

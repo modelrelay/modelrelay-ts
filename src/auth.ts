@@ -18,6 +18,20 @@ export interface AuthHeaders {
 	accessToken?: string;
 }
 
+/**
+ * Creates AuthHeaders with an API key.
+ */
+export function createApiKeyAuth(apiKey: string): AuthHeaders {
+	return { apiKey };
+}
+
+/**
+ * Creates AuthHeaders with an access token.
+ */
+export function createAccessTokenAuth(accessToken: string): AuthHeaders {
+	return { accessToken };
+}
+
 export class AuthClient {
 	private readonly http: HTTPClient;
 	private readonly apiKey?: string;
@@ -95,7 +109,7 @@ export class AuthClient {
 		overrides?: Partial<FrontendCustomer>,
 	): Promise<AuthHeaders> {
 		if (this.accessToken) {
-			return { accessToken: this.accessToken };
+			return createAccessTokenAuth(this.accessToken);
 		}
 		if (!this.apiKey) {
 			throw new ConfigError("API key or token is required");
@@ -106,9 +120,9 @@ export class AuthClient {
 				deviceId: overrides?.deviceId,
 				ttlSeconds: overrides?.ttlSeconds,
 			});
-			return { accessToken: token.token };
+			return createAccessTokenAuth(token.token);
 		}
-		return { apiKey: this.apiKey };
+		return createApiKeyAuth(this.apiKey);
 	}
 
 	/**
@@ -116,12 +130,12 @@ export class AuthClient {
 	 */
 	authForBilling(): AuthHeaders {
 		if (this.accessToken) {
-			return { accessToken: this.accessToken };
+			return createAccessTokenAuth(this.accessToken);
 		}
 		if (!this.apiKey) {
 			throw new ConfigError("API key or token is required");
 		}
-		return { apiKey: this.apiKey };
+		return createApiKeyAuth(this.apiKey);
 	}
 }
 
