@@ -359,7 +359,10 @@ export interface ToolCall {
 }
 
 export interface ChatCompletionCreateParams {
-	model: ModelId;
+	/**
+	 * Model to use for the request. Optional - if omitted, the tier's default model is used.
+	 */
+	model?: ModelId;
 	messages: NonEmptyArray<ChatMessage>;
 	provider?: ProviderId;
 	maxTokens?: number;

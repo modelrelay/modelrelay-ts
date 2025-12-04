@@ -140,10 +140,8 @@ export class ChatCompletionsClient {
 		const stream = options.stream ?? params.stream ?? true;
 		const metrics = mergeMetrics(this.metrics, options.metrics);
 		const trace = mergeTrace(this.trace, options.trace);
-		const modelValue = modelToString(params.model).trim();
-		if (!modelValue) {
-			throw new ConfigError("model is required");
-		}
+		// Model is optional - server uses tier's default if not provided
+		const modelValue = params.model ? modelToString(params.model).trim() : "";
 		if (!params?.messages?.length) {
 			throw new ConfigError("at least one message is required");
 		}
@@ -604,10 +602,14 @@ function buildProxyBody(
 	params: ChatCompletionCreateParams,
 	metadata?: Record<string, string>,
 ): Record<string, unknown> {
+	const modelValue = params.model ? modelToString(params.model).trim() : "";
 	const body: Record<string, unknown> = {
-		model: modelToString(params.model),
 		messages: normalizeMessages(params.messages),
 	};
+	// Only include model if specified (server uses tier default if omitted)
+	if (modelValue) {
+		body.model = modelValue;
+	}
 	if (typeof params.maxTokens === "number") body.max_tokens = params.maxTokens;
 	if (params.provider) body.provider = providerToString(params.provider);
 	if (typeof params.temperature === "number")
