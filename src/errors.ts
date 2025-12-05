@@ -1,5 +1,25 @@
 import type { FieldError, RetryMetadata, TransportErrorKind } from "./types";
 
+/**
+ * API error codes returned by the server.
+ * These constants can be used for programmatic error handling.
+ */
+export const ErrorCodes = {
+	NOT_FOUND: "NOT_FOUND",
+	VALIDATION_ERROR: "VALIDATION_ERROR",
+	RATE_LIMIT: "RATE_LIMIT",
+	UNAUTHORIZED: "UNAUTHORIZED",
+	FORBIDDEN: "FORBIDDEN",
+	CONFLICT: "CONFLICT",
+	INTERNAL_ERROR: "INTERNAL_ERROR",
+	SERVICE_UNAVAILABLE: "SERVICE_UNAVAILABLE",
+	INVALID_INPUT: "INVALID_INPUT",
+	PAYMENT_REQUIRED: "PAYMENT_REQUIRED",
+	METHOD_NOT_ALLOWED: "METHOD_NOT_ALLOWED",
+} as const;
+
+export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
+
 export type ErrorCategory = "config" | "transport" | "api";
 
 export class ModelRelayError extends Error {
@@ -83,6 +103,39 @@ export class APIError extends ModelRelayError {
 			data: opts.data,
 			retries: opts.retries,
 		});
+	}
+
+	/** Returns true if the error is a not found error. */
+	isNotFound(): boolean {
+		return this.code === ErrorCodes.NOT_FOUND;
+	}
+
+	/** Returns true if the error is a validation error. */
+	isValidation(): boolean {
+		return (
+			this.code === ErrorCodes.VALIDATION_ERROR ||
+			this.code === ErrorCodes.INVALID_INPUT
+		);
+	}
+
+	/** Returns true if the error is a rate limit error. */
+	isRateLimit(): boolean {
+		return this.code === ErrorCodes.RATE_LIMIT;
+	}
+
+	/** Returns true if the error is an unauthorized error. */
+	isUnauthorized(): boolean {
+		return this.code === ErrorCodes.UNAUTHORIZED;
+	}
+
+	/** Returns true if the error is a forbidden error. */
+	isForbidden(): boolean {
+		return this.code === ErrorCodes.FORBIDDEN;
+	}
+
+	/** Returns true if the error is a service unavailable error. */
+	isUnavailable(): boolean {
+		return this.code === ErrorCodes.SERVICE_UNAVAILABLE;
 	}
 }
 
