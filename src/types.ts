@@ -30,7 +30,7 @@ export type StopReason =
 export const Providers = {
 	OpenAI: "openai",
 	Anthropic: "anthropic",
-	Grok: "grok",
+	XAI: "xai",
 	Echo: "echo",
 } as const;
 export type KnownProvider = (typeof Providers)[keyof typeof Providers];
