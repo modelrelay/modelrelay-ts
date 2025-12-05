@@ -13,6 +13,7 @@ import {
 	Usage,
 	ProviderId,
 	ModelId,
+	Models,
 	StopReason,
 	modelToString,
 	providerToString,
@@ -140,14 +141,13 @@ export class ChatCompletionsClient {
 		const stream = options.stream ?? params.stream ?? true;
 		const metrics = mergeMetrics(this.metrics, options.metrics);
 		const trace = mergeTrace(this.trace, options.trace);
-		// Model is optional - server uses tier's default if not provided
-		const modelValue = params.model ? modelToString(params.model).trim() : "";
 		if (!params?.messages?.length) {
 			throw new ConfigError("at least one message is required");
 		}
 		if (!hasUserMessage(params.messages)) {
 			throw new ConfigError("at least one user message is required");
 		}
+		validateRequestModel(params.model);
 
 		const authHeaders = await this.auth.authForChat(params.customerId);
 		const body = buildProxyBody(
@@ -596,6 +596,20 @@ function normalizeUsage(payload?: APIChatUsage): Usage {
 	const outputTokens = Number(payload.output_tokens ?? 0);
 	const totalTokens = Number(payload.total_tokens ?? 0);
 	return createUsage(inputTokens, outputTokens, totalTokens || undefined);
+}
+
+function validateRequestModel(model?: ModelId): void {
+	if (model === undefined || model === null) return;
+	const value = modelToString(model).trim();
+	if (!value) {
+		throw new ConfigError("model id must be a non-empty string when provided");
+	}
+	const knownModels = Object.values(Models) as string[];
+	if (!knownModels.includes(value)) {
+		throw new ConfigError(
+			`unsupported model id "${value}". Use one of the SDK Models.* constants or omit model to use the tier's default model.`,
+		);
+	}
 }
 
 function buildProxyBody(

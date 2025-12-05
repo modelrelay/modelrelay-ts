@@ -37,20 +37,30 @@ export type KnownProvider = (typeof Providers)[keyof typeof Providers];
 export type ProviderId = KnownProvider | { other: string };
 
 export const Models = {
-	OpenAIGpt4o: "openai/gpt-4o",
-	OpenAIGpt4oMini: "openai/gpt-4o-mini",
-	OpenAIGpt51: "openai/gpt-5.1",
-	AnthropicClaude35HaikuLatest: "anthropic/claude-3-5-haiku-latest",
-	AnthropicClaude35SonnetLatest: "anthropic/claude-3-5-sonnet-latest",
-	AnthropicClaudeOpus45: "anthropic/claude-opus-4-5-20251101",
-	AnthropicClaude35Haiku: "anthropic/claude-3.5-haiku",
+	// OpenAI models (provider-agnostic identifiers)
+	Gpt4o: "gpt-4o",
+	Gpt4oMini: "gpt-4o-mini",
+	Gpt51: "gpt-5.1",
+
+	// Anthropic models (provider-agnostic identifiers)
+	Claude35HaikuLatest: "claude-3-5-haiku-latest",
+	Claude35SonnetLatest: "claude-3-5-sonnet-latest",
+	ClaudeOpus45: "claude-opus-4-5",
+	Claude35Haiku: "claude-3.5-haiku",
+
+	// xAI / Grok models
 	Grok2: "grok-2",
 	Grok4_1FastNonReasoning: "grok-4-1-fast-non-reasoning",
 	Grok4_1FastReasoning: "grok-4-1-fast-reasoning",
+
+	// Internal echo model for testing.
 	Echo1: "echo-1",
 } as const;
 export type KnownModel = (typeof Models)[keyof typeof Models];
-export type ModelId = KnownModel | { other: string } | string;
+// ModelId is used for responses; requests must use one of the KnownModel
+// constants. Unknown values are represented as { other: string } when reading
+// from the API.
+export type ModelId = KnownModel | { other: string };
 
 /**
  * Common configuration options for the ModelRelay client.
@@ -362,7 +372,7 @@ export interface ChatCompletionCreateParams {
 	/**
 	 * Model to use for the request. Optional - if omitted, the tier's default model is used.
 	 */
-	model?: ModelId;
+	model?: KnownModel;
 	messages: NonEmptyArray<ChatMessage>;
 	provider?: ProviderId;
 	maxTokens?: number;

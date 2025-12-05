@@ -84,7 +84,7 @@ const stream = await mr.chat.completions.create(
 
 ### Typed models, providers, and stop reasons
 
-- Models and providers use string literal unions with an `Other` escape hatch: pass `{ other: "my-provider" }` or `{ other: "custom/model-x" }` to preserve custom IDs while benefiting from autocomplete on known values (e.g., `Models.OpenAIGpt4o`, `Providers.Anthropic`).
+- Models and providers use string literal unions with an `Other` escape hatch: pass `{ other: "my-provider" }` or `{ other: "custom/model-x" }` to preserve custom IDs while benefiting from autocomplete on known values (e.g., `Models.Gpt4o`, `Providers.Anthropic`).
 - Stop reasons are parsed into the `StopReason` union (e.g., `StopReasons.EndTurn`); unknown values surface as `{ other: "<raw>" }`.
 - Usage backfills `totalTokens` when providers omit it, ensuring consistent accounting.
 

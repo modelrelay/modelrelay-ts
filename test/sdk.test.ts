@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { ModelRelay, createUserMessage } from "../src";
+import { ModelRelay, ConfigError, Models, createUserMessage } from "../src";
 import { ChatCompletionsStream } from "../src/chat";
 import { APIError, ConfigError, TransportError } from "../src/errors";
 
@@ -118,7 +118,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		});
 
 		const stream = await client.chat.completions.create({
-			model: "openai/gpt-4o",
+			model: Models.Gpt4o,
 			messages: [createUserMessage("hi")],
 			requestId: "req-123",
 		});
@@ -233,7 +233,7 @@ describe("ModelRelay TypeScript SDK", () => {
 			if (path.endsWith("/llm/proxy")) {
 				// biome-ignore lint/suspicious/noExplicitAny: init.body is untyped
 				const body = JSON.parse(String(init?.body as any));
-				expect(body.model).toBe("custom/model-x");
+				expect(body.model).toBe("echo-1");
 				expect(body.provider).toBe("my-provider");
 				return new Response(
 					JSON.stringify({
@@ -257,7 +257,7 @@ describe("ModelRelay TypeScript SDK", () => {
 
 		const resp = await client.chat.completions.create(
 			{
-				model: { other: "custom/model-x" },
+				model: Models.Echo1,
 				provider: { other: "my-provider" },
 				messages: [createUserMessage("hi")],
 				stream: false,
@@ -270,6 +270,31 @@ describe("ModelRelay TypeScript SDK", () => {
 	expect(resp.model).toMatchObject({ other: "custom/model-x" });
 	expect(resp.usage.totalTokens).toBe(5);
 });
+
+	it("rejects unsupported model ids before sending a request", async () => {
+		const fetchMock = vi.fn();
+
+		const client = new ModelRelay({
+			key: "mr_sk_invalid_model",
+			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
+			fetch: fetchMock as any,
+		});
+
+		await expect(
+			client.chat.completions.create(
+				{
+					// Force an invalid value past the type system.
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					model: "openai/gpt-4o" as any,
+					messages: [createUserMessage("hi")],
+					stream: false,
+				},
+				{ stream: false },
+			),
+		).rejects.toBeInstanceOf(ConfigError);
+
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
 
 it("emits metrics and trace hooks for http + streaming", async () => {
 	const httpCalls: Array<{ status?: number; path?: string }> = [];
