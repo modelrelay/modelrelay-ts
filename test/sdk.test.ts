@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { ModelRelay, ConfigError, Models, createUserMessage } from "../src";
+import { ModelRelay, createUserMessage } from "../src";
 import { ChatCompletionsStream } from "../src/chat";
 import { APIError, ConfigError, TransportError } from "../src/errors";
 
@@ -91,7 +91,7 @@ describe("ModelRelay TypeScript SDK", () => {
 				return buildSSEResponse([
 					{
 						event: "message_start",
-						data: { response_id: "resp-1", model: "openai/gpt-4o" },
+						data: { response_id: "resp-1", model: "gpt-4o" },
 					},
 					{
 						event: "message_delta",
@@ -118,7 +118,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		});
 
 		const stream = await client.chat.completions.create({
-			model: Models.Gpt4o,
+			model: "gpt-4o",
 			messages: [createUserMessage("hi")],
 			requestId: "req-123",
 		});
@@ -155,7 +155,6 @@ describe("ModelRelay TypeScript SDK", () => {
 				return new Response(
 					JSON.stringify({
 						id: "resp-123",
-						provider: "echo",
 						content: "hi",
 						model: "echo-1",
 						usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
@@ -197,7 +196,6 @@ describe("ModelRelay TypeScript SDK", () => {
 				return new Response(
 					JSON.stringify({
 						id: "retry-1",
-						provider: "echo",
 						content: ["ok"],
 						model: "echo-1",
 						usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
@@ -227,18 +225,16 @@ describe("ModelRelay TypeScript SDK", () => {
 		expect(attempts).toBe(2);
 	});
 
-	it("maps typed stop reasons, models, providers, and computes usage totals", async () => {
+	it("maps stop reasons, models, and computes usage totals", async () => {
 		const fetchMock = vi.fn(async (url, init) => {
 			const path = String(url);
 			if (path.endsWith("/llm/proxy")) {
 				// biome-ignore lint/suspicious/noExplicitAny: init.body is untyped
 				const body = JSON.parse(String(init?.body as any));
-				expect(body.model).toBe("echo-1");
-				expect(body.provider).toBe("my-provider");
+				expect(body.model).toBe("custom/model-x");
 				return new Response(
 					JSON.stringify({
 						id: "resp-typed",
-						provider: "my-provider",
 						content: ["hi"],
 						model: "custom/model-x",
 						stop_reason: "custom_stop",
@@ -257,44 +253,16 @@ describe("ModelRelay TypeScript SDK", () => {
 
 		const resp = await client.chat.completions.create(
 			{
-				model: Models.Echo1,
-				provider: { other: "my-provider" },
+				model: "custom/model-x",
 				messages: [createUserMessage("hi")],
 				stream: false,
 			},
 			{ stream: false },
 		);
-
 	expect(resp.stopReason).toMatchObject({ other: "custom_stop" });
-	expect(resp.provider).toMatchObject({ other: "my-provider" });
-	expect(resp.model).toMatchObject({ other: "custom/model-x" });
+	expect(resp.model).toBe("custom/model-x");
 	expect(resp.usage.totalTokens).toBe(5);
 });
-
-	it("rejects unsupported model ids before sending a request", async () => {
-		const fetchMock = vi.fn();
-
-		const client = new ModelRelay({
-			key: "mr_sk_invalid_model",
-			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
-			fetch: fetchMock as any,
-		});
-
-		await expect(
-			client.chat.completions.create(
-				{
-					// Force an invalid value past the type system.
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					model: "openai/gpt-4o" as any,
-					messages: [createUserMessage("hi")],
-					stream: false,
-				},
-				{ stream: false },
-			),
-		).rejects.toBeInstanceOf(ConfigError);
-
-		expect(fetchMock).not.toHaveBeenCalled();
-	});
 
 it("emits metrics and trace hooks for http + streaming", async () => {
 	const httpCalls: Array<{ status?: number; path?: string }> = [];

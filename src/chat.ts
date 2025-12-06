@@ -11,15 +11,11 @@ import {
 	ChatMessage,
 	RetryConfig,
 	Usage,
-	ProviderId,
 	ModelId,
-	Models,
 	StopReason,
 	modelToString,
-	providerToString,
 	normalizeStopReason,
 	normalizeModelId,
-	normalizeProvider,
 	MetricsCallbacks,
 	TraceCallbacks,
 	mergeMetrics,
@@ -147,7 +143,6 @@ export class ChatCompletionsClient {
 		if (!hasUserMessage(params.messages)) {
 			throw new ConfigError("at least one user message is required");
 		}
-		validateRequestModel(params.model);
 
 		const authHeaders = await this.auth.authForChat(params.customerId);
 		const body = buildProxyBody(
@@ -162,7 +157,6 @@ export class ChatCompletionsClient {
 		const baseContext = {
 			method: "POST",
 			path: "/llm/proxy",
-			provider: params.provider,
 			model: params.model,
 			requestId,
 		};
@@ -480,7 +474,7 @@ function extractTextDelta(payload: any): string | undefined {
 	if (typeof payload.text_delta === "string" && payload.text_delta !== "") {
 		return payload.text_delta;
 	}
-	// Fallback: check legacy/provider-specific formats
+	// Fallback: check legacy formats
 	if (typeof payload.delta === "string") {
 		return payload.delta;
 	}
@@ -559,7 +553,6 @@ function normalizeChatResponse(
 	const p = payload as any;
 	const response: ChatCompletionResponse = {
 		id: p?.id,
-		provider: normalizeProvider(p?.provider),
 		content: Array.isArray(p?.content)
 			? p.content
 			: p?.content
@@ -598,20 +591,6 @@ function normalizeUsage(payload?: APIChatUsage): Usage {
 	return createUsage(inputTokens, outputTokens, totalTokens || undefined);
 }
 
-function validateRequestModel(model?: ModelId): void {
-	if (model === undefined || model === null) return;
-	const value = modelToString(model).trim();
-	if (!value) {
-		throw new ConfigError("model id must be a non-empty string when provided");
-	}
-	const knownModels = Object.values(Models) as string[];
-	if (!knownModels.includes(value)) {
-		throw new ConfigError(
-			`unsupported model id "${value}". Use one of the SDK Models.* constants or omit model to use the tier's default model.`,
-		);
-	}
-}
-
 function buildProxyBody(
 	params: ChatCompletionCreateParams,
 	metadata?: Record<string, string>,
@@ -625,7 +604,6 @@ function buildProxyBody(
 		body.model = modelValue;
 	}
 	if (typeof params.maxTokens === "number") body.max_tokens = params.maxTokens;
-	if (params.provider) body.provider = providerToString(params.provider);
 	if (typeof params.temperature === "number")
 		body.temperature = params.temperature;
 	if (metadata && Object.keys(metadata).length > 0) body.metadata = metadata;

@@ -27,41 +27,8 @@ export type StopReason =
 	| KnownStopReason
 	| { other: string };
 
-export const Providers = {
-	OpenAI: "openai",
-	Anthropic: "anthropic",
-	XAI: "xai",
-	GoogleAIStudio: "google-ai-studio",
-	Echo: "echo",
-} as const;
-export type KnownProvider = (typeof Providers)[keyof typeof Providers];
-export type ProviderId = KnownProvider | { other: string };
-
-export const Models = {
-	// OpenAI models (provider-agnostic identifiers)
-	Gpt4o: "gpt-4o",
-	Gpt4oMini: "gpt-4o-mini",
-	Gpt51: "gpt-5.1",
-
-	// Anthropic models (provider-agnostic identifiers)
-	Claude35HaikuLatest: "claude-3-5-haiku-latest",
-	Claude35SonnetLatest: "claude-3-5-sonnet-latest",
-	ClaudeOpus45: "claude-opus-4-5",
-	Claude35Haiku: "claude-3.5-haiku",
-
-	// xAI / Grok models
-	Grok2: "grok-2",
-	Grok4_1FastNonReasoning: "grok-4-1-fast-non-reasoning",
-	Grok4_1FastReasoning: "grok-4-1-fast-reasoning",
-
-	// Internal echo model for testing.
-	Echo1: "echo-1",
-} as const;
-export type KnownModel = (typeof Models)[keyof typeof Models];
-// ModelId is used for responses; requests must use one of the KnownModel
-// constants. Unknown values are represented as { other: string } when reading
-// from the API.
-export type ModelId = KnownModel | { other: string };
+export type ProviderId = string;
+export type ModelId = string;
 
 /**
  * Common configuration options for the ModelRelay client.
@@ -309,7 +276,7 @@ export interface ChatMessage {
 
 export const ToolTypes = {
 	Function: "function",
-	Web: "web",
+	WebSearch: "web_search",
 	XSearch: "x_search",
 	CodeExecution: "code_execution",
 } as const;
@@ -321,17 +288,10 @@ export interface FunctionTool {
 	parameters?: Record<string, unknown>;
 }
 
-export type WebToolMode =
-	| "auto"
-	| "search_only"
-	| "fetch_only"
-	| "search_and_fetch";
-
-export interface WebToolConfig {
+export interface WebSearchConfig {
 	allowedDomains?: string[];
 	excludedDomains?: string[];
 	maxUses?: number;
-	mode?: WebToolMode;
 }
 
 export interface XSearchConfig {
@@ -349,7 +309,7 @@ export interface CodeExecConfig {
 export interface Tool {
 	type: ToolType;
 	function?: FunctionTool;
-	web?: WebToolConfig;
+	webSearch?: WebSearchConfig;
 	xSearch?: XSearchConfig;
 	codeExecution?: CodeExecConfig;
 }
@@ -377,12 +337,8 @@ export interface ToolCall {
 }
 
 export interface ChatCompletionCreateParams {
-	/**
-	 * Model to use for the request. Optional - if omitted, the tier's default model is used.
-	 */
-	model?: KnownModel;
+	model: ModelId;
 	messages: NonEmptyArray<ChatMessage>;
-	provider?: ProviderId;
 	maxTokens?: number;
 	temperature?: number;
 	metadata?: Record<string, string>;
@@ -412,7 +368,6 @@ export interface ChatCompletionCreateParams {
 
 export interface ChatCompletionResponse {
 	id: string;
-	provider?: ProviderId;
 	content: string[];
 	stopReason?: StopReason;
 	model?: ModelId;
@@ -444,7 +399,6 @@ export type TransportErrorKind = "timeout" | "connect" | "request" | "other";
 export interface RequestContext {
 	method: string;
 	path: string;
-	provider?: ProviderId;
 	model?: ModelId;
 	requestId?: string;
 	responseId?: string;
@@ -536,41 +490,15 @@ export function stopReasonToString(
 	return value.other?.trim() || undefined;
 }
 
-export function normalizeProvider(
-	value?: unknown,
-): ProviderId | undefined {
-	if (value === undefined || value === null) return undefined;
-	const str = String(value).trim();
-	if (!str) return undefined;
-	const lower = str.toLowerCase();
-	for (const p of Object.values(Providers)) {
-		if (lower === p) return p as KnownProvider;
-	}
-	return { other: str };
-}
-
-export function providerToString(
-	value?: ProviderId,
-): string | undefined {
-	if (!value) return undefined;
-	if (typeof value === "string") return value;
-	return value.other?.trim() || undefined;
-}
-
 export function normalizeModelId(value: unknown): ModelId | undefined {
 	if (value === undefined || value === null) return undefined;
 	const str = String(value).trim();
 	if (!str) return undefined;
-	const lower = str.toLowerCase();
-	for (const m of Object.values(Models)) {
-		if (lower === m) return m as KnownModel;
-	}
-	return { other: str };
+	return str;
 }
 
 export function modelToString(value: ModelId): string {
-	if (typeof value === "string") return value;
-	return value.other?.trim() || "";
+	return String(value).trim();
 }
 
 export type ChatEventType =
@@ -672,7 +600,6 @@ export interface APIChatUsage {
 
 export interface APIChatResponse {
 	id?: string;
-	provider?: string;
 	content?: string | string[];
 	stop_reason?: string;
 	model?: string;
