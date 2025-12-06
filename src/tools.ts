@@ -8,6 +8,7 @@ import type {
 	ChatMessage,
 	ChatCompletionResponse,
 	ToolCallDelta,
+	WebToolMode,
 } from "./types";
 import { ToolTypes, ToolChoiceTypes } from "./types";
 
