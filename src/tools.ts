@@ -445,17 +445,19 @@ export function createFunctionTool(
 }
 
 /**
- * Creates a web search tool with optional domain filters.
+ * Creates a web tool with optional domain filters and mode.
  */
-export function createWebSearchTool(options?: {
+export function createWebTool(options?: {
+	mode?: WebToolMode;
 	allowedDomains?: string[];
 	excludedDomains?: string[];
 	maxUses?: number;
 }): Tool {
 	return {
-		type: ToolTypes.WebSearch,
-		webSearch: options
+		type: ToolTypes.Web,
+		web: options
 			? {
+					mode: options.mode,
 					allowedDomains: options.allowedDomains,
 					excludedDomains: options.excludedDomains,
 					maxUses: options.maxUses,

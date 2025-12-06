@@ -679,12 +679,16 @@ function normalizeTools(tools: Tool[]): Array<Record<string, unknown>> {
 				parameters: tool.function.parameters,
 			};
 		}
-		if (tool.webSearch) {
-			normalized.web_search = {
-				allowed_domains: tool.webSearch.allowedDomains,
-				excluded_domains: tool.webSearch.excludedDomains,
-				max_uses: tool.webSearch.maxUses,
+		if (tool.web) {
+			const web: Record<string, unknown> = {
+				allowed_domains: tool.web.allowedDomains,
+				excluded_domains: tool.web.excludedDomains,
+				max_uses: tool.web.maxUses,
 			};
+			if (tool.web.mode) {
+				web.mode = tool.web.mode;
+			}
+			normalized.web = web;
 		}
 		if (tool.xSearch) {
 			normalized.x_search = {

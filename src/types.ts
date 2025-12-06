@@ -308,7 +308,7 @@ export interface ChatMessage {
 
 export const ToolTypes = {
 	Function: "function",
-	WebSearch: "web_search",
+	Web: "web",
 	XSearch: "x_search",
 	CodeExecution: "code_execution",
 } as const;
@@ -320,10 +320,17 @@ export interface FunctionTool {
 	parameters?: Record<string, unknown>;
 }
 
-export interface WebSearchConfig {
+export type WebToolMode =
+	| "auto"
+	| "search_only"
+	| "fetch_only"
+	| "search_and_fetch";
+
+export interface WebToolConfig {
 	allowedDomains?: string[];
 	excludedDomains?: string[];
 	maxUses?: number;
+	mode?: WebToolMode;
 }
 
 export interface XSearchConfig {
@@ -341,7 +348,7 @@ export interface CodeExecConfig {
 export interface Tool {
 	type: ToolType;
 	function?: FunctionTool;
-	webSearch?: WebSearchConfig;
+	web?: WebToolConfig;
 	xSearch?: XSearchConfig;
 	codeExecution?: CodeExecConfig;
 }

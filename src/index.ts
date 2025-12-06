@@ -91,7 +91,7 @@ export {
 	// Tool creation
 	createFunctionTool,
 	createFunctionToolFromSchema,
-	createWebSearchTool,
+	createWebTool,
 	// Tool choice helpers
 	toolChoiceAuto,
 	toolChoiceRequired,
