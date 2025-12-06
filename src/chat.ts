@@ -143,6 +143,9 @@ export class ChatCompletionsClient {
 		if (!hasUserMessage(params.messages)) {
 			throw new ConfigError("at least one user message is required");
 		}
+		// Model identifiers are treated as opaque strings. The SDK accepts
+		// arbitrary ids and defers validation to the server so new models
+		// can be adopted without requiring an SDK upgrade.
 
 		const authHeaders = await this.auth.authForChat(params.customerId);
 		const body = buildProxyBody(

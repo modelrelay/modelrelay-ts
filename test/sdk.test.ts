@@ -259,10 +259,51 @@ describe("ModelRelay TypeScript SDK", () => {
 			},
 			{ stream: false },
 		);
-	expect(resp.stopReason).toMatchObject({ other: "custom_stop" });
-	expect(resp.model).toBe("custom/model-x");
-	expect(resp.usage.totalTokens).toBe(5);
-});
+		expect(resp.stopReason).toMatchObject({ other: "custom_stop" });
+		expect(resp.model).toBe("custom/model-x");
+		expect(resp.usage.totalTokens).toBe(5);
+	});
+
+	it("allows custom model ids and defers validation to the server", async () => {
+		const fetchMock = vi.fn(async (url, init) => {
+			const path = String(url);
+			if (path.endsWith("/llm/proxy")) {
+				// Echo back a minimal, valid response so the SDK can parse it.
+				return new Response(
+					JSON.stringify({
+						id: "resp-custom-model",
+						provider: "anthropic",
+						model: "openai/gpt-4o",
+						content: ["ok"],
+						stop_reason: "stop",
+						usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
+					}),
+					{ status: 200, headers: { "content-type": "application/json" } },
+				);
+			}
+			return new Response("not found", { status: 404 });
+		});
+
+		const client = new ModelRelay({
+			key: "mr_sk_custom_model",
+			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
+			fetch: fetchMock as any,
+		});
+
+		const resp = await client.chat.completions.create(
+			{
+				// Force a custom value past the type system.
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				model: "openai/gpt-4o" as any,
+				messages: [createUserMessage("hi")],
+				stream: false,
+			},
+			{ stream: false },
+		);
+
+		expect(resp.model).toMatchObject({ other: "openai/gpt-4o" });
+		expect(fetchMock).toHaveBeenCalled();
+	});
 
 it("emits metrics and trace hooks for http + streaming", async () => {
 	const httpCalls: Array<{ status?: number; path?: string }> = [];
