@@ -31,6 +31,7 @@ export const Providers = {
 	OpenAI: "openai",
 	Anthropic: "anthropic",
 	XAI: "xai",
+	GoogleAIStudio: "google-ai-studio",
 	Echo: "echo",
 } as const;
 export type KnownProvider = (typeof Providers)[keyof typeof Providers];
