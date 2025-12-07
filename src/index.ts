@@ -1,5 +1,5 @@
 import { AuthClient, isPublishableKey, createApiKeyAuth, createAccessTokenAuth } from "./auth";
-import { ChatClient, ChatCompletionsStream } from "./chat";
+import { ChatClient, ChatCompletionsStream, StructuredJSONStream } from "./chat";
 import { CustomersClient } from "./customers";
 import { TiersClient } from "./tiers";
 import { ConfigError } from "./errors";
@@ -60,6 +60,7 @@ export {
 	AuthClient,
 	ChatClient,
 	ChatCompletionsStream,
+	StructuredJSONStream,
 	ConfigError,
 	CustomersClient,
 	TiersClient,

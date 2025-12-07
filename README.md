@@ -88,6 +88,82 @@ const stream = await mr.chat.completions.create(
 - Stop reasons are parsed into the `StopReason` union (e.g., `StopReasons.EndTurn`); unknown values surface as `{ other: "<raw>" }`.
 - Usage backfills `totalTokens` when the backend omits it, ensuring consistent accounting.
 
+### Structured outputs (`response_format`)
+
+Request structured JSON instead of free-form text when the backend supports it:
+
+```ts
+import { ModelRelay, type ResponseFormat } from "@modelrelay/sdk";
+
+const mr = new ModelRelay({ key: "mr_sk_..." });
+
+const format: ResponseFormat = {
+  type: "json_schema",
+  json_schema: {
+    name: "summary",
+    schema: {
+      type: "object",
+      properties: { headline: { type: "string" } },
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+};
+
+const completion = await mr.chat.completions.create(
+  {
+    model: "gpt-4o-mini",
+    messages: [{ role: "user", content: "Summarize ModelRelay" }],
+    responseFormat: format,
+    stream: false,
+  },
+  { stream: false },
+);
+
+console.log(completion.content[0]); // JSON string matching your schema
+```
+
+### Structured streaming (NDJSON + response_format)
+
+Use the structured streaming contract for `/llm/proxy` to stream schema-valid
+JSON payloads over NDJSON:
+
+```ts
+type Item = { id: string; label: string };
+type RecommendationPayload = { items: Item[] };
+
+const format: ResponseFormat = {
+  type: "json_schema",
+  json_schema: {
+    name: "recommendations",
+    schema: {
+      type: "object",
+      properties: { items: { type: "array", items: { type: "object" } } },
+    },
+  },
+};
+
+const stream = await mr.chat.completions.streamJSON<RecommendationPayload>({
+  model: "grok-4-1-fast",
+  messages: [{ role: "user", content: "Recommend items for my user" }],
+  responseFormat: format,
+});
+
+for await (const evt of stream) {
+  if (evt.type === "update") {
+    // Progressive UI: evt.payload is a partial but schema-valid payload.
+    renderPartial(evt.payload.items);
+  }
+  if (evt.type === "completion") {
+    renderFinal(evt.payload.items);
+  }
+}
+
+// Prefer a single blocking result but still want structured validation?
+const final = await stream.collect();
+console.log(final.items.length);
+```
+
 ### Telemetry & metrics hooks
 
 Provide lightweight callbacks to observe latency and usage without extra deps:

@@ -336,6 +336,30 @@ export interface ToolCall {
 	function?: FunctionCall;
 }
 
+// --- Structured Outputs (response_format) ---
+
+export const ResponseFormatTypes = {
+	Text: "text",
+	JsonObject: "json_object",
+	JsonSchema: "json_schema",
+} as const;
+
+export type ResponseFormatType =
+	(typeof ResponseFormatTypes)[keyof typeof ResponseFormatTypes];
+
+export interface ResponseJSONSchemaFormat {
+	name: string;
+	description?: string;
+	schema: Record<string, unknown>;
+	strict?: boolean;
+}
+
+export interface ResponseFormat {
+	type: ResponseFormatType;
+	// Use the wire-compatible field name so JSON.stringify matches the API.
+	json_schema?: ResponseJSONSchemaFormat;
+}
+
 export interface ChatCompletionCreateParams {
 	model: ModelId;
 	messages: NonEmptyArray<ChatMessage>;
@@ -356,6 +380,11 @@ export interface ChatCompletionCreateParams {
 	 * When using publishable keys, a customer id is required to mint a frontend token.
 	 */
 	customerId?: string;
+	/**
+	 * Structured outputs configuration. When set with type `json_object` or
+	 * `json_schema`, the backend validates and returns structured JSON.
+	 */
+	responseFormat?: ResponseFormat;
 	/**
 	 * Opt out of SSE streaming and request a blocking JSON response.
 	 */
@@ -562,6 +591,20 @@ export interface ChatCompletionEvent<T = unknown> {
 	usage?: Usage;
 	requestId?: string;
 	raw: string;
+}
+
+// --- Structured streaming (NDJSON) ---
+
+export type StructuredJSONRecordType =
+	| "start"
+	| "update"
+	| "completion"
+	| "error";
+
+export interface StructuredJSONEvent<T> {
+	type: "update" | "completion";
+	payload: T;
+	requestId?: string;
 }
 
 // --- Raw API Response Types ---

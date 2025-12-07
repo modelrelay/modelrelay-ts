@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { ModelRelay, createUserMessage } from "../src";
-import { ChatCompletionsStream } from "../src/chat";
+import { ModelRelay, createUserMessage, type StructuredJSONEvent, type ResponseFormat } from "../src";
+import { ChatCompletionsStream, StructuredJSONStream } from "../src/chat";
 import { APIError, ConfigError, TransportError } from "../src/errors";
 
 const future = new Date(Date.now() + 5 * 60 * 1000).toISOString();
@@ -137,6 +137,272 @@ describe("ModelRelay TypeScript SDK", () => {
 		}
 		expect(events).toEqual(["message_start", "message_delta", "message_stop"]);
 		expect(fetchMock).toHaveBeenCalledTimes(2);
+	});
+
+	it("streams structured JSON over NDJSON", async () => {
+		const fetchMock = vi.fn(async (url, init) => {
+			const path = String(url);
+			if (path.endsWith("/llm/proxy")) {
+				const headers = new Headers(init?.headers as HeadersInit);
+				expect(headers.get("Accept")).toBe("application/x-ndjson");
+				// biome-ignore lint/suspicious/noExplicitAny: init.body is untyped
+				const body = JSON.parse(String(init?.body as any));
+				expect(body.response_format).toBeDefined();
+				const lines = [
+					JSON.stringify({ type: "start", request_id: "items-1" }),
+					JSON.stringify({
+						type: "update",
+						payload: { items: [{ id: "one" }] },
+					}),
+					JSON.stringify({
+						type: "completion",
+						payload: {
+							items: [{ id: "one" }, { id: "two" }],
+						},
+					}),
+				];
+				return buildNDJSONResponse(lines, {
+					"X-ModelRelay-Chat-Request-Id": "req-structured-1",
+				});
+			}
+			throw new Error(`unexpected URL: ${url}`);
+		});
+
+		const client = new ModelRelay({
+			key: "mr_sk_structured",
+			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
+			fetch: fetchMock as any,
+		});
+
+		type ItemPayload = { items: Array<{ id: string }> };
+		const format: ResponseFormat = {
+			type: "json_schema",
+			json_schema: {
+				name: "tiers",
+				schema: { type: "object" },
+			},
+		};
+
+		const stream = await client.chat.completions.streamJSON<ItemPayload>({
+			model: "echo-1",
+			messages: [createUserMessage("hi")],
+			responseFormat: format,
+		});
+
+		expect(stream).toBeInstanceOf(StructuredJSONStream);
+
+		const events: StructuredJSONEvent<ItemPayload>[] = [];
+		for await (const evt of stream) {
+			events.push(evt);
+		}
+		expect(events.map((e) => e.type)).toEqual(["update", "completion"]);
+		expect(events[0]?.payload.items[0]?.id).toBe("one");
+		expect(events[1]?.payload.items[1]?.id).toBe("two");
+	});
+
+	it("validates responseFormat type for structured streaming", async () => {
+		const fetchMock = vi.fn();
+
+		const client = new ModelRelay({
+			key: "mr_sk_structured_type",
+			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
+			fetch: fetchMock as any,
+		});
+
+		const format: ResponseFormat = {
+			type: "text",
+		};
+
+		await expect(
+			client.chat.completions.streamJSON<{ foo: string }>({
+				model: "echo-1",
+				messages: [createUserMessage("hi")],
+				// biome-ignore lint/suspicious/noExplicitAny: forcing invalid type for test
+				responseFormat: format as any,
+			}),
+		).rejects.toBeInstanceOf(ConfigError);
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	it("ignores unknown structured record types and enforces NDJSON content type", async () => {
+		const fetchMock = vi.fn(async (url, init) => {
+			const path = String(url);
+			if (path.endsWith("/llm/proxy")) {
+				const headers = new Headers(init?.headers as HeadersInit);
+				expect(headers.get("Accept")).toBe("application/x-ndjson");
+				const lines = [
+					JSON.stringify({
+						type: "progress",
+						payload: { ignored: true },
+					}),
+					JSON.stringify({
+						type: "update",
+						payload: { items: [{ id: "one" }] },
+					}),
+					JSON.stringify({
+						type: "completion",
+						payload: { items: [{ id: "one" }, { id: "two" }] },
+					}),
+				];
+				return buildNDJSONResponse(lines, {
+					"X-ModelRelay-Chat-Request-Id": "req-unknown",
+				});
+			}
+			throw new Error(`unexpected URL: ${url}`);
+		});
+
+		const client = new ModelRelay({
+			key: "mr_sk_structured_unknown",
+			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
+			fetch: fetchMock as any,
+		});
+
+		type ItemPayload = { items: Array<{ id: string }> };
+		const format: ResponseFormat = {
+			type: "json_object",
+		};
+
+		const stream = await client.chat.completions.streamJSON<ItemPayload>({
+			model: "echo-1",
+			messages: [createUserMessage("hi")],
+			responseFormat: format,
+		});
+
+		const types: Array<StructuredJSONEvent<ItemPayload>["type"]> = [];
+		for await (const evt of stream) {
+			types.push(evt.type);
+		}
+		expect(types).toEqual(["update", "completion"]);
+	});
+
+	it("throws transport error for invalid NDJSON and content-type mismatch", async () => {
+		const fetchMock = vi.fn(async (url, init) => {
+			const path = String(url);
+			if (path.endsWith("/llm/proxy")) {
+				if (fetchMock.mock.calls.length === 1) {
+					// Invalid JSON line
+					return buildNDJSONResponse(["not-json"], {
+						"X-ModelRelay-Chat-Request-Id": "req-invalid-json",
+					});
+				}
+				// Wrong content type
+				const response = buildNDJSONResponse(
+					[
+						JSON.stringify({
+							type: "completion",
+							payload: { items: [] },
+						}),
+					],
+					{},
+				);
+				response.headers.set("Content-Type", "application/json");
+				return response;
+			}
+			throw new Error(`unexpected URL: ${url}`);
+		});
+
+		const client = new ModelRelay({
+			key: "mr_sk_structured_invalid",
+			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
+			fetch: fetchMock as any,
+		});
+
+		type Payload = { items: unknown[] };
+		const format: ResponseFormat = {
+			type: "json_object",
+		};
+
+		// Invalid JSON inside the stream
+		await expect(
+			client.chat.completions
+				.streamJSON<Payload>({
+					model: "echo-1",
+					messages: [createUserMessage("hi")],
+					responseFormat: format,
+				})
+				.then(async (stream) => {
+					for await (const _ of stream) {
+						// consume
+					}
+				}),
+		).rejects.toBeInstanceOf(TransportError);
+
+		// Wrong content-type on the response
+		await expect(
+			client.chat.completions.streamJSON<Payload>({
+				model: "echo-1",
+				messages: [createUserMessage("hi")],
+				responseFormat: format,
+			}),
+		).rejects.toBeInstanceOf(TransportError);
+	});
+	it("surfaces structured stream errors and protocol violations", async () => {
+		let mode: "error" | "incomplete" = "error";
+		const fetchMock = vi.fn(async (url) => {
+			const path = String(url);
+			if (path.endsWith("/llm/proxy")) {
+				if (mode === "error") {
+				const lines = [
+					JSON.stringify({
+						type: "error",
+						code: "SERVICE_UNAVAILABLE",
+						message: "upstream timeout",
+						status: 502,
+					}),
+				];
+					return buildNDJSONResponse(lines, {
+						"X-ModelRelay-Chat-Request-Id": "req-error",
+					});
+				}
+				const lines = [
+					JSON.stringify({
+						type: "update",
+						payload: { items: [{ id: "one" }] },
+					}),
+				];
+				return buildNDJSONResponse(lines, {
+					"X-ModelRelay-Chat-Request-Id": "req-incomplete",
+				});
+			}
+			throw new Error(`unexpected URL: ${url}`);
+		});
+
+		const client = new ModelRelay({
+			key: "mr_sk_structured_errors",
+			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
+			fetch: fetchMock as any,
+		});
+
+		const format: ResponseFormat = {
+			type: "json_object",
+		};
+
+		// Error record should surface as APIError.
+		await expect(
+			client.chat.completions
+				.streamJSON<{ items: unknown[] }>({
+					model: "echo-1",
+					messages: [createUserMessage("hi")],
+					responseFormat: format,
+				})
+				.then(async (stream) => {
+					for await (const _ of stream as any as StructuredJSONStream<unknown>) {
+						// consume
+					}
+				}),
+		).rejects.toBeInstanceOf(APIError);
+
+		// Incomplete stream (no completion/error) is a TransportError.
+		mode = "incomplete";
+		await expect(
+			client.chat.completions
+				.streamJSON<{ items: unknown[] }>({
+					model: "echo-1",
+					messages: [createUserMessage("hi")],
+					responseFormat: format,
+				})
+				.then((stream) => stream.collect()),
+		).rejects.toBeInstanceOf(TransportError);
 	});
 
 	it("applies default client header and merges metadata", async () => {
@@ -301,7 +567,8 @@ describe("ModelRelay TypeScript SDK", () => {
 			{ stream: false },
 		);
 
-		expect(resp.model).toMatchObject({ other: "openai/gpt-4o" });
+		// Models are plain strings; custom ids are preserved as-is.
+		expect(resp.model).toBe("openai/gpt-4o");
 		expect(fetchMock).toHaveBeenCalled();
 	});
 
@@ -502,6 +769,28 @@ function buildSSEResponse(
 		headers: {
 			"Content-Type": "text/event-stream",
 			"X-ModelRelay-Chat-Request-Id": "req-stream-1",
+		},
+	});
+}
+
+function buildNDJSONResponse(
+	lines: string[],
+	headers: Record<string, string> = {},
+): Response {
+	const encoder = new TextEncoder();
+	const stream = new ReadableStream({
+		start(controller) {
+			for (const line of lines) {
+				controller.enqueue(encoder.encode(`${line}\n`));
+			}
+			controller.close();
+		},
+	});
+	return new Response(stream, {
+		status: 200,
+		headers: {
+			"Content-Type": "application/x-ndjson",
+			...headers,
 		},
 	});
 }

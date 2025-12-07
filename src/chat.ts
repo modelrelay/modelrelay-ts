@@ -1,5 +1,5 @@
 import type { AuthClient } from "./auth";
-import { ConfigError, parseErrorResponse } from "./errors";
+import { APIError, ConfigError, TransportError, parseErrorResponse } from "./errors";
 import type { HTTPClient } from "./http";
 import {
 	APIChatResponse,
@@ -27,6 +27,8 @@ import {
 	ToolCallDelta,
 	ToolTypes,
 	createUsage,
+	ResponseFormat,
+	StructuredJSONEvent,
 } from "./types";
 import { createToolCall, createFunctionCall } from "./tools";
 
@@ -210,6 +212,90 @@ export class ChatCompletionsClient {
 			trace,
 		);
 	}
+
+	/**
+	 * Stream structured JSON responses using the NDJSON contract defined for
+	 * /llm/proxy. The request must include a structured responseFormat.
+	 */
+	async streamJSON<T>(
+		params: ChatCompletionCreateParams & { responseFormat: ResponseFormat },
+		options: ChatRequestOptions = {},
+	): Promise<StructuredJSONStream<T>> {
+		const metrics = mergeMetrics(this.metrics, options.metrics);
+		const trace = mergeTrace(this.trace, options.trace);
+		if (!params?.messages?.length) {
+			throw new ConfigError("at least one message is required");
+		}
+		if (!hasUserMessage(params.messages)) {
+			throw new ConfigError("at least one user message is required");
+		}
+		if (
+			!params.responseFormat ||
+			(params.responseFormat.type !== "json_object" &&
+				params.responseFormat.type !== "json_schema")
+		) {
+			throw new ConfigError(
+				"responseFormat with type=json_object or json_schema is required for structured streaming",
+			);
+		}
+
+		const authHeaders = await this.auth.authForChat(params.customerId);
+		const body = buildProxyBody(
+			params,
+			mergeMetadata(this.defaultMetadata, params.metadata, options.metadata),
+		);
+		const requestId = params.requestId || options.requestId;
+		const headers: Record<string, string> = { ...(options.headers || {}) };
+		if (requestId) {
+			headers[REQUEST_ID_HEADER] = requestId;
+		}
+		const baseContext: RequestContext = {
+			method: "POST",
+			path: "/llm/proxy",
+			model: params.model,
+			requestId,
+		};
+		const response = await this.http.request("/llm/proxy", {
+			method: "POST",
+			body,
+			headers,
+			apiKey: authHeaders.apiKey,
+			accessToken: authHeaders.accessToken,
+			accept: "application/x-ndjson",
+			raw: true,
+			signal: options.signal,
+			timeoutMs: options.timeoutMs ?? 0,
+			useDefaultTimeout: false,
+			connectTimeoutMs: options.connectTimeoutMs,
+			retry: options.retry,
+			metrics,
+			trace,
+			context: baseContext,
+		});
+		const resolvedRequestId =
+			requestIdFromHeaders(response.headers) || requestId || undefined;
+		if (!response.ok) {
+			throw await parseErrorResponse(response);
+		}
+		const contentType = response.headers.get("Content-Type") || "";
+		if (!/application\/(x-)?ndjson/i.test(contentType)) {
+			throw new TransportError(
+				`expected NDJSON structured stream, got Content-Type ${contentType || "missing"}`,
+				{ kind: "request" },
+			);
+		}
+		const streamContext: RequestContext = {
+			...baseContext,
+			requestId: resolvedRequestId ?? baseContext.requestId,
+		};
+		return new StructuredJSONStream<T>(
+			response,
+			resolvedRequestId,
+			streamContext,
+			metrics,
+			trace,
+		);
+	}
 }
 
 export class ChatCompletionsStream
@@ -337,11 +423,201 @@ export class ChatCompletionsStream
 		if (!this.metrics?.streamFirstToken || this.firstTokenEmitted) return;
 		this.firstTokenEmitted = true;
 		const latencyMs = this.startedAt ? Date.now() - this.startedAt : 0;
-		this.metrics.streamFirstToken({
-			latencyMs,
-			error: error ? String(error) : undefined,
-			context: this.context,
-		});
+			this.metrics.streamFirstToken({
+				latencyMs,
+				error: error ? String(error) : undefined,
+				context: this.context,
+			});
+	}
+}
+
+export class StructuredJSONStream<T>
+	implements AsyncIterable<StructuredJSONEvent<T>>
+{
+	private readonly response: Response;
+	private readonly requestId?: string;
+	private context: RequestContext;
+	private readonly metrics?: MetricsCallbacks;
+	private readonly trace?: TraceCallbacks;
+	private closed = false;
+	private sawTerminal = false;
+
+	constructor(
+		response: Response,
+		requestId: string | undefined,
+		context: RequestContext,
+		metrics?: MetricsCallbacks,
+		trace?: TraceCallbacks,
+	) {
+		if (!response.body) {
+			throw new ConfigError("streaming response is missing a body");
+		}
+		this.response = response;
+		this.requestId = requestId;
+		this.context = context;
+		this.metrics = metrics;
+		this.trace = trace;
+	}
+
+	async cancel(reason?: unknown): Promise<void> {
+		this.closed = true;
+		try {
+			await this.response.body?.cancel(reason);
+		} catch {
+			// ignore cancellation errors
+		}
+	}
+
+	async *[Symbol.asyncIterator](): AsyncIterator<StructuredJSONEvent<T>> {
+		if (this.closed) {
+			return;
+		}
+		const body = this.response.body;
+		if (!body) {
+			throw new ConfigError("streaming response is missing a body");
+		}
+		const reader = body.getReader();
+		const decoder = new TextDecoder();
+		let buffer = "";
+
+		try {
+			while (true) {
+				if (this.closed) {
+					await reader.cancel();
+					return;
+				}
+				const { value, done } = await reader.read();
+				if (done) {
+					const { records } = consumeNDJSONBuffer(buffer, true);
+					for (const line of records) {
+						const evt = this.parseRecord(line);
+						if (evt) {
+							this.traceStructuredEvent(evt, line);
+							yield evt;
+						}
+					}
+					if (!this.sawTerminal) {
+						throw new TransportError(
+							"structured stream ended without completion or error",
+							{ kind: "request" },
+						);
+					}
+					return;
+				}
+				buffer += decoder.decode(value, { stream: true });
+				const { records, remainder } = consumeNDJSONBuffer(buffer);
+				buffer = remainder;
+				for (const line of records) {
+					const evt = this.parseRecord(line);
+					if (evt) {
+						this.traceStructuredEvent(evt, line);
+						yield evt;
+					}
+				}
+			}
+		} catch (err) {
+			this.trace?.streamError?.({ context: this.context, error: err });
+			throw err;
+		} finally {
+			this.closed = true;
+			reader.releaseLock();
+		}
+	}
+
+	async collect(): Promise<T> {
+		let last: StructuredJSONEvent<T> | undefined;
+		for await (const evt of this) {
+			last = evt;
+			if (evt.type === "completion") {
+				return evt.payload;
+			}
+		}
+		throw new TransportError(
+			"structured stream ended without completion or error",
+			{ kind: "request" },
+		);
+	}
+
+	private parseRecord(line: string): StructuredJSONEvent<T> | null {
+		let parsed: unknown;
+		try {
+			parsed = JSON.parse(line);
+		} catch (err) {
+			throw new TransportError("invalid JSON in structured stream", {
+				kind: "request",
+				cause: err,
+			});
+		}
+		if (!parsed || typeof parsed !== "object") {
+			throw new TransportError("structured stream record is not an object", {
+				kind: "request",
+			});
+		}
+		// biome-ignore lint/suspicious/noExplicitAny: parsed is untyped json
+		const obj = parsed as any;
+		const rawType = String(obj.type || "").trim().toLowerCase();
+		if (!rawType) return null;
+
+		if (rawType === "start") {
+			return null;
+		}
+		if (rawType === "error") {
+			this.sawTerminal = true;
+			const status =
+				typeof obj.status === "number" && obj.status > 0 ? obj.status : 500;
+			const message =
+				typeof obj.message === "string" && obj.message.trim()
+					? obj.message
+					: "structured stream error";
+			const code =
+				typeof obj.code === "string" && obj.code.trim()
+					? obj.code
+					: undefined;
+			throw new APIError(message, {
+				status,
+				code,
+				requestId: this.requestId,
+			});
+		}
+		if (rawType !== "update" && rawType !== "completion") {
+			// Unknown record types are ignored for forward compatibility.
+			return null;
+		}
+		if (obj.payload === undefined || obj.payload === null) {
+			throw new TransportError(
+				"structured stream record missing payload",
+				{ kind: "request" },
+			);
+		}
+		if (rawType === "completion") {
+			this.sawTerminal = true;
+		}
+		const event: StructuredJSONEvent<T> = {
+			type: rawType,
+			// biome-ignore lint/suspicious/noExplicitAny: payload is untyped json
+			payload: obj.payload as T,
+			requestId: this.requestId,
+		};
+		return event;
+	}
+
+	private traceStructuredEvent(evt: StructuredJSONEvent<T>, raw: string): void {
+		if (!this.trace?.streamEvent) return;
+		const event: ChatCompletionEvent = {
+			type: "custom",
+			event: "structured",
+			data: { type: evt.type, payload: evt.payload } as unknown,
+			textDelta: undefined,
+			toolCallDelta: undefined,
+			toolCalls: undefined,
+			responseId: undefined,
+			model: undefined,
+			stopReason: undefined,
+			usage: undefined,
+			requestId: this.requestId,
+			raw,
+		};
+		this.trace.streamEvent({ context: this.context, event });
 	}
 }
 
@@ -399,6 +675,25 @@ function consumeSSEBuffer(
 	}
 
 	return { events, remainder };
+}
+
+function consumeNDJSONBuffer(
+	buffer: string,
+	flush = false,
+): { records: string[]; remainder: string } {
+	const lines = buffer.split(/\r?\n/);
+	const records: string[] = [];
+	const lastIndex = lines.length - 1;
+	const limit = flush ? lines.length : Math.max(0, lastIndex);
+
+	for (let i = 0; i < limit; i++) {
+		const line = lines[i]?.trim();
+		if (!line) continue;
+		records.push(line);
+	}
+
+	const remainder = flush ? "" : lines[lastIndex] ?? "";
+	return { records, remainder };
 }
 
 function mapChatEvent(
@@ -614,6 +909,7 @@ function buildProxyBody(
 	if (params.stopSequences?.length) body.stop_sequences = params.stopSequences;
 	if (params.tools?.length) body.tools = normalizeTools(params.tools);
 	if (params.toolChoice) body.tool_choice = normalizeToolChoice(params.toolChoice);
+	if (params.responseFormat) body.response_format = params.responseFormat;
 	return body;
 }
 
