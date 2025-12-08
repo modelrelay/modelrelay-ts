@@ -54,6 +54,16 @@ export interface CustomerUpsertRequest {
 }
 
 /**
+ * Request to claim a customer by email, setting their external_id.
+ * Used when a customer subscribes via Stripe Checkout (email only) and later
+ * authenticates to the app, needing to link their identity.
+ */
+export interface CustomerClaimRequest {
+	email: string;
+	external_id: string;
+}
+
+/**
  * Request to create a checkout session.
  */
 export interface CheckoutSessionRequest {
@@ -189,6 +199,33 @@ export class CustomersClient {
 		}
 		const response = await this.http.json<CustomerResponse>("/customers", {
 			method: "PUT",
+			body: request,
+			apiKey: this.apiKey,
+		});
+		return response.customer;
+	}
+
+	/**
+	 * Claim a customer by email, setting their external_id.
+	 * Used when a customer subscribes via Stripe Checkout (email only) and later
+	 * authenticates to the app, needing to link their identity.
+	 *
+	 * @throws {APIError} with status 404 if customer not found by email
+	 * @throws {APIError} with status 409 if customer already claimed or external_id in use
+	 */
+	async claim(request: CustomerClaimRequest): Promise<Customer> {
+		this.ensureSecretKey();
+		if (!request.email?.trim()) {
+			throw new ConfigError("email is required");
+		}
+		if (!isValidEmail(request.email)) {
+			throw new ConfigError("invalid email format");
+		}
+		if (!request.external_id?.trim()) {
+			throw new ConfigError("external_id is required");
+		}
+		const response = await this.http.json<CustomerResponse>("/customers/claim", {
+			method: "POST",
 			body: request,
 			apiKey: this.apiKey,
 		});

@@ -76,6 +76,7 @@ export type {
 	Customer,
 	CustomerCreateRequest,
 	CustomerUpsertRequest,
+	CustomerClaimRequest,
 	CustomerMetadata,
 	CheckoutSession,
 	CheckoutSessionRequest,
