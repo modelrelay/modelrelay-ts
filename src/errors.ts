@@ -16,6 +16,10 @@ export const ErrorCodes = {
 	INVALID_INPUT: "INVALID_INPUT",
 	PAYMENT_REQUIRED: "PAYMENT_REQUIRED",
 	METHOD_NOT_ALLOWED: "METHOD_NOT_ALLOWED",
+	/** No tiers configured for the project - create a tier first. */
+	NO_TIERS: "NO_TIERS",
+	/** No free tier available for auto-provisioning - create a free tier or use checkout flow. */
+	NO_FREE_TIER: "NO_FREE_TIER",
 } as const;
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
@@ -136,6 +140,32 @@ export class APIError extends ModelRelayError {
 	/** Returns true if the error is a service unavailable error. */
 	isUnavailable(): boolean {
 		return this.code === ErrorCodes.SERVICE_UNAVAILABLE;
+	}
+
+	/**
+	 * Returns true if the error indicates no tiers are configured.
+	 * To resolve: create at least one tier in your project dashboard.
+	 */
+	isNoTiers(): boolean {
+		return this.code === ErrorCodes.NO_TIERS;
+	}
+
+	/**
+	 * Returns true if the error indicates no free tier is available for auto-provisioning.
+	 * To resolve: either create a free tier for automatic customer creation,
+	 * or use the checkout flow to create paying customers first.
+	 */
+	isNoFreeTier(): boolean {
+		return this.code === ErrorCodes.NO_FREE_TIER;
+	}
+
+	/**
+	 * Returns true if this is a customer provisioning error (NO_TIERS or NO_FREE_TIER).
+	 * These errors occur when calling frontendToken() with a customer that doesn't exist
+	 * and automatic provisioning cannot complete.
+	 */
+	isProvisioningError(): boolean {
+		return this.isNoTiers() || this.isNoFreeTier();
 	}
 }
 
