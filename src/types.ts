@@ -276,11 +276,18 @@ export interface ChatMessage {
 
 export const ToolTypes = {
 	Function: "function",
+	Web: "web",
 	WebSearch: "web_search",
 	XSearch: "x_search",
 	CodeExecution: "code_execution",
 } as const;
 export type ToolType = (typeof ToolTypes)[keyof typeof ToolTypes];
+
+export const WebToolModes = {
+	Search: "search",
+	Browse: "browse",
+} as const;
+export type WebToolMode = (typeof WebToolModes)[keyof typeof WebToolModes];
 
 export interface FunctionTool {
 	name: string;
@@ -292,6 +299,7 @@ export interface WebSearchConfig {
 	allowedDomains?: string[];
 	excludedDomains?: string[];
 	maxUses?: number;
+	mode?: string;
 }
 
 export interface XSearchConfig {
@@ -310,6 +318,8 @@ export interface Tool {
 	type: ToolType;
 	function?: FunctionTool;
 	webSearch?: WebSearchConfig;
+	/** Alias for webSearch - used in API normalization */
+	web?: WebSearchConfig;
 	xSearch?: XSearchConfig;
 	codeExecution?: CodeExecConfig;
 }
