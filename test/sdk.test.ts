@@ -29,8 +29,9 @@ describe("ModelRelay TypeScript SDK", () => {
 			fetch: fetchMock as any,
 		});
 
-		const first = await client.auth.frontendToken();
-		const second = await client.auth.frontendToken();
+		const req = { publishableKey: "mr_pk_test_123", customerId: "cust-1" };
+		const first = await client.auth.frontendToken(req);
+		const second = await client.auth.frontendToken(req);
 
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 		expect(first).toBe(second);
@@ -61,8 +62,8 @@ describe("ModelRelay TypeScript SDK", () => {
 			fetch: fetchMock as any,
 		});
 
-		const first = await client.auth.frontendToken({ deviceId: "device-a" });
-		const second = await client.auth.frontendToken({ deviceId: "device-b" });
+		const first = await client.auth.frontendToken({ publishableKey: "mr_pk_test_device", customerId: "cust-1", deviceId: "device-a" });
+		const second = await client.auth.frontendToken({ publishableKey: "mr_pk_test_device", customerId: "cust-1", deviceId: "device-b" });
 
 		expect(first.token).toBe("front-device-a");
 		expect(second.token).toBe("front-device-b");

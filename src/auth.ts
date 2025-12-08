@@ -4,6 +4,7 @@ import type {
 	APIFrontendToken,
 	FrontendCustomer,
 	FrontendToken,
+	FrontendTokenAutoProvisionRequest,
 	FrontendTokenRequest,
 } from "./types";
 
@@ -47,25 +48,53 @@ export class AuthClient {
 	}
 
 	/**
-	 * Exchange a publishable key for a short-lived frontend token.
+	 * Exchange a publishable key for a short-lived frontend token for an existing customer.
 	 * Tokens are cached until they are close to expiry.
+	 *
+	 * Use this method when the customer already exists in the system.
+	 * For auto-provisioning new customers, use frontendTokenAutoProvision instead.
 	 */
-	async frontendToken(
-		request?: Partial<FrontendTokenRequest>,
-	): Promise<FrontendToken> {
-		const publishableKey =
-			request?.publishableKey ||
-			(isPublishableKey(this.apiKey) ? this.apiKey : undefined);
-		if (!publishableKey) {
-			throw new ConfigError("publishable key required to issue frontend tokens");
+	async frontendToken(request: FrontendTokenRequest): Promise<FrontendToken> {
+		if (!request.publishableKey?.trim()) {
+			throw new ConfigError("publishableKey is required");
 		}
+		if (!request.customerId?.trim()) {
+			throw new ConfigError("customerId is required");
+		}
+		return this.sendFrontendTokenRequest(request);
+	}
 
-		const customerId = request?.customerId || this.customer?.id;
-		if (!customerId) {
-			throw new ConfigError("customerId is required to mint a frontend token");
+	/**
+	 * Exchange a publishable key for a frontend token, creating the customer if needed.
+	 * The customer will be auto-provisioned on the project's free tier.
+	 * Tokens are cached until they are close to expiry.
+	 *
+	 * Use this method when the customer may not exist and should be created automatically.
+	 * The email is required for auto-provisioning.
+	 */
+	async frontendTokenAutoProvision(
+		request: FrontendTokenAutoProvisionRequest,
+	): Promise<FrontendToken> {
+		if (!request.publishableKey?.trim()) {
+			throw new ConfigError("publishableKey is required");
 		}
-		const deviceId = request?.deviceId || this.customer?.deviceId;
-		const ttlSeconds = request?.ttlSeconds ?? this.customer?.ttlSeconds;
+		if (!request.customerId?.trim()) {
+			throw new ConfigError("customerId is required");
+		}
+		if (!request.email?.trim()) {
+			throw new ConfigError("email is required for auto-provisioning");
+		}
+		return this.sendFrontendTokenRequest(request);
+	}
+
+	/**
+	 * Internal method to send frontend token requests.
+	 */
+	private async sendFrontendTokenRequest(
+		request: FrontendTokenRequest | FrontendTokenAutoProvisionRequest,
+	): Promise<FrontendToken> {
+		const { publishableKey, customerId, deviceId, ttlSeconds } = request;
+		const email = "email" in request ? request.email : undefined;
 
 		const cacheKey = `${publishableKey}:${customerId}:${deviceId || ""}`;
 		const cached = this.cachedFrontend.get(cacheKey);
@@ -82,6 +111,9 @@ export class AuthClient {
 		}
 		if (typeof ttlSeconds === "number" && ttlSeconds > 0) {
 			payload.ttl_seconds = ttlSeconds;
+		}
+		if (email) {
+			payload.email = email;
 		}
 
 		const response = await this.http.json<APIFrontendToken>(
@@ -115,10 +147,15 @@ export class AuthClient {
 			throw new ConfigError("API key or token is required");
 		}
 		if (isPublishableKey(this.apiKey)) {
+			const resolvedCustomerId = customerId || overrides?.id || this.customer?.id;
+			if (!resolvedCustomerId) {
+				throw new ConfigError("customerId is required to mint a frontend token");
+			}
 			const token = await this.frontendToken({
-				customerId: customerId || overrides?.id,
-				deviceId: overrides?.deviceId,
-				ttlSeconds: overrides?.ttlSeconds,
+				publishableKey: this.apiKey,
+				customerId: resolvedCustomerId,
+				deviceId: overrides?.deviceId || this.customer?.deviceId,
+				ttlSeconds: overrides?.ttlSeconds ?? this.customer?.ttlSeconds,
 			});
 			return createAccessTokenAuth(token.token);
 		}

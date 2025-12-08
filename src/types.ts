@@ -192,10 +192,36 @@ export interface FrontendCustomer {
 	ttlSeconds?: number;
 }
 
+/**
+ * Request for fetching a frontend token for an existing customer.
+ * Use this when the customer already exists in the system.
+ */
 export interface FrontendTokenRequest {
-	publishableKey?: string;
+	/** Publishable key (mr_pk_*) - required for authentication. */
+	publishableKey: string;
+	/** Customer identifier - required to issue a token for this customer. */
 	customerId: string;
+	/** Optional device identifier for tracking/rate limiting. */
 	deviceId?: string;
+	/** Optional TTL in seconds for the issued token. */
+	ttlSeconds?: number;
+}
+
+/**
+ * Request for fetching a frontend token with auto-provisioning.
+ * Use this when the customer may not exist and should be created on the free tier.
+ * The email is required for auto-provisioning.
+ */
+export interface FrontendTokenAutoProvisionRequest {
+	/** Publishable key (mr_pk_*) - required for authentication. */
+	publishableKey: string;
+	/** Customer identifier - required to issue a token for this customer. */
+	customerId: string;
+	/** Email address - required for auto-provisioning a new customer. */
+	email: string;
+	/** Optional device identifier for tracking/rate limiting. */
+	deviceId?: string;
+	/** Optional TTL in seconds for the issued token. */
 	ttlSeconds?: number;
 }
 
