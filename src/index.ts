@@ -83,7 +83,12 @@ export type {
 	SubscriptionStatus,
 } from "./customers";
 
-export type { Tier, PriceInterval } from "./tiers";
+export type {
+	Tier,
+	PriceInterval,
+	TierCheckoutRequest,
+	TierCheckoutSession,
+} from "./tiers";
 
 export * from "./types";
 export * from "./errors";

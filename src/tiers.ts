@@ -24,6 +24,23 @@ export interface Tier {
 	updated_at: string;
 }
 
+/**
+ * Request to create a tier checkout session (Stripe-first flow).
+ */
+export interface TierCheckoutRequest {
+	email: string;
+	success_url: string;
+	cancel_url: string;
+}
+
+/**
+ * Tier checkout session response.
+ */
+export interface TierCheckoutSession {
+	session_id: string;
+	url: string;
+}
+
 interface TierListResponse {
 	tiers: Tier[];
 }
@@ -60,6 +77,14 @@ export class TiersClient {
 		}
 	}
 
+	private ensureSecretKey(): void {
+		if (!this.apiKey || !this.apiKey.startsWith("mr_sk_")) {
+			throw new ConfigError(
+				"Secret key (mr_sk_*) required for checkout operations",
+			);
+		}
+	}
+
 	/**
 	 * List all tiers in the project.
 	 */
@@ -85,5 +110,45 @@ export class TiersClient {
 			apiKey: this.apiKey,
 		});
 		return response.tier;
+	}
+
+	/**
+	 * Create a Stripe checkout session for a tier (Stripe-first flow).
+	 *
+	 * This enables users to subscribe before authenticating. After checkout
+	 * completes, a customer record is created with the provided email. The
+	 * customer can later be linked to an identity via POST /customers/claim.
+	 *
+	 * Requires a secret key (mr_sk_*).
+	 *
+	 * @param tierId - The tier ID to create a checkout session for
+	 * @param request - Checkout session request with email and redirect URLs
+	 * @returns Checkout session with Stripe URL
+	 */
+	async checkout(
+		tierId: string,
+		request: TierCheckoutRequest,
+	): Promise<TierCheckoutSession> {
+		this.ensureSecretKey();
+		if (!tierId?.trim()) {
+			throw new ConfigError("tierId is required");
+		}
+		if (!request.email?.trim()) {
+			throw new ConfigError("email is required");
+		}
+		if (!request.success_url?.trim()) {
+			throw new ConfigError("success_url is required");
+		}
+		if (!request.cancel_url?.trim()) {
+			throw new ConfigError("cancel_url is required");
+		}
+		return await this.http.json<TierCheckoutSession>(
+			`/tiers/${tierId}/checkout`,
+			{
+				method: "POST",
+				apiKey: this.apiKey,
+				body: request,
+			},
+		);
 	}
 }
