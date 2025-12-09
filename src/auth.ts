@@ -125,7 +125,6 @@ export class AuthClient {
 		);
 		const token = normalizeFrontendToken(response, {
 			publishableKey,
-			customerId,
 			deviceId,
 		});
 		this.cachedFrontend.set(cacheKey, token);
@@ -185,19 +184,19 @@ export function isPublishableKey(value?: string | null): boolean {
 
 function normalizeFrontendToken(
 	payload: APIFrontendToken,
-	meta: { customerId: string; publishableKey: string; deviceId?: string },
+	meta: { publishableKey: string; deviceId?: string },
 ): FrontendToken {
-	const expiresAt = payload.expires_at;
 	return {
 		token: payload.token,
-		expiresAt: expiresAt ? new Date(expiresAt) : undefined,
+		expiresAt: new Date(payload.expires_at),
 		expiresIn: payload.expires_in,
 		tokenType: payload.token_type,
 		keyId: payload.key_id,
 		sessionId: payload.session_id,
-		tokenScope: payload.token_scope,
-		tokenSource: payload.token_source,
-		customerId: meta.customerId,
+		projectId: payload.project_id,
+		customerId: payload.customer_id,
+		customerExternalId: payload.customer_external_id,
+		tierCode: payload.tier_code,
 		publishableKey: meta.publishableKey,
 		deviceId: meta.deviceId,
 	};
@@ -206,9 +205,6 @@ function normalizeFrontendToken(
 function isTokenReusable(token: FrontendToken): boolean {
 	if (!token.token) {
 		return false;
-	}
-	if (!token.expiresAt) {
-		return true;
 	}
 	// Refresh when within 60s of expiry to avoid races.
 	return token.expiresAt.getTime() - Date.now() > 60_000;

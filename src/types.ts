@@ -225,19 +225,30 @@ export interface FrontendTokenAutoProvisionRequest {
 	ttlSeconds?: number;
 }
 
+/** Token type for OAuth2 bearer tokens. */
+export type TokenType = "Bearer";
+
 export interface FrontendToken {
+	/** The bearer token for authenticating LLM requests. */
 	token: string;
-	expiresAt?: Date;
-	expiresIn?: number;
-	tokenType?: string;
-	keyId?: string;
-	sessionId?: string;
-	tokenScope?: string[];
-	tokenSource?: string;
-	/**
-	 * The customer identifier used when issuing the token. Added client-side for caching.
-	 */
-	customerId?: string;
+	/** When the token expires. */
+	expiresAt: Date;
+	/** Seconds until the token expires. */
+	expiresIn: number;
+	/** Token type, always "Bearer". */
+	tokenType: TokenType;
+	/** The publishable key ID that issued this token. */
+	keyId: string;
+	/** Unique session identifier for this token. */
+	sessionId: string;
+	/** The project ID this token is scoped to. */
+	projectId: string;
+	/** The internal customer ID (UUID). */
+	customerId: string;
+	/** The external customer ID provided by the application. */
+	customerExternalId: string;
+	/** The tier code for the customer (e.g., "free", "pro", "enterprise"). */
+	tierCode: string;
 	/**
 	 * Publishable key used for issuance. Added client-side for caching.
 	 */
@@ -647,13 +658,15 @@ export interface StructuredJSONEvent<T> {
 
 export interface APIFrontendToken {
 	token: string;
-	expires_at?: string;
-	expires_in?: number;
-	token_type?: string;
-	key_id?: string;
-	session_id?: string;
-	token_scope?: string[];
-	token_source?: string;
+	expires_at: string;
+	expires_in: number;
+	token_type: TokenType;
+	key_id: string;
+	session_id: string;
+	project_id: string;
+	customer_id: string;
+	customer_external_id: string;
+	tier_code: string;
 }
 
 export interface APICustomerRef {
