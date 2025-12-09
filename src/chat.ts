@@ -32,7 +32,18 @@ import {
 	CustomerChatParams,
 	MessageRole,
 } from "./types";
-import { createToolCall, createFunctionCall } from "./tools";
+import { createToolCall, createFunctionCall, type ZodLikeSchema } from "./tools";
+import {
+	responseFormatFromZod,
+	validateWithZod,
+	defaultRetryHandler,
+	StructuredExhaustedError,
+	type StructuredOptions,
+	type StructuredResult,
+	type RetryHandler,
+	type AttemptRecord,
+	type StructuredErrorKind,
+} from "./structured";
 
 const CUSTOMER_ID_HEADER = "X-ModelRelay-Customer-Id";
 
@@ -339,6 +350,193 @@ export class ChatCompletionsClient {
 			trace,
 		);
 	}
+
+	/**
+	 * Send a structured output request with a Zod schema.
+	 *
+	 * Auto-generates JSON schema from the Zod schema, validates the response,
+	 * and retries on validation failure if configured.
+	 *
+	 * @param schema - A Zod schema defining the expected response structure
+	 * @param params - Chat completion parameters (excluding responseFormat)
+	 * @param options - Request options including retry configuration
+	 * @returns A typed result with the parsed value
+	 *
+	 * @example
+	 * ```typescript
+	 * import { z } from 'zod';
+	 *
+	 * const PersonSchema = z.object({
+	 *   name: z.string(),
+	 *   age: z.number(),
+	 * });
+	 *
+	 * const result = await client.chat.completions.structured(
+	 *   PersonSchema,
+	 *   { model: "claude-sonnet-4-20250514", messages: [...] },
+	 *   { maxRetries: 2 }
+	 * );
+	 * ```
+	 */
+	async structured<T>(
+		schema: ZodLikeSchema,
+		params: Omit<ChatCompletionCreateParams, "responseFormat">,
+		options: ChatRequestOptions & StructuredOptions = {},
+	): Promise<StructuredResult<T>> {
+		const {
+			maxRetries = 0,
+			retryHandler = defaultRetryHandler,
+			schemaName,
+			...requestOptions
+		} = options;
+
+		const responseFormat = responseFormatFromZod(schema, schemaName);
+		const fullParams: ChatCompletionCreateParams = {
+			...params,
+			responseFormat,
+			stream: false,
+		};
+
+		let messages = [...params.messages];
+		const attempts: AttemptRecord[] = [];
+		const maxAttempts = maxRetries + 1;
+
+		for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+			const response = await this.create(
+				{ ...fullParams, messages } as ChatCompletionCreateParams & {
+					stream: false;
+				},
+				{ ...requestOptions, stream: false },
+			);
+
+			const rawJson = response.content.join("");
+			const requestId = response.requestId;
+
+			// Try to parse and validate
+			try {
+				const parsed = JSON.parse(rawJson);
+				const validated = validateWithZod<T>(schema, parsed);
+
+				if (validated.success) {
+					return {
+						value: validated.data,
+						attempts: attempt,
+						requestId,
+					};
+				}
+
+				// Validation failed
+				const error: StructuredErrorKind = {
+					kind: "validation",
+					issues: [{ message: validated.error }],
+				};
+				attempts.push({ attempt, rawJson, error });
+
+				if (attempt >= maxAttempts) {
+					throw new StructuredExhaustedError(rawJson, attempts, error);
+				}
+
+				// Get retry messages
+				const retryMessages = retryHandler.onValidationError(
+					attempt,
+					rawJson,
+					error,
+					params.messages,
+				);
+				if (!retryMessages) {
+					throw new StructuredExhaustedError(rawJson, attempts, error);
+				}
+				// Include assistant's response in conversation for context
+				messages = [
+					...params.messages,
+					{ role: "assistant" as const, content: rawJson },
+					...retryMessages,
+				];
+			} catch (e) {
+				if (e instanceof StructuredExhaustedError) {
+					throw e;
+				}
+
+				// JSON parse error
+				const error: StructuredErrorKind = {
+					kind: "decode",
+					message: e instanceof Error ? e.message : String(e),
+				};
+				attempts.push({ attempt, rawJson, error });
+
+				if (attempt >= maxAttempts) {
+					throw new StructuredExhaustedError(rawJson, attempts, error);
+				}
+
+				// Get retry messages
+				const retryMessages = retryHandler.onValidationError(
+					attempt,
+					rawJson,
+					error,
+					params.messages,
+				);
+				if (!retryMessages) {
+					throw new StructuredExhaustedError(rawJson, attempts, error);
+				}
+				// Include assistant's response in conversation for context
+				messages = [
+					...params.messages,
+					{ role: "assistant" as const, content: rawJson },
+					...retryMessages,
+				];
+			}
+		}
+
+		// This should be unreachable - if we get here, there's a logic bug in the retry loop
+		throw new Error(
+			`Internal error: structured output loop exited unexpectedly after ${maxAttempts} attempts (this is a bug, please report it)`,
+		);
+	}
+
+	/**
+	 * Stream structured output with a Zod schema.
+	 *
+	 * Auto-generates JSON schema from the Zod schema. Note that streaming
+	 * does not support retries - for retry behavior, use `structured()`.
+	 *
+	 * @param schema - A Zod schema defining the expected response structure
+	 * @param params - Chat completion parameters (excluding responseFormat)
+	 * @param options - Request options
+	 * @returns A structured JSON stream
+	 *
+	 * @example
+	 * ```typescript
+	 * import { z } from 'zod';
+	 *
+	 * const PersonSchema = z.object({
+	 *   name: z.string(),
+	 *   age: z.number(),
+	 * });
+	 *
+	 * const stream = await client.chat.completions.streamStructured(
+	 *   PersonSchema,
+	 *   { model: "claude-sonnet-4-20250514", messages: [...] },
+	 * );
+	 *
+	 * for await (const event of stream) {
+	 *   console.log(event.type, event.payload);
+	 * }
+	 * ```
+	 */
+	async streamStructured<T>(
+		schema: ZodLikeSchema,
+		params: Omit<ChatCompletionCreateParams, "responseFormat">,
+		options: ChatRequestOptions & Pick<StructuredOptions, "schemaName"> = {},
+	): Promise<StructuredJSONStream<T>> {
+		const { schemaName, ...requestOptions } = options;
+		const responseFormat = responseFormatFromZod(schema, schemaName);
+		return this.streamJSON<T>(
+			{ ...params, responseFormat } as ChatCompletionCreateParams & {
+				responseFormat: ResponseFormat;
+			},
+			requestOptions,
+		);
+	}
 }
 
 /**
@@ -550,6 +748,156 @@ export class CustomerChatClient {
 			trace,
 		);
 	}
+
+	/**
+	 * Send a structured output request with a Zod schema for customer-attributed calls.
+	 *
+	 * Auto-generates JSON schema from the Zod schema, validates the response,
+	 * and retries on validation failure if configured.
+	 *
+	 * @param schema - A Zod schema defining the expected response structure
+	 * @param params - Customer chat parameters (excluding responseFormat)
+	 * @param options - Request options including retry configuration
+	 * @returns A typed result with the parsed value
+	 */
+	async structured<T>(
+		schema: ZodLikeSchema,
+		params: Omit<CustomerChatParams, "responseFormat">,
+		options: ChatRequestOptions & StructuredOptions = {},
+	): Promise<StructuredResult<T>> {
+		const {
+			maxRetries = 0,
+			retryHandler = defaultRetryHandler,
+			schemaName,
+			...requestOptions
+		} = options;
+
+		const responseFormat = responseFormatFromZod(schema, schemaName);
+		const fullParams: CustomerChatParams = {
+			...params,
+			responseFormat,
+			stream: false,
+		};
+
+		let messages = [...params.messages];
+		const attempts: AttemptRecord[] = [];
+		const maxAttempts = maxRetries + 1;
+
+		for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+			const response = await this.create(
+				{ ...fullParams, messages } as CustomerChatParams & { stream: false },
+				{ ...requestOptions, stream: false },
+			);
+
+			const rawJson = response.content.join("");
+			const requestId = response.requestId;
+
+			// Try to parse and validate
+			try {
+				const parsed = JSON.parse(rawJson);
+				const validated = validateWithZod<T>(schema, parsed);
+
+				if (validated.success) {
+					return {
+						value: validated.data,
+						attempts: attempt,
+						requestId,
+					};
+				}
+
+				// Validation failed
+				const error: StructuredErrorKind = {
+					kind: "validation",
+					issues: [{ message: validated.error }],
+				};
+				attempts.push({ attempt, rawJson, error });
+
+				if (attempt >= maxAttempts) {
+					throw new StructuredExhaustedError(rawJson, attempts, error);
+				}
+
+				// Get retry messages
+				const retryMessages = retryHandler.onValidationError(
+					attempt,
+					rawJson,
+					error,
+					params.messages,
+				);
+				if (!retryMessages) {
+					throw new StructuredExhaustedError(rawJson, attempts, error);
+				}
+				// Include assistant's response in conversation for context
+				messages = [
+					...params.messages,
+					{ role: "assistant" as const, content: rawJson },
+					...retryMessages,
+				];
+			} catch (e) {
+				if (e instanceof StructuredExhaustedError) {
+					throw e;
+				}
+
+				// JSON parse error
+				const error: StructuredErrorKind = {
+					kind: "decode",
+					message: e instanceof Error ? e.message : String(e),
+				};
+				attempts.push({ attempt, rawJson, error });
+
+				if (attempt >= maxAttempts) {
+					throw new StructuredExhaustedError(rawJson, attempts, error);
+				}
+
+				// Get retry messages
+				const retryMessages = retryHandler.onValidationError(
+					attempt,
+					rawJson,
+					error,
+					params.messages,
+				);
+				if (!retryMessages) {
+					throw new StructuredExhaustedError(rawJson, attempts, error);
+				}
+				// Include assistant's response in conversation for context
+				messages = [
+					...params.messages,
+					{ role: "assistant" as const, content: rawJson },
+					...retryMessages,
+				];
+			}
+		}
+
+		// This should be unreachable - if we get here, there's a logic bug in the retry loop
+		throw new Error(
+			`Internal error: structured output loop exited unexpectedly after ${maxAttempts} attempts (this is a bug, please report it)`,
+		);
+	}
+
+	/**
+	 * Stream structured output with a Zod schema for customer-attributed calls.
+	 *
+	 * Auto-generates JSON schema from the Zod schema. Note that streaming
+	 * does not support retries - for retry behavior, use `structured()`.
+	 *
+	 * @param schema - A Zod schema defining the expected response structure
+	 * @param params - Customer chat parameters (excluding responseFormat)
+	 * @param options - Request options
+	 * @returns A structured JSON stream
+	 */
+	async streamStructured<T>(
+		schema: ZodLikeSchema,
+		params: Omit<CustomerChatParams, "responseFormat">,
+		options: ChatRequestOptions & Pick<StructuredOptions, "schemaName"> = {},
+	): Promise<StructuredJSONStream<T>> {
+		const { schemaName, ...requestOptions } = options;
+		const responseFormat = responseFormatFromZod(schema, schemaName);
+		return this.streamJSON<T>(
+			{ ...params, responseFormat } as CustomerChatParams & {
+				responseFormat: ResponseFormat;
+			},
+			requestOptions,
+		);
+	}
 }
 
 export class ChatCompletionsStream
@@ -589,8 +937,14 @@ export class ChatCompletionsStream
 		this.closed = true;
 		try {
 			await this.response.body?.cancel(reason);
-		} catch {
-			// ignore cancellation errors
+		} catch (err) {
+			// Log cancellation errors for debugging - usually benign but worth knowing about
+			if (this.trace?.streamError) {
+				this.trace.streamError({
+					context: this.context,
+					error: err instanceof Error ? err : new Error(String(err)),
+				});
+			}
 		}
 	}
 
@@ -717,8 +1071,14 @@ export class StructuredJSONStream<T>
 		this.closed = true;
 		try {
 			await this.response.body?.cancel(reason);
-		} catch {
-			// ignore cancellation errors
+		} catch (err) {
+			// Log cancellation errors for debugging - usually benign but worth knowing about
+			if (this.trace?.streamError) {
+				this.trace.streamError({
+					context: this.context,
+					error: err instanceof Error ? err : new Error(String(err)),
+				});
+			}
 		}
 	}
 
@@ -958,7 +1318,9 @@ function mapChatEvent(
 	if (raw.data) {
 		try {
 			parsed = JSON.parse(raw.data);
-		} catch {
+		} catch (err) {
+			// SSE data may not always be JSON (e.g., "[DONE]" marker) - this is expected.
+			// For unexpected parse failures, the raw string is preserved for debugging.
 			parsed = raw.data;
 		}
 	}

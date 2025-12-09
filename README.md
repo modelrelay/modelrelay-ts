@@ -205,6 +205,155 @@ const final = await stream.collect();
 console.log(final.items.length);
 ```
 
+### Type-safe structured outputs with Zod schemas
+
+For automatic schema generation and validation, use `structured()` with Zod:
+
+```ts
+import { ModelRelay } from "@modelrelay/sdk";
+import { z } from "zod";
+
+const mr = new ModelRelay({ key: "mr_sk_..." });
+
+// Define your output type with Zod
+const PersonSchema = z.object({
+  name: z.string(),
+  age: z.number(),
+});
+
+// structured() auto-generates JSON schema and validates responses
+const result = await mr.chat.completions.structured(
+  PersonSchema,
+  {
+    model: "claude-sonnet-4-20250514",
+    messages: [{ role: "user", content: "Extract: John Doe is 30 years old" }],
+  },
+  { maxRetries: 2 } // Retry on validation failures
+);
+
+console.log(`Name: ${result.value.name}, Age: ${result.value.age}`);
+console.log(`Succeeded on attempt ${result.attempts}`);
+```
+
+#### Schema features
+
+Zod schemas map to JSON Schema properties:
+
+```ts
+const StatusSchema = z.object({
+  // Required string field
+  code: z.string(),
+
+  // Optional field (not in "required" array)
+  notes: z.string().optional(),
+
+  // Description for documentation
+  email: z.string().email().describe("User's email address"),
+
+  // Enum constraint
+  priority: z.enum(["low", "medium", "high"]),
+
+  // Nested objects are fully supported
+  address: z.object({
+    city: z.string(),
+    country: z.string(),
+  }),
+
+  // Arrays
+  tags: z.array(z.string()),
+});
+```
+
+#### Handling validation errors
+
+When validation fails after all retries:
+
+```ts
+import { StructuredExhaustedError } from "@modelrelay/sdk";
+
+try {
+  const result = await mr.chat.completions.structured(
+    PersonSchema,
+    { model: "claude-sonnet-4-20250514", messages },
+    { maxRetries: 2 }
+  );
+} catch (err) {
+  if (err instanceof StructuredExhaustedError) {
+    console.log(`Failed after ${err.allAttempts.length} attempts`);
+    for (const attempt of err.allAttempts) {
+      console.log(`Attempt ${attempt.attempt}: ${attempt.rawJson}`);
+      if (attempt.error.kind === "validation" && attempt.error.issues) {
+        for (const issue of attempt.error.issues) {
+          console.log(`  - ${issue.path ?? "root"}: ${issue.message}`);
+        }
+      } else if (attempt.error.kind === "decode") {
+        console.log(`  Decode error: ${attempt.error.message}`);
+      }
+    }
+  }
+}
+```
+
+#### Custom retry handlers
+
+Customize retry behavior:
+
+```ts
+import type { RetryHandler } from "@modelrelay/sdk";
+
+const customHandler: RetryHandler = {
+  onValidationError(attempt, rawJson, error, messages) {
+    if (attempt >= 3) {
+      return null; // Stop retrying
+    }
+    return [
+      {
+        role: "user",
+        content: `Invalid response. Issues: ${JSON.stringify(error.issues)}. Try again.`,
+      },
+    ];
+  },
+};
+
+const result = await mr.chat.completions.structured(
+  PersonSchema,
+  { model: "claude-sonnet-4-20250514", messages },
+  { maxRetries: 3, retryHandler: customHandler }
+);
+```
+
+#### Streaming structured outputs
+
+For streaming with Zod schema (no retries):
+
+```ts
+const stream = await mr.chat.completions.streamStructured(
+  PersonSchema,
+  {
+    model: "claude-sonnet-4-20250514",
+    messages: [{ role: "user", content: "Extract: Jane, 25" }],
+  }
+);
+
+for await (const evt of stream) {
+  if (evt.type === "completion") {
+    console.log("Final:", evt.payload);
+  }
+}
+```
+
+#### Customer-attributed structured outputs
+
+Works with customer-attributed requests too:
+
+```ts
+const result = await mr.chat.forCustomer("customer-123").structured(
+  PersonSchema,
+  { messages: [{ role: "user", content: "Extract: John, 30" }] },
+  { maxRetries: 2 }
+);
+```
+
 ### Telemetry & metrics hooks
 
 Provide lightweight callbacks to observe latency and usage without extra deps:

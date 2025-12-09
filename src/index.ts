@@ -145,6 +145,24 @@ export type {
 	RetryOptions,
 } from "./tools";
 
+// Structured output utilities
+export {
+	responseFormatFromZod,
+	validateWithZod,
+	defaultRetryHandler,
+	StructuredDecodeError,
+	StructuredExhaustedError,
+} from "./structured";
+
+export type {
+	AttemptRecord,
+	StructuredErrorKind,
+	ValidationIssue,
+	RetryHandler,
+	StructuredOptions,
+	StructuredResult,
+} from "./structured";
+
 function resolveBaseUrl(override?: string): string {
 	const base = override || DEFAULT_BASE_URL;
 	return base.replace(/\/+$/, "");
