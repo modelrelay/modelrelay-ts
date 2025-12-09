@@ -302,8 +302,19 @@ export interface Project {
 	updatedAt?: Date;
 }
 
+/**
+ * Valid roles for chat messages.
+ */
+export const MessageRoles = {
+	User: "user",
+	Assistant: "assistant",
+	System: "system",
+	Tool: "tool",
+} as const;
+export type MessageRole = (typeof MessageRoles)[keyof typeof MessageRoles];
+
 export interface ChatMessage {
-	role: string;
+	role: MessageRole;
 	content: string;
 	toolCalls?: ToolCall[];
 	toolCallId?: string;
@@ -407,6 +418,10 @@ export interface ResponseFormat {
 	json_schema?: ResponseJSONSchemaFormat;
 }
 
+/**
+ * Parameters for direct chat completions (owner PAYGO mode).
+ * Model is required - the developer specifies which model to use.
+ */
 export interface ChatCompletionCreateParams {
 	model: ModelId;
 	messages: NonEmptyArray<ChatMessage>;
@@ -424,9 +439,39 @@ export interface ChatCompletionCreateParams {
 	 */
 	toolChoice?: ToolChoice;
 	/**
-	 * When using publishable keys, a customer id is required to mint a frontend token.
+	 * Structured outputs configuration. When set with type `json_object` or
+	 * `json_schema`, the backend validates and returns structured JSON.
 	 */
-	customerId?: string;
+	responseFormat?: ResponseFormat;
+	/**
+	 * Opt out of SSE streaming and request a blocking JSON response.
+	 */
+	stream?: boolean;
+	/**
+	 * Optional request id to set on the call. If omitted, the server will generate one.
+	 */
+	requestId?: string;
+}
+
+/**
+ * Parameters for customer-attributed chat completions.
+ * Model is NOT included - the customer's tier determines the model.
+ */
+export interface CustomerChatParams {
+	messages: NonEmptyArray<ChatMessage>;
+	maxTokens?: number;
+	temperature?: number;
+	metadata?: Record<string, string>;
+	stop?: string[];
+	stopSequences?: string[];
+	/**
+	 * Tools available for the model to call.
+	 */
+	tools?: Tool[];
+	/**
+	 * Controls how the model responds to tool calls.
+	 */
+	toolChoice?: ToolChoice;
 	/**
 	 * Structured outputs configuration. When set with type `json_object` or
 	 * `json_schema`, the backend validates and returns structured JSON.

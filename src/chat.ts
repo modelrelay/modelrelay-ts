@@ -29,8 +29,12 @@ import {
 	createUsage,
 	ResponseFormat,
 	StructuredJSONEvent,
+	CustomerChatParams,
+	MessageRole,
 } from "./types";
 import { createToolCall, createFunctionCall } from "./tools";
+
+const CUSTOMER_ID_HEADER = "X-ModelRelay-Customer-Id";
 
 const REQUEST_ID_HEADER = "X-ModelRelay-Chat-Request-Id";
 
@@ -79,6 +83,11 @@ export interface ChatRequestOptions {
 
 export class ChatClient {
 	readonly completions: ChatCompletionsClient;
+	private readonly http: HTTPClient;
+	private readonly auth: AuthClient;
+	private readonly defaultMetadata?: Record<string, string>;
+	private readonly metrics?: MetricsCallbacks;
+	private readonly trace?: TraceCallbacks;
 
 	constructor(
 		http: HTTPClient,
@@ -89,12 +98,42 @@ export class ChatClient {
 			trace?: TraceCallbacks;
 		} = {},
 	) {
+		this.http = http;
+		this.auth = auth;
+		this.defaultMetadata = cfg.defaultMetadata;
+		this.metrics = cfg.metrics;
+		this.trace = cfg.trace;
 		this.completions = new ChatCompletionsClient(
 			http,
 			auth,
 			cfg.defaultMetadata,
 			cfg.metrics,
 			cfg.trace,
+		);
+	}
+
+	/**
+	 * Create a customer-attributed chat client for the given customer ID.
+	 * The customer's tier determines the model - no model parameter is needed or allowed.
+	 *
+	 * @example
+	 * ```typescript
+	 * const stream = await client.chat.forCustomer("user-123").create({
+	 *   messages: [{ role: "user", content: "Hello!" }],
+	 * });
+	 * ```
+	 */
+	forCustomer(customerId: string): CustomerChatClient {
+		if (!customerId?.trim()) {
+			throw new ConfigError("customerId is required");
+		}
+		return new CustomerChatClient(
+			this.http,
+			this.auth,
+			customerId,
+			this.defaultMetadata,
+			this.metrics,
+			this.trace,
 		);
 	}
 }
@@ -149,7 +188,9 @@ export class ChatCompletionsClient {
 		// arbitrary ids and defers validation to the server so new models
 		// can be adopted without requiring an SDK upgrade.
 
-		const authHeaders = await this.auth.authForChat(params.customerId);
+		// Direct chat completion requests use API key auth (no customer context).
+		// For customer-attributed requests, use client.chat.forCustomer(customerId).
+		const authHeaders = await this.auth.authForChat();
 		const body = buildProxyBody(
 			params,
 			mergeMetadata(this.defaultMetadata, params.metadata, options.metadata),
@@ -239,7 +280,9 @@ export class ChatCompletionsClient {
 			);
 		}
 
-		const authHeaders = await this.auth.authForChat(params.customerId);
+		// Direct chat completion requests use API key auth (no customer context).
+		// For customer-attributed requests, use client.chat.forCustomer(customerId).
+		const authHeaders = await this.auth.authForChat();
 		const body = buildProxyBody(
 			params,
 			mergeMetadata(this.defaultMetadata, params.metadata, options.metadata),
@@ -253,6 +296,217 @@ export class ChatCompletionsClient {
 			method: "POST",
 			path: "/llm/proxy",
 			model: params.model,
+			requestId,
+		};
+		const response = await this.http.request("/llm/proxy", {
+			method: "POST",
+			body,
+			headers,
+			apiKey: authHeaders.apiKey,
+			accessToken: authHeaders.accessToken,
+			accept: "application/x-ndjson",
+			raw: true,
+			signal: options.signal,
+			timeoutMs: options.timeoutMs ?? 0,
+			useDefaultTimeout: false,
+			connectTimeoutMs: options.connectTimeoutMs,
+			retry: options.retry,
+			metrics,
+			trace,
+			context: baseContext,
+		});
+		const resolvedRequestId =
+			requestIdFromHeaders(response.headers) || requestId || undefined;
+		if (!response.ok) {
+			throw await parseErrorResponse(response);
+		}
+		const contentType = response.headers.get("Content-Type") || "";
+		if (!/application\/(x-)?ndjson/i.test(contentType)) {
+			throw new TransportError(
+				`expected NDJSON structured stream, got Content-Type ${contentType || "missing"}`,
+				{ kind: "request" },
+			);
+		}
+		const streamContext: RequestContext = {
+			...baseContext,
+			requestId: resolvedRequestId ?? baseContext.requestId,
+		};
+		return new StructuredJSONStream<T>(
+			response,
+			resolvedRequestId,
+			streamContext,
+			metrics,
+			trace,
+		);
+	}
+}
+
+/**
+ * Client for customer-attributed chat completions.
+ * The customer's tier determines the model - no model parameter is needed or allowed.
+ */
+export class CustomerChatClient {
+	private readonly http: HTTPClient;
+	private readonly auth: AuthClient;
+	private readonly customerId: string;
+	private readonly defaultMetadata?: Record<string, string>;
+	private readonly metrics?: MetricsCallbacks;
+	private readonly trace?: TraceCallbacks;
+
+	constructor(
+		http: HTTPClient,
+		auth: AuthClient,
+		customerId: string,
+		defaultMetadata?: Record<string, string>,
+		metrics?: MetricsCallbacks,
+		trace?: TraceCallbacks,
+	) {
+		this.http = http;
+		this.auth = auth;
+		this.customerId = customerId;
+		this.defaultMetadata = defaultMetadata;
+		this.metrics = metrics;
+		this.trace = trace;
+	}
+
+	async create(
+		params: CustomerChatParams & { stream: false },
+		options?: ChatRequestOptions,
+	): Promise<ChatCompletionResponse>;
+	async create(
+		params: CustomerChatParams,
+		options: ChatRequestOptions & { stream: false },
+	): Promise<ChatCompletionResponse>;
+	async create(
+		params: CustomerChatParams,
+		options?: ChatRequestOptions,
+	): Promise<ChatCompletionsStream>;
+	async create(
+		params: CustomerChatParams,
+		options: ChatRequestOptions = {},
+	): Promise<ChatCompletionResponse | ChatCompletionsStream> {
+		const stream = options.stream ?? params.stream ?? true;
+		const metrics = mergeMetrics(this.metrics, options.metrics);
+		const trace = mergeTrace(this.trace, options.trace);
+		if (!params?.messages?.length) {
+			throw new ConfigError("at least one message is required");
+		}
+		if (!hasUserMessage(params.messages)) {
+			throw new ConfigError("at least one user message is required");
+		}
+
+		// For customer-attributed requests, pass customer ID for publishable key auth
+		const authHeaders = await this.auth.authForChat(this.customerId);
+		const body = buildCustomerProxyBody(
+			params,
+			mergeMetadata(this.defaultMetadata, params.metadata, options.metadata),
+		);
+		const requestId = params.requestId || options.requestId;
+		const headers: Record<string, string> = {
+			...(options.headers || {}),
+			[CUSTOMER_ID_HEADER]: this.customerId,
+		};
+		if (requestId) {
+			headers[REQUEST_ID_HEADER] = requestId;
+		}
+		const baseContext = {
+			method: "POST",
+			path: "/llm/proxy",
+			model: undefined, // Model is determined by tier
+			requestId,
+		};
+		const response = await this.http.request("/llm/proxy", {
+			method: "POST",
+			body,
+			headers,
+			apiKey: authHeaders.apiKey,
+			accessToken: authHeaders.accessToken,
+			accept: stream ? "text/event-stream" : "application/json",
+			raw: true,
+			signal: options.signal,
+			timeoutMs: options.timeoutMs ?? (stream ? 0 : undefined),
+			useDefaultTimeout: !stream,
+			connectTimeoutMs: options.connectTimeoutMs,
+			retry: options.retry,
+			metrics,
+			trace,
+			context: baseContext,
+		});
+		const resolvedRequestId =
+			requestIdFromHeaders(response.headers) || requestId || undefined;
+		if (!response.ok) {
+			throw await parseErrorResponse(response);
+		}
+		if (!stream) {
+			const payload = (await response.json()) as APIChatResponse;
+			const result = normalizeChatResponse(payload, resolvedRequestId);
+			if (metrics?.usage) {
+				const ctx = {
+					...baseContext,
+					requestId: resolvedRequestId ?? baseContext.requestId,
+					responseId: result.id,
+				};
+				metrics.usage({ usage: result.usage, context: ctx });
+			}
+			return result;
+		}
+		const streamContext = {
+			...baseContext,
+			requestId: resolvedRequestId ?? baseContext.requestId,
+		};
+		return new ChatCompletionsStream(
+			response,
+			resolvedRequestId,
+			streamContext,
+			metrics,
+			trace,
+		);
+	}
+
+	/**
+	 * Stream structured JSON responses using the NDJSON contract.
+	 * The request must include a structured responseFormat.
+	 */
+	async streamJSON<T>(
+		params: CustomerChatParams & { responseFormat: ResponseFormat },
+		options: ChatRequestOptions = {},
+	): Promise<StructuredJSONStream<T>> {
+		const metrics = mergeMetrics(this.metrics, options.metrics);
+		const trace = mergeTrace(this.trace, options.trace);
+		if (!params?.messages?.length) {
+			throw new ConfigError("at least one message is required");
+		}
+		if (!hasUserMessage(params.messages)) {
+			throw new ConfigError("at least one user message is required");
+		}
+		if (
+			!params.responseFormat ||
+			(params.responseFormat.type !== "json_object" &&
+				params.responseFormat.type !== "json_schema")
+		) {
+			throw new ConfigError(
+				"responseFormat with type=json_object or json_schema is required for structured streaming",
+			);
+		}
+
+		// For customer-attributed requests, pass customer ID for publishable key auth
+		const authHeaders = await this.auth.authForChat(this.customerId);
+		const body = buildCustomerProxyBody(
+			params,
+			mergeMetadata(this.defaultMetadata, params.metadata, options.metadata),
+		);
+		const requestId = params.requestId || options.requestId;
+		const headers: Record<string, string> = {
+			...(options.headers || {}),
+			[CUSTOMER_ID_HEADER]: this.customerId,
+		};
+		if (requestId) {
+			headers[REQUEST_ID_HEADER] = requestId;
+		}
+		const baseContext: RequestContext = {
+			method: "POST",
+			path: "/llm/proxy",
+			model: undefined, // Model is determined by tier
 			requestId,
 		};
 		const response = await this.http.request("/llm/proxy", {
@@ -913,8 +1167,32 @@ function buildProxyBody(
 	return body;
 }
 
+/**
+ * Build proxy body for customer-attributed requests (no model field).
+ * The customer's tier determines the model.
+ */
+function buildCustomerProxyBody(
+	params: CustomerChatParams,
+	metadata?: Record<string, string>,
+): Record<string, unknown> {
+	const body: Record<string, unknown> = {
+		messages: normalizeMessages(params.messages),
+	};
+	// No model field - tier determines the model for customer-attributed requests
+	if (typeof params.maxTokens === "number") body.max_tokens = params.maxTokens;
+	if (typeof params.temperature === "number")
+		body.temperature = params.temperature;
+	if (metadata && Object.keys(metadata).length > 0) body.metadata = metadata;
+	if (params.stop?.length) body.stop = params.stop;
+	if (params.stopSequences?.length) body.stop_sequences = params.stopSequences;
+	if (params.tools?.length) body.tools = normalizeTools(params.tools);
+	if (params.toolChoice) body.tool_choice = normalizeToolChoice(params.toolChoice);
+	if (params.responseFormat) body.response_format = params.responseFormat;
+	return body;
+}
+
 interface NormalizedMessage {
-	role: string;
+	role: MessageRole;
 	content: string;
 	tool_calls?: Array<{
 		id: string;
@@ -927,7 +1205,7 @@ interface NormalizedMessage {
 function normalizeMessages(messages: ChatMessage[]): NormalizedMessage[] {
 	return messages.map((msg) => {
 		const normalized: NormalizedMessage = {
-			role: msg.role || "user",
+			role: msg.role,
 			content: msg.content,
 		};
 		if (msg.toolCalls?.length) {

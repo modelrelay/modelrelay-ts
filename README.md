@@ -82,11 +82,52 @@ const stream = await mr.chat.completions.create(
 );
 ```
 
-### Typed models and stop reasons
+### Typed models, stop reasons, and message roles
 
 - Models are plain strings (e.g., `"gpt-4o"`), so new models do not require SDK updates.
 - Stop reasons are parsed into the `StopReason` union (e.g., `StopReasons.EndTurn`); unknown values surface as `{ other: "<raw>" }`.
+- Message roles use a typed union (`MessageRole`) with constants available via `MessageRoles`.
 - Usage backfills `totalTokens` when the backend omits it, ensuring consistent accounting.
+
+```ts
+import { MessageRoles } from "@modelrelay/sdk";
+
+// Use typed role constants
+const messages = [
+  { role: MessageRoles.System, content: "You are helpful." },
+  { role: MessageRoles.User, content: "Hello!" },
+];
+
+// Available roles: User, Assistant, System, Tool
+```
+
+### Customer-attributed requests
+
+For customer-attributed requests, the customer's tier determines which model to use.
+Use `forCustomer()` instead of providing a model:
+
+```ts
+// Customer-attributed: tier determines model, no model parameter needed
+const stream = await mr.chat.forCustomer("customer-123").create({
+  messages: [{ role: "user", content: "Hello!" }]
+});
+
+for await (const event of stream) {
+  if (event.type === "message_delta" && event.textDelta) {
+    console.log(event.textDelta);
+  }
+}
+
+// Non-streaming
+const completion = await mr.chat.forCustomer("customer-123").create(
+  { messages: [{ role: "user", content: "Hello!" }] },
+  { stream: false }
+);
+```
+
+This provides compile-time separation between:
+- **Direct/PAYGO requests** (`chat.completions.create({ model, ... })`) — model is required
+- **Customer-attributed requests** (`chat.forCustomer(id).create(...)`) — tier determines model
 
 ### Structured outputs (`response_format`)
 
