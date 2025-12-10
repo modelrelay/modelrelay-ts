@@ -15,6 +15,8 @@ export interface Tier {
 	tier_code: string;
 	display_name: string;
 	spend_limit_cents: number;
+	input_price_per_million_cents: number;
+	output_price_per_million_cents: number;
 	stripe_price_id?: string;
 	price_amount?: number;
 	price_currency?: string;
