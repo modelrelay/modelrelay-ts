@@ -693,10 +693,30 @@ export type StructuredJSONRecordType =
 	| "completion"
 	| "error";
 
+/**
+ * Recursively makes all properties optional.
+ * Useful for typing partial payloads during progressive streaming before
+ * all fields are complete.
+ *
+ * @example
+ * interface Article { title: string; body: string; }
+ * type PartialArticle = DeepPartial<Article>;
+ * // { title?: string; body?: string; }
+ */
+export type DeepPartial<T> = T extends object
+	? { [P in keyof T]?: DeepPartial<T[P]> }
+	: T;
+
 export interface StructuredJSONEvent<T> {
 	type: "update" | "completion";
 	payload: T;
 	requestId?: string;
+	/**
+	 * Set of field paths that are complete (have their closing delimiter).
+	 * Use dot notation for nested fields (e.g., "metadata.author").
+	 * Check with completeFields.has("fieldName").
+	 */
+	completeFields: Set<string>;
 }
 
 // --- Raw API Response Types ---

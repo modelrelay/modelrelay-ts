@@ -41,6 +41,38 @@ const result = await mr.chat.completions.structured(Person, {
 console.log(result.value); // { name: "John Doe", age: 30 }
 ```
 
+## Streaming Structured Outputs
+
+Build progressive UIs that render fields as they complete:
+
+```ts
+const Article = z.object({
+  title: z.string(),
+  summary: z.string(),
+  body: z.string(),
+});
+
+const stream = await mr.chat.completions.streamStructured(Article, {
+  model: "claude-sonnet-4-20250514",
+  messages: [{ role: "user", content: "Write an article about TypeScript" }],
+});
+
+for await (const event of stream) {
+  // Render fields as soon as they're complete
+  if (event.completeFields.has("title")) {
+    renderTitle(event.payload.title);  // Safe to display
+  }
+  if (event.completeFields.has("summary")) {
+    renderSummary(event.payload.summary);
+  }
+
+  // Show streaming preview of incomplete fields
+  if (!event.completeFields.has("body")) {
+    renderBodyPreview(event.payload.body + "▋");
+  }
+}
+```
+
 ## Customer-Attributed Requests
 
 For metered billing, use `forCustomer()` — the customer's tier determines the model:

@@ -1206,11 +1206,16 @@ export class StructuredJSONStream<T>
 		if (rawType === "completion") {
 			this.sawTerminal = true;
 		}
+		// Extract complete_fields array and convert to Set for O(1) lookups
+		const completeFieldsArray = Array.isArray(obj.complete_fields)
+			? obj.complete_fields.filter((f: unknown) => typeof f === "string")
+			: [];
 		const event: StructuredJSONEvent<T> = {
 			type: rawType,
 			// biome-ignore lint/suspicious/noExplicitAny: payload is untyped json
 			payload: obj.payload as T,
 			requestId: this.requestId,
+			completeFields: new Set<string>(completeFieldsArray),
 		};
 		return event;
 	}

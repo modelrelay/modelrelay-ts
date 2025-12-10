@@ -8,6 +8,7 @@ import {
 	StructuredExhaustedError,
 } from "../src/structured";
 import type { ZodLikeSchema } from "../src/tools";
+import type { StructuredJSONEvent, DeepPartial } from "../src/types";
 
 describe("Structured Output", () => {
 	describe("responseFormatFromZod", () => {
@@ -277,6 +278,93 @@ describe("Structured Output", () => {
 				{ kind: "decode", message: "test" },
 			);
 			expect(error).toBeInstanceOf(Error);
+		});
+	});
+
+	describe("StructuredJSONEvent completeFields", () => {
+		it("completeFields is a Set for O(1) lookup", () => {
+			// This is a type-level test - ensure the interface is correctly typed
+			interface Article {
+				title: string;
+				body: string;
+			}
+			const event: StructuredJSONEvent<Article> = {
+				type: "update",
+				payload: { title: "Hello", body: "World" },
+				completeFields: new Set(["title", "body"]),
+			};
+
+			// Verify Set operations work as expected
+			expect(event.completeFields.has("title")).toBe(true);
+			expect(event.completeFields.has("body")).toBe(true);
+			expect(event.completeFields.has("missing")).toBe(false);
+			expect(event.completeFields.size).toBe(2);
+		});
+
+		it("allows checking nested field paths", () => {
+			interface Nested {
+				metadata: { author: string; date: string };
+			}
+			const event: StructuredJSONEvent<Nested> = {
+				type: "update",
+				payload: { metadata: { author: "Jane", date: "" } },
+				completeFields: new Set(["metadata.author"]),
+			};
+
+			expect(event.completeFields.has("metadata.author")).toBe(true);
+			expect(event.completeFields.has("metadata.date")).toBe(false);
+			expect(event.completeFields.has("metadata")).toBe(false);
+		});
+
+		it("completion events have completeFields too", () => {
+			interface Simple {
+				name: string;
+			}
+			const event: StructuredJSONEvent<Simple> = {
+				type: "completion",
+				payload: { name: "Test" },
+				completeFields: new Set(["name"]),
+			};
+
+			expect(event.type).toBe("completion");
+			expect(event.completeFields.has("name")).toBe(true);
+		});
+	});
+
+	describe("DeepPartial type", () => {
+		it("makes all properties optional recursively", () => {
+			interface Article {
+				title: string;
+				metadata: {
+					author: string;
+					tags: string[];
+				};
+			}
+			// DeepPartial should allow partial construction
+			const partial: DeepPartial<Article> = {
+				title: "Hello",
+				// metadata is optional, and its properties are also optional
+			};
+
+			expect(partial.title).toBe("Hello");
+			expect(partial.metadata).toBeUndefined();
+		});
+
+		it("allows deeply nested partial objects", () => {
+			interface Complex {
+				level1: {
+					level2: {
+						level3: string;
+					};
+				};
+			}
+			const partial: DeepPartial<Complex> = {
+				level1: {
+					level2: {}, // level3 is optional
+				},
+			};
+
+			expect(partial.level1?.level2?.level3).toBeUndefined();
 		});
 	});
 });
