@@ -398,7 +398,6 @@ export interface ToolCall {
 
 export const ResponseFormatTypes = {
 	Text: "text",
-	JsonObject: "json_object",
 	JsonSchema: "json_schema",
 } as const;
 
@@ -439,8 +438,8 @@ export interface ChatCompletionCreateParams {
 	 */
 	toolChoice?: ToolChoice;
 	/**
-	 * Structured outputs configuration. When set with type `json_object` or
-	 * `json_schema`, the backend validates and returns structured JSON.
+	 * Structured outputs configuration. When set with type `json_schema`,
+	 * the backend validates and returns structured JSON.
 	 */
 	responseFormat?: ResponseFormat;
 	/**
@@ -473,8 +472,8 @@ export interface CustomerChatParams {
 	 */
 	toolChoice?: ToolChoice;
 	/**
-	 * Structured outputs configuration. When set with type `json_object` or
-	 * `json_schema`, the backend validates and returns structured JSON.
+	 * Structured outputs configuration. When set with type `json_schema`,
+	 * the backend validates and returns structured JSON.
 	 */
 	responseFormat?: ResponseFormat;
 	/**

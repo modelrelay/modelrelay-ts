@@ -260,7 +260,11 @@ describe("ModelRelay TypeScript SDK", () => {
 
 		type ItemPayload = { items: Array<{ id: string }> };
 		const format: ResponseFormat = {
-			type: "json_object",
+			type: "json_schema",
+			json_schema: {
+				name: "items",
+				schema: { type: "object", properties: { items: { type: "array" } } },
+			},
 		};
 
 		const stream = await client.chat.completions.streamJSON<ItemPayload>({
@@ -310,7 +314,11 @@ describe("ModelRelay TypeScript SDK", () => {
 
 		type Payload = { items: unknown[] };
 		const format: ResponseFormat = {
-			type: "json_object",
+			type: "json_schema",
+			json_schema: {
+				name: "items",
+				schema: { type: "object", properties: { items: { type: "array" } } },
+			},
 		};
 
 		// Invalid JSON inside the stream
@@ -375,7 +383,11 @@ describe("ModelRelay TypeScript SDK", () => {
 		});
 
 		const format: ResponseFormat = {
-			type: "json_object",
+			type: "json_schema",
+			json_schema: {
+				name: "items",
+				schema: { type: "object", properties: { items: { type: "array" } } },
+			},
 		};
 
 		// Error record should surface as APIError.

@@ -283,11 +283,10 @@ export class ChatCompletionsClient {
 		}
 		if (
 			!params.responseFormat ||
-			(params.responseFormat.type !== "json_object" &&
-				params.responseFormat.type !== "json_schema")
+			params.responseFormat.type !== "json_schema"
 		) {
 			throw new ConfigError(
-				"responseFormat with type=json_object or json_schema is required for structured streaming",
+				"responseFormat with type=json_schema is required for structured streaming",
 			);
 		}
 
@@ -679,11 +678,10 @@ export class CustomerChatClient {
 		}
 		if (
 			!params.responseFormat ||
-			(params.responseFormat.type !== "json_object" &&
-				params.responseFormat.type !== "json_schema")
+			params.responseFormat.type !== "json_schema"
 		) {
 			throw new ConfigError(
-				"responseFormat with type=json_object or json_schema is required for structured streaming",
+				"responseFormat with type=json_schema is required for structured streaming",
 			);
 		}
 
