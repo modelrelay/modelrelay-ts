@@ -223,7 +223,7 @@ export class ChatCompletionsClient {
 			headers,
 			apiKey: authHeaders.apiKey,
 			accessToken: authHeaders.accessToken,
-			accept: stream ? "text/event-stream" : "application/json",
+			accept: stream ? "application/x-ndjson" : "application/json",
 			raw: true,
 			signal: options.signal,
 			timeoutMs: options.timeoutMs ?? (stream ? 0 : undefined),
@@ -618,7 +618,7 @@ export class CustomerChatClient {
 			headers,
 			apiKey: authHeaders.apiKey,
 			accessToken: authHeaders.accessToken,
-			accept: stream ? "text/event-stream" : "application/json",
+			accept: stream ? "application/x-ndjson" : "application/json",
 			raw: true,
 			signal: options.signal,
 			timeoutMs: options.timeoutMs ?? (stream ? 0 : undefined),
@@ -966,9 +966,9 @@ export class ChatCompletionsStream
 				}
 				const { value, done } = await reader.read();
 				if (done) {
-					const { events } = consumeSSEBuffer(buffer, true);
-					for (const evt of events) {
-						const parsed = mapChatEvent(evt, this.requestId);
+					const { records } = consumeNDJSONBuffer(buffer, true);
+					for (const line of records) {
+						const parsed = mapNDJSONChatEvent(line, this.requestId);
 						if (parsed) {
 							this.handleStreamEvent(parsed);
 							yield parsed;
@@ -977,10 +977,10 @@ export class ChatCompletionsStream
 					return;
 				}
 				buffer += decoder.decode(value, { stream: true });
-				const { events, remainder } = consumeSSEBuffer(buffer);
+				const { records, remainder } = consumeNDJSONBuffer(buffer);
 				buffer = remainder;
-				for (const evt of events) {
-					const parsed = mapChatEvent(evt, this.requestId);
+				for (const line of records) {
+					const parsed = mapNDJSONChatEvent(line, this.requestId);
 					if (parsed) {
 						this.handleStreamEvent(parsed);
 						yield parsed;
@@ -1238,62 +1238,6 @@ export class StructuredJSONStream<T>
 	}
 }
 
-interface RawSSE {
-	event: string;
-	data: string;
-}
-
-function consumeSSEBuffer(
-	buffer: string,
-	flush = false,
-): { events: RawSSE[]; remainder: string } {
-	const events: RawSSE[] = [];
-	let eventName = "";
-	let dataLines: string[] = [];
-	let remainder = "";
-
-	const lines = buffer.split(/\r?\n/);
-	const lastIndex = lines.length - 1;
-	const limit = flush ? lines.length : Math.max(0, lastIndex);
-
-	const pushEvent = () => {
-		if (!eventName && dataLines.length === 0) {
-			return;
-		}
-		events.push({
-			event: eventName || "message",
-			data: dataLines.join("\n"),
-		});
-		eventName = "";
-		dataLines = [];
-	};
-
-	for (let i = 0; i < limit; i++) {
-		const line = lines[i];
-		if (line === "") {
-			pushEvent();
-			continue;
-		}
-		if (line.startsWith(":")) {
-			continue;
-		}
-		if (line.startsWith("event:")) {
-			eventName = line.slice(6).trim();
-		} else if (line.startsWith("data:")) {
-			dataLines.push(line.slice(5).trimStart());
-		}
-	}
-
-	if (flush) {
-		pushEvent();
-		remainder = "";
-	} else {
-		remainder = lines[lastIndex] ?? "";
-	}
-
-	return { events, remainder };
-}
-
 function consumeNDJSONBuffer(
 	buffer: string,
 	flush = false,
@@ -1313,38 +1257,104 @@ function consumeNDJSONBuffer(
 	return { records, remainder };
 }
 
-function mapChatEvent(
-	raw: RawSSE,
+/**
+ * Maps unified NDJSON format to ChatCompletionEvent.
+ *
+ * Unified NDJSON format:
+ * - `{"type":"start","request_id":"...","model":"..."}`
+ * - `{"type":"update","payload":{"content":"..."},"complete_fields":[]}`
+ * - `{"type":"completion","payload":{"content":"..."},"usage":{...},"stop_reason":"..."}`
+ * - `{"type":"error","code":"...","message":"...","status":...}`
+ */
+function mapNDJSONChatEvent(
+	line: string,
 	requestId?: string,
 ): ChatCompletionEvent | null {
-	let parsed: unknown = raw.data;
-	if (raw.data) {
-		try {
-			parsed = JSON.parse(raw.data);
-		} catch (err) {
-			// SSE data may not always be JSON (e.g., "[DONE]" marker) - this is expected.
-			// For unexpected parse failures, the raw string is preserved for debugging.
-			parsed = raw.data;
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(line);
+	} catch (err) {
+		// Log parse failures to help debug malformed server responses
+		console.warn(
+			`[ModelRelay SDK] Failed to parse NDJSON line: ${err instanceof Error ? err.message : String(err)}`,
+			{ line: line.substring(0, 200), requestId },
+		);
+		return null;
+	}
+	if (!parsed || typeof parsed !== "object") {
+		console.warn("[ModelRelay SDK] NDJSON record is not an object", {
+			parsed,
+			requestId,
+		});
+		return null;
+	}
+	// biome-ignore lint/suspicious/noExplicitAny: payload is untyped json
+	const obj = parsed as any;
+	const recordType = String(obj.type || "").trim().toLowerCase();
+
+	// Filter keepalive events (expected, no warning needed)
+	if (recordType === "keepalive") {
+		return null;
+	}
+
+	if (!recordType) {
+		console.warn("[ModelRelay SDK] NDJSON record missing 'type' field", {
+			obj,
+			requestId,
+		});
+		return null;
+	}
+
+	// Map unified record types to ChatEventType
+	let type: ChatEventType;
+	switch (recordType) {
+		case "start":
+			type = "message_start";
+			break;
+		case "update":
+			type = "message_delta";
+			break;
+		case "completion":
+			type = "message_stop";
+			break;
+		case "error":
+			type = "custom";
+			break;
+		// Tool use event types
+		case "tool_use_start":
+			type = "tool_use_start";
+			break;
+		case "tool_use_delta":
+			type = "tool_use_delta";
+			break;
+		case "tool_use_stop":
+			type = "tool_use_stop";
+			break;
+		default:
+			type = "custom";
+	}
+
+	const usage = normalizeUsage(obj.usage);
+	const responseId = obj.request_id;
+	const model = normalizeModelId(obj.model);
+	const stopReason = normalizeStopReason(obj.stop_reason);
+
+	// Extract text content from payload for update/completion events
+	let textDelta: string | undefined;
+	if (obj.payload && typeof obj.payload === "object") {
+		if (typeof obj.payload.content === "string") {
+			textDelta = obj.payload.content;
 		}
 	}
-	const payload = typeof parsed === "object" && parsed !== null ? parsed : {};
 
-	// biome-ignore lint/suspicious/noExplicitAny: payload is untyped json
-	const p = payload as any;
-
-	const type = normalizeEventType(raw.event, p);
-	const usage = normalizeUsage(p.usage);
-	const responseId = p.response_id || p.id || p?.message?.id;
-	const model = normalizeModelId(p.model || p?.message?.model);
-	const stopReason = normalizeStopReason(p.stop_reason);
-	const textDelta = extractTextDelta(p);
-	const toolCallDelta = extractToolCallDelta(p, type);
-	const toolCalls = extractToolCalls(p, type);
+	// Extract tool call data from top-level fields
+	const toolCallDelta = extractToolCallDelta(obj, type);
+	const toolCalls = extractToolCalls(obj, type);
 
 	return {
 		type,
-		event: raw.event || type,
-		data: p,
+		event: recordType,
+		data: obj,
 		textDelta,
 		toolCallDelta,
 		toolCalls,
@@ -1353,7 +1363,7 @@ function mapChatEvent(
 		stopReason,
 		usage,
 		requestId,
-		raw: raw.data || "",
+		raw: line,
 	};
 }
 
@@ -1363,6 +1373,12 @@ function normalizeEventType(eventName: string, payload: any): ChatEventType {
 		payload?.type || payload?.event || eventName || "",
 	).trim();
 	switch (hint) {
+		case "start":
+			return "message_start";
+		case "update":
+			return "message_delta";
+		case "completion":
+			return "message_stop";
 		case "message_start":
 			return "message_start";
 		case "message_delta":

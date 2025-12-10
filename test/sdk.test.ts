@@ -89,24 +89,17 @@ describe("ModelRelay TypeScript SDK", () => {
 				// biome-ignore lint/suspicious/noExplicitAny: init.body is untyped
 				const body = JSON.parse(String(init?.body as any));
 				expect(body.max_tokens).toBeUndefined(); // do not inject a default ceiling
-				return buildSSEResponse([
-					{
-						event: "message_start",
-						data: { response_id: "resp-1", model: "gpt-4o" },
-					},
-					{
-						event: "message_delta",
-						data: { response_id: "resp-1", delta: { text: "Hello" } },
-					},
-					{
-						event: "message_stop",
-						data: {
-							response_id: "resp-1",
-							stop_reason: "end_turn",
-							usage: { input_tokens: 1, output_tokens: 2, total_tokens: 3 },
-						},
-					},
-				]);
+				// Unified NDJSON format
+				return buildNDJSONResponse([
+					JSON.stringify({ type: "start", request_id: "resp-1", model: "gpt-4o" }),
+					JSON.stringify({ type: "update", payload: { content: "Hello" } }),
+					JSON.stringify({
+						type: "completion",
+						payload: { content: "Hello" },
+						stop_reason: "end_turn",
+						usage: { input_tokens: 1, output_tokens: 2, total_tokens: 3 },
+					}),
+				], { "X-ModelRelay-Chat-Request-Id": "req-stream-1" });
 			}
 			throw new Error(`unexpected URL: ${url}`);
 		});
@@ -585,6 +578,108 @@ describe("ModelRelay TypeScript SDK", () => {
 		expect(fetchMock).toHaveBeenCalled();
 	});
 
+it("streams tool use events in NDJSON format", async () => {
+	const events: Array<{ type: string; toolCallDelta?: unknown; toolCalls?: unknown }> = [];
+
+	const fetchMock = vi.fn(async (url) => {
+		const path = String(url);
+		if (path.endsWith("/llm/proxy")) {
+			return buildNDJSONResponse([
+				JSON.stringify({ type: "start", request_id: "resp-tools" }),
+				JSON.stringify({
+					type: "tool_use_start",
+					tool_call_delta: { index: 0, id: "call_1", type: "function", function: { name: "get_weather" } },
+				}),
+				JSON.stringify({
+					type: "tool_use_delta",
+					tool_call_delta: { index: 0, function: { arguments: '{"location":' } },
+				}),
+				JSON.stringify({
+					type: "tool_use_delta",
+					tool_call_delta: { index: 0, function: { arguments: '"NYC"}' } },
+				}),
+				JSON.stringify({
+					type: "tool_use_stop",
+					tool_calls: [{ id: "call_1", type: "function", function: { name: "get_weather", arguments: '{"location":"NYC"}' } }],
+				}),
+				JSON.stringify({
+					type: "completion",
+					stop_reason: "tool_calls",
+					tool_calls: [{ id: "call_1", type: "function", function: { name: "get_weather", arguments: '{"location":"NYC"}' } }],
+				}),
+			]);
+		}
+		throw new Error(`unexpected URL: ${url}`);
+	});
+
+	const client = new ModelRelay({
+		key: "mr_sk_tools",
+		fetch: fetchMock as any,
+	});
+
+	const stream = await client.chat.completions.create({
+		model: "claude-sonnet-4-20250514",
+		messages: [createUserMessage("What's the weather in NYC?")],
+	});
+
+	for await (const event of stream as any as ChatCompletionsStream) {
+		events.push({
+			type: event.type,
+			toolCallDelta: event.toolCallDelta,
+			toolCalls: event.toolCalls,
+		});
+	}
+
+	// Verify tool use events are correctly typed
+	expect(events[0].type).toBe("message_start");
+	expect(events[1].type).toBe("tool_use_start");
+	expect(events[1].toolCallDelta).toBeDefined();
+	expect(events[1].toolCallDelta).toMatchObject({ index: 0, id: "call_1" });
+	expect(events[2].type).toBe("tool_use_delta");
+	expect(events[3].type).toBe("tool_use_delta");
+	expect(events[4].type).toBe("tool_use_stop");
+	expect(events[4].toolCalls).toBeDefined();
+	expect(events[4].toolCalls).toHaveLength(1);
+	expect(events[5].type).toBe("message_stop");
+	expect(events[5].toolCalls).toHaveLength(1);
+});
+
+it("filters keepalive events from NDJSON stream", async () => {
+	const events: string[] = [];
+
+	const fetchMock = vi.fn(async (url) => {
+		const path = String(url);
+		if (path.endsWith("/llm/proxy")) {
+			return buildNDJSONResponse([
+				JSON.stringify({ type: "keepalive" }),
+				JSON.stringify({ type: "start", request_id: "resp-keepalive" }),
+				JSON.stringify({ type: "keepalive" }),
+				JSON.stringify({ type: "update", payload: { content: "hi" } }),
+				JSON.stringify({ type: "keepalive" }),
+				JSON.stringify({ type: "completion", payload: { content: "hi" } }),
+			]);
+		}
+		throw new Error(`unexpected URL: ${url}`);
+	});
+
+	const client = new ModelRelay({
+		key: "mr_sk_keepalive",
+		fetch: fetchMock as any,
+	});
+
+	const stream = await client.chat.completions.create({
+		model: "echo-1",
+		messages: [createUserMessage("hi")],
+	});
+
+	for await (const event of stream as any as ChatCompletionsStream) {
+		events.push(event.type);
+	}
+
+	// Only 3 events should be emitted (start, delta, stop), no keepalive
+	expect(events).toEqual(["message_start", "message_delta", "message_stop"]);
+});
+
 it("emits metrics and trace hooks for http + streaming", async () => {
 	const httpCalls: Array<{ status?: number; path?: string }> = [];
 	const firstCalls: number[] = [];
@@ -594,22 +689,14 @@ it("emits metrics and trace hooks for http + streaming", async () => {
 	const fetchMock = vi.fn(async (url) => {
 		const path = String(url);
 		if (path.endsWith("/llm/proxy")) {
-			return buildSSEResponse([
-				{
-					event: "message_start",
-					data: { response_id: "resp-metrics" },
-				},
-				{
-					event: "message_delta",
-					data: { response_id: "resp-metrics", delta: { text: "hi" } },
-				},
-				{
-					event: "message_stop",
-					data: {
-						response_id: "resp-metrics",
-						usage: { input_tokens: 1, output_tokens: 2 },
-					},
-				},
+			return buildNDJSONResponse([
+				JSON.stringify({ type: "start", request_id: "resp-metrics" }),
+				JSON.stringify({ type: "update", payload: { content: "hi" } }),
+				JSON.stringify({
+					type: "completion",
+					payload: { content: "hi" },
+					usage: { input_tokens: 1, output_tokens: 2, total_tokens: 3 },
+				}),
 			]);
 		}
 		throw new Error(`unexpected URL: ${url}`);
@@ -761,30 +848,6 @@ it("emits metrics and trace hooks for http + streaming", async () => {
 		).toThrow(ConfigError);
 	});
 });
-
-function buildSSEResponse(
-	events: Array<{ event: string; data: unknown }>,
-): Response {
-	const encoder = new TextEncoder();
-	const stream = new ReadableStream({
-		start(controller) {
-			for (const evt of events) {
-				const data =
-					typeof evt.data === "string" ? evt.data : JSON.stringify(evt.data);
-				const frame = `event: ${evt.event}\ndata: ${data}\n\n`;
-				controller.enqueue(encoder.encode(frame));
-			}
-			controller.close();
-		},
-	});
-	return new Response(stream, {
-		status: 200,
-		headers: {
-			"Content-Type": "text/event-stream",
-			"X-ModelRelay-Chat-Request-Id": "req-stream-1",
-		},
-	});
-}
 
 function buildNDJSONResponse(
 	lines: string[],
