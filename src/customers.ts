@@ -123,6 +123,17 @@ export class CustomersClient {
 		}
 	}
 
+	private ensureApiKey(): void {
+		if (
+			!this.apiKey ||
+			(!this.apiKey.startsWith("mr_pk_") && !this.apiKey.startsWith("mr_sk_"))
+		) {
+			throw new ConfigError(
+				"API key (mr_pk_* or mr_sk_*) required for claim operation",
+			);
+		}
+	}
+
 	/**
 	 * List all customers in the project.
 	 */
@@ -210,11 +221,16 @@ export class CustomersClient {
 	 * Used when a customer subscribes via Stripe Checkout (email only) and later
 	 * authenticates to the app, needing to link their identity.
 	 *
+	 * This is a user self-service operation that works with publishable keys,
+	 * allowing CLI tools and frontends to link subscriptions to user identities.
+	 *
+	 * Works with both publishable keys (mr_pk_*) and secret keys (mr_sk_*).
+	 *
 	 * @throws {APIError} with status 404 if customer not found by email
 	 * @throws {APIError} with status 409 if customer already claimed or external_id in use
 	 */
 	async claim(request: CustomerClaimRequest): Promise<Customer> {
-		this.ensureSecretKey();
+		this.ensureApiKey();
 		if (!request.email?.trim()) {
 			throw new ConfigError("email is required");
 		}
