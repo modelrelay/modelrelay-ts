@@ -43,7 +43,6 @@ export class ModelRelay {
 		});
 		this.auth = auth;
 		this.chat = new ChatClient(http, auth, {
-			defaultMetadata: cfg.defaultMetadata,
 			metrics: cfg.metrics,
 			trace: cfg.trace,
 		});

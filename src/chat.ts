@@ -67,10 +67,6 @@ export interface ChatRequestOptions {
 	 */
 	headers?: Record<string, string>;
 	/**
-	 * Additional metadata merged into the request body.
-	 */
-	metadata?: Record<string, string>;
-	/**
 	 * Override the per-request timeout in milliseconds (set to 0 to disable).
 	 */
 	timeoutMs?: number;
@@ -96,7 +92,6 @@ export class ChatClient {
 	readonly completions: ChatCompletionsClient;
 	private readonly http: HTTPClient;
 	private readonly auth: AuthClient;
-	private readonly defaultMetadata?: Record<string, string>;
 	private readonly metrics?: MetricsCallbacks;
 	private readonly trace?: TraceCallbacks;
 
@@ -104,20 +99,17 @@ export class ChatClient {
 		http: HTTPClient,
 		auth: AuthClient,
 		cfg: {
-			defaultMetadata?: Record<string, string>;
 			metrics?: MetricsCallbacks;
 			trace?: TraceCallbacks;
 		} = {},
 	) {
 		this.http = http;
 		this.auth = auth;
-		this.defaultMetadata = cfg.defaultMetadata;
 		this.metrics = cfg.metrics;
 		this.trace = cfg.trace;
 		this.completions = new ChatCompletionsClient(
 			http,
 			auth,
-			cfg.defaultMetadata,
 			cfg.metrics,
 			cfg.trace,
 		);
@@ -142,7 +134,6 @@ export class ChatClient {
 			this.http,
 			this.auth,
 			customerId,
-			this.defaultMetadata,
 			this.metrics,
 			this.trace,
 		);
@@ -152,20 +143,17 @@ export class ChatClient {
 export class ChatCompletionsClient {
 	private readonly http: HTTPClient;
 	private readonly auth: AuthClient;
-	private readonly defaultMetadata?: Record<string, string>;
 	private readonly metrics?: MetricsCallbacks;
 	private readonly trace?: TraceCallbacks;
 
 	constructor(
 		http: HTTPClient,
 		auth: AuthClient,
-		defaultMetadata?: Record<string, string>,
 		metrics?: MetricsCallbacks,
 		trace?: TraceCallbacks,
 	) {
 		this.http = http;
 		this.auth = auth;
-		this.defaultMetadata = defaultMetadata;
 		this.metrics = metrics;
 		this.trace = trace;
 	}
@@ -202,10 +190,7 @@ export class ChatCompletionsClient {
 		// Direct chat completion requests use API key auth (no customer context).
 		// For customer-attributed requests, use client.chat.forCustomer(customerId).
 		const authHeaders = await this.auth.authForChat();
-		const body = buildProxyBody(
-			params,
-			mergeMetadata(this.defaultMetadata, params.metadata, options.metadata),
-		);
+		const body = buildProxyBody(params);
 		const requestId = params.requestId || options.requestId;
 		const headers: Record<string, string> = { ...(options.headers || {}) };
 		if (requestId) {
@@ -293,10 +278,7 @@ export class ChatCompletionsClient {
 		// Direct chat completion requests use API key auth (no customer context).
 		// For customer-attributed requests, use client.chat.forCustomer(customerId).
 		const authHeaders = await this.auth.authForChat();
-		const body = buildProxyBody(
-			params,
-			mergeMetadata(this.defaultMetadata, params.metadata, options.metadata),
-		);
+		const body = buildProxyBody(params);
 		const requestId = params.requestId || options.requestId;
 		const headers: Record<string, string> = { ...(options.headers || {}) };
 		if (requestId) {
@@ -546,7 +528,6 @@ export class CustomerChatClient {
 	private readonly http: HTTPClient;
 	private readonly auth: AuthClient;
 	private readonly customerId: string;
-	private readonly defaultMetadata?: Record<string, string>;
 	private readonly metrics?: MetricsCallbacks;
 	private readonly trace?: TraceCallbacks;
 
@@ -554,14 +535,12 @@ export class CustomerChatClient {
 		http: HTTPClient,
 		auth: AuthClient,
 		customerId: string,
-		defaultMetadata?: Record<string, string>,
 		metrics?: MetricsCallbacks,
 		trace?: TraceCallbacks,
 	) {
 		this.http = http;
 		this.auth = auth;
 		this.customerId = customerId;
-		this.defaultMetadata = defaultMetadata;
 		this.metrics = metrics;
 		this.trace = trace;
 	}
@@ -594,10 +573,7 @@ export class CustomerChatClient {
 
 		// For customer-attributed requests, pass customer ID for publishable key auth
 		const authHeaders = await this.auth.authForChat(this.customerId);
-		const body = buildCustomerProxyBody(
-			params,
-			mergeMetadata(this.defaultMetadata, params.metadata, options.metadata),
-		);
+		const body = buildCustomerProxyBody(params);
 		const requestId = params.requestId || options.requestId;
 		const headers: Record<string, string> = {
 			...(options.headers || {}),
@@ -687,10 +663,7 @@ export class CustomerChatClient {
 
 		// For customer-attributed requests, pass customer ID for publishable key auth
 		const authHeaders = await this.auth.authForChat(this.customerId);
-		const body = buildCustomerProxyBody(
-			params,
-			mergeMetadata(this.defaultMetadata, params.metadata, options.metadata),
-		);
+		const body = buildCustomerProxyBody(params);
 		const requestId = params.requestId || options.requestId;
 		const headers: Record<string, string> = {
 			...(options.headers || {}),
@@ -1274,19 +1247,18 @@ function mapNDJSONChatEvent(
 	try {
 		parsed = JSON.parse(line);
 	} catch (err) {
-		// Log parse failures to help debug malformed server responses
-		console.warn(
-			`[ModelRelay SDK] Failed to parse NDJSON line: ${err instanceof Error ? err.message : String(err)}`,
-			{ line: line.substring(0, 200), requestId },
+		// Fail fast on malformed NDJSON - this is a protocol violation
+		throw new TransportError(
+			`Failed to parse NDJSON line: ${err instanceof Error ? err.message : String(err)}`,
+			{ kind: "request", cause: err },
 		);
-		return null;
 	}
 	if (!parsed || typeof parsed !== "object") {
-		console.warn("[ModelRelay SDK] NDJSON record is not an object", {
-			parsed,
-			requestId,
-		});
-		return null;
+		// Fail fast on non-object records - this is a protocol violation
+		throw new TransportError(
+			`NDJSON record is not an object: ${JSON.stringify(parsed)}`,
+			{ kind: "request" },
+		);
 	}
 	// biome-ignore lint/suspicious/noExplicitAny: payload is untyped json
 	const obj = parsed as any;
@@ -1298,11 +1270,11 @@ function mapNDJSONChatEvent(
 	}
 
 	if (!recordType) {
-		console.warn("[ModelRelay SDK] NDJSON record missing 'type' field", {
-			obj,
-			requestId,
-		});
-		return null;
+		// Fail fast on missing type field - this is a protocol violation
+		throw new TransportError(
+			`NDJSON record missing 'type' field: ${JSON.stringify(obj).substring(0, 200)}`,
+			{ kind: "request" },
+		);
 	}
 
 	// Map unified record types to ChatEventType
@@ -1526,7 +1498,6 @@ function normalizeUsage(payload?: APIChatUsage): Usage {
 
 function buildProxyBody(
 	params: ChatCompletionCreateParams,
-	metadata?: Record<string, string>,
 ): Record<string, unknown> {
 	const modelValue = params.model ? modelToString(params.model).trim() : "";
 	const body: Record<string, unknown> = {
@@ -1539,7 +1510,6 @@ function buildProxyBody(
 	if (typeof params.maxTokens === "number") body.max_tokens = params.maxTokens;
 	if (typeof params.temperature === "number")
 		body.temperature = params.temperature;
-	if (metadata && Object.keys(metadata).length > 0) body.metadata = metadata;
 	if (params.stop?.length) body.stop = params.stop;
 	if (params.stopSequences?.length) body.stop_sequences = params.stopSequences;
 	if (params.tools?.length) body.tools = normalizeTools(params.tools);
@@ -1554,7 +1524,6 @@ function buildProxyBody(
  */
 function buildCustomerProxyBody(
 	params: CustomerChatParams,
-	metadata?: Record<string, string>,
 ): Record<string, unknown> {
 	const body: Record<string, unknown> = {
 		messages: normalizeMessages(params.messages),
@@ -1563,7 +1532,6 @@ function buildCustomerProxyBody(
 	if (typeof params.maxTokens === "number") body.max_tokens = params.maxTokens;
 	if (typeof params.temperature === "number")
 		body.temperature = params.temperature;
-	if (metadata && Object.keys(metadata).length > 0) body.metadata = metadata;
 	if (params.stop?.length) body.stop = params.stop;
 	if (params.stopSequences?.length) body.stop_sequences = params.stopSequences;
 	if (params.tools?.length) body.tools = normalizeTools(params.tools);
@@ -1654,22 +1622,6 @@ function requestIdFromHeaders(headers: Headers): string | undefined {
 		headers.get("X-Request-Id") ||
 		undefined
 	);
-}
-
-function mergeMetadata(
-	...sources: Array<Record<string, string> | undefined>
-): Record<string, string> | undefined {
-	const merged: Record<string, string> = {};
-	for (const src of sources) {
-		if (!src) continue;
-		for (const [key, value] of Object.entries(src)) {
-			const k = key?.trim();
-			const v = value?.trim();
-			if (!k || !v) continue;
-			merged[k] = v;
-		}
-	}
-	return Object.keys(merged).length ? merged : undefined;
 }
 
 function hasUserMessage(messages: ChatMessage[]): boolean {

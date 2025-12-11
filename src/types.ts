@@ -64,10 +64,6 @@ export interface ModelRelayBaseOptions {
 	 */
 	defaultHeaders?: Record<string, string>;
 	/**
-	 * Default metadata merged into every chat completion request.
-	 */
-	defaultMetadata?: Record<string, string>;
-	/**
 	 * Optional metrics callbacks for latency/usage.
 	 */
 	metrics?: MetricsCallbacks;
@@ -172,10 +168,6 @@ export interface ModelRelayOptionsLegacy {
 	 * Default HTTP headers applied to every request.
 	 */
 	defaultHeaders?: Record<string, string>;
-	/**
-	 * Default metadata merged into every chat completion request.
-	 */
-	defaultMetadata?: Record<string, string>;
 	/**
 	 * Optional metrics callbacks for latency/usage.
 	 */
@@ -426,7 +418,6 @@ export interface ChatCompletionCreateParams {
 	messages: NonEmptyArray<ChatMessage>;
 	maxTokens?: number;
 	temperature?: number;
-	metadata?: Record<string, string>;
 	stop?: string[];
 	stopSequences?: string[];
 	/**
@@ -460,7 +451,6 @@ export interface CustomerChatParams {
 	messages: NonEmptyArray<ChatMessage>;
 	maxTokens?: number;
 	temperature?: number;
-	metadata?: Record<string, string>;
 	stop?: string[];
 	stopSequences?: string[];
 	/**
