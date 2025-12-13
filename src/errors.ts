@@ -88,6 +88,45 @@ export class TransportError extends ModelRelayError {
 	}
 }
 
+export type StreamTimeoutKind = "ttft" | "idle" | "total";
+
+export class StreamProtocolError extends TransportError {
+	expectedContentType: string;
+	receivedContentType?: string;
+	status: number;
+
+	constructor(opts: {
+		expectedContentType: string;
+		receivedContentType?: string | null;
+		status: number;
+	}) {
+		const got = opts.receivedContentType?.trim() || "<missing>";
+		super(`expected NDJSON stream (${opts.expectedContentType}), got Content-Type ${got}`, {
+			kind: "request",
+		});
+		this.expectedContentType = opts.expectedContentType;
+		this.receivedContentType = opts.receivedContentType?.trim() || undefined;
+		this.status = opts.status;
+	}
+}
+
+export class StreamTimeoutError extends TransportError {
+	streamKind: StreamTimeoutKind;
+	timeoutMs: number;
+
+	constructor(streamKind: StreamTimeoutKind, timeoutMs: number) {
+		const label =
+			streamKind === "ttft"
+				? "TTFT"
+				: streamKind === "idle"
+					? "idle"
+					: "total";
+		super(`stream ${label} timeout after ${timeoutMs}ms`, { kind: "timeout" });
+		this.streamKind = streamKind;
+		this.timeoutMs = timeoutMs;
+	}
+}
+
 export class APIError extends ModelRelayError {
 	constructor(
 		message: string,

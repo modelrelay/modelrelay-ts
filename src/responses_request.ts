@@ -70,6 +70,18 @@ export type ResponsesRequestOptions = {
 	 * Per-call trace/log hooks (merged over client defaults).
 	 */
 	trace?: TraceCallbacks;
+	/**
+	 * Stream timeout until first content event is observed (0 disables).
+	 */
+	streamTTFTTimeoutMs?: number;
+	/**
+	 * Stream idle timeout (max time without receiving any stream bytes; 0 disables).
+	 */
+	streamIdleTimeoutMs?: number;
+	/**
+	 * Stream total timeout (overall stream deadline; 0 disables).
+	 */
+	streamTotalTimeoutMs?: number;
 };
 
 export type ResponsesRequestInternal = ResponsesRequest & {
@@ -107,4 +119,3 @@ export function mergeOptions(
 export function requestIdFromHeaders(headers: Headers): string | null {
 	return headers.get(REQUEST_ID_HEADER);
 }
-

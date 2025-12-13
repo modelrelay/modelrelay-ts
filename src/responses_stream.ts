@@ -1,4 +1,10 @@
-import { APIError, ConfigError, TransportError } from "./errors";
+import {
+	APIError,
+	ConfigError,
+	StreamTimeoutError,
+	type StreamTimeoutKind,
+	TransportError,
+} from "./errors";
 import { ToolCallAccumulator } from "./tools";
 import type {
 	InputItem,
@@ -14,6 +20,12 @@ import type {
 import { consumeNDJSONBuffer, mapNDJSONResponseEvent } from "./responses_ndjson";
 import { isRecord, normalizeCitations } from "./responses_normalize";
 
+export type StreamTimeoutsMs = {
+	ttftMs?: number;
+	idleMs?: number;
+	totalMs?: number;
+};
+
 export class ResponsesStream implements AsyncIterable<ResponseEvent> {
 	private readonly response: globalThis.Response;
 	private readonly requestId?: string;
@@ -21,6 +33,8 @@ export class ResponsesStream implements AsyncIterable<ResponseEvent> {
 	private readonly metrics?: MetricsCallbacks;
 	private readonly trace?: TraceCallbacks;
 	private readonly startedAt: number;
+	private readonly streamStartedAtMs: number;
+	private readonly timeouts: NormalizedStreamTimeoutsMs;
 	private firstTokenEmitted = false;
 	private closed = false;
 
@@ -30,6 +44,8 @@ export class ResponsesStream implements AsyncIterable<ResponseEvent> {
 		context: RequestContext,
 		metrics?: MetricsCallbacks,
 		trace?: TraceCallbacks,
+		timeouts: StreamTimeoutsMs = {},
+		startedAtMs = Date.now(),
 	) {
 		if (!response.body) {
 			throw new ConfigError("streaming response is missing a body");
@@ -39,6 +55,8 @@ export class ResponsesStream implements AsyncIterable<ResponseEvent> {
 		this.context = context;
 		this.metrics = metrics;
 		this.trace = trace;
+		this.timeouts = normalizeStreamTimeoutsMs(timeouts);
+		this.streamStartedAtMs = startedAtMs;
 		this.startedAt =
 			this.metrics?.streamFirstToken ||
 			this.trace?.streamEvent ||
@@ -67,6 +85,8 @@ export class ResponsesStream implements AsyncIterable<ResponseEvent> {
 		const reader = body.getReader();
 		const decoder = new TextDecoder();
 		let buffer = "";
+		let lastActivityAtMs = this.streamStartedAtMs;
+		let ttftSatisfied = false;
 
 		try {
 			while (true) {
@@ -74,12 +94,37 @@ export class ResponsesStream implements AsyncIterable<ResponseEvent> {
 					await reader.cancel();
 					return;
 				}
-				const { value, done } = await reader.read();
+				const now = Date.now();
+				const timeoutState = getStreamTimeoutState({
+					nowMs: now,
+					startedAtMs: this.streamStartedAtMs,
+					lastActivityAtMs,
+					ttftSatisfied,
+					timeouts: this.timeouts,
+				});
+				if (timeoutState.expired) {
+					await this.cancel(timeoutState.expired);
+					throw timeoutState.expired;
+				}
+
+				const readPromise = reader.read();
+				const { value, done } = timeoutState.next
+					? await readWithTimeout(readPromise, timeoutState.next, async (err) => {
+							await this.cancel(err);
+						})
+					: await readPromise;
+
+				if (!done) {
+					lastActivityAtMs = Date.now();
+				}
 				if (done) {
 					const { records } = consumeNDJSONBuffer(buffer, true);
 					for (const line of records) {
 						const parsed = mapNDJSONResponseEvent(line, this.requestId);
 						if (parsed) {
+							if (!ttftSatisfied && countsForTTFT(parsed)) {
+								ttftSatisfied = true;
+							}
 							this.handleStreamEvent(parsed);
 							yield parsed;
 						}
@@ -92,6 +137,9 @@ export class ResponsesStream implements AsyncIterable<ResponseEvent> {
 				for (const line of records) {
 					const parsed = mapNDJSONResponseEvent(line, this.requestId);
 					if (parsed) {
+						if (!ttftSatisfied && countsForTTFT(parsed)) {
+							ttftSatisfied = true;
+						}
 						this.handleStreamEvent(parsed);
 						yield parsed;
 					}
@@ -228,8 +276,11 @@ export class StructuredJSONStream<T>
 	private readonly requestId?: string;
 	private context: RequestContext;
 	private readonly trace?: TraceCallbacks;
+	private readonly streamStartedAtMs: number;
+	private readonly timeouts: NormalizedStreamTimeoutsMs;
 	private closed = false;
 	private sawTerminal = false;
+	private firstContentSeen = false;
 
 	constructor(
 		response: globalThis.Response,
@@ -237,6 +288,8 @@ export class StructuredJSONStream<T>
 		context: RequestContext,
 		_metrics?: MetricsCallbacks,
 		trace?: TraceCallbacks,
+		timeouts: StreamTimeoutsMs = {},
+		startedAtMs = Date.now(),
 	) {
 		if (!response.body) {
 			throw new ConfigError("streaming response is missing a body");
@@ -245,6 +298,8 @@ export class StructuredJSONStream<T>
 		this.requestId = requestId;
 		this.context = context;
 		this.trace = trace;
+		this.timeouts = normalizeStreamTimeoutsMs(timeouts);
+		this.streamStartedAtMs = startedAtMs;
 	}
 
 	async cancel(reason?: unknown): Promise<void> {
@@ -267,6 +322,7 @@ export class StructuredJSONStream<T>
 		const reader = body.getReader();
 		const decoder = new TextDecoder();
 		let buffer = "";
+		let lastActivityAtMs = this.streamStartedAtMs;
 
 		try {
 			while (true) {
@@ -274,7 +330,29 @@ export class StructuredJSONStream<T>
 					await reader.cancel();
 					return;
 				}
-				const { value, done } = await reader.read();
+				const now = Date.now();
+				const timeoutState = getStreamTimeoutState({
+					nowMs: now,
+					startedAtMs: this.streamStartedAtMs,
+					lastActivityAtMs,
+					ttftSatisfied: this.firstContentSeen,
+					timeouts: this.timeouts,
+				});
+				if (timeoutState.expired) {
+					await this.cancel(timeoutState.expired);
+					throw timeoutState.expired;
+				}
+
+				const readPromise = reader.read();
+				const { value, done } = timeoutState.next
+					? await readWithTimeout(readPromise, timeoutState.next, async (err) => {
+							await this.cancel(err);
+						})
+					: await readPromise;
+
+				if (!done) {
+					lastActivityAtMs = Date.now();
+				}
 				if (done) {
 					const { records } = consumeNDJSONBuffer(buffer, true);
 					for (const line of records) {
@@ -343,6 +421,7 @@ export class StructuredJSONStream<T>
 			return null;
 		}
 		if (rawType === "error") {
+			this.firstContentSeen = true;
 			this.sawTerminal = true;
 			throw new APIError(
 				typeof parsed.message === "string" && parsed.message.trim()
@@ -358,6 +437,7 @@ export class StructuredJSONStream<T>
 		if (rawType === "completion") {
 			this.sawTerminal = true;
 		}
+		this.firstContentSeen = true;
 
 		const completeFieldsArray = Array.isArray(parsed.complete_fields)
 			? parsed.complete_fields.filter((f) => typeof f === "string")
@@ -387,5 +467,129 @@ export class StructuredJSONStream<T>
 			raw,
 		};
 		this.trace.streamEvent({ context: this.context, event });
+	}
+}
+
+type NormalizedStreamTimeoutsMs = {
+	ttftMs?: number;
+	idleMs?: number;
+	totalMs?: number;
+};
+
+function normalizeStreamTimeoutsMs(input: StreamTimeoutsMs): NormalizedStreamTimeoutsMs {
+	return {
+		ttftMs: normalizePositiveMs(input.ttftMs),
+		idleMs: normalizePositiveMs(input.idleMs),
+		totalMs: normalizePositiveMs(input.totalMs),
+	};
+}
+
+function normalizePositiveMs(value: number | undefined): number | undefined {
+	if (value === undefined || value === null) return undefined;
+	const n = Math.max(0, value);
+	return n > 0 ? n : undefined;
+}
+
+function countsForTTFT(evt: ResponseEvent): boolean {
+	if ((evt.type === "message_delta" || evt.type === "message_stop") && evt.textDelta) {
+		return true;
+	}
+	if ((evt.type === "tool_use_start" || evt.type === "tool_use_delta") && evt.toolCallDelta) {
+		return true;
+	}
+	if ((evt.type === "tool_use_stop" || evt.type === "message_stop") && evt.toolCalls?.length) {
+		return true;
+	}
+	if (evt.event === "error") {
+		return true;
+	}
+	return false;
+}
+
+type StreamTimeoutState =
+	| { expired: StreamTimeoutError; next?: never }
+	| { expired?: never; next?: { remainingMs: number; error: StreamTimeoutError } }
+	| { expired?: never; next?: never };
+
+function getStreamTimeoutState(args: {
+	nowMs: number;
+	startedAtMs: number;
+	lastActivityAtMs: number;
+	ttftSatisfied: boolean;
+	timeouts: NormalizedStreamTimeoutsMs;
+}): StreamTimeoutState {
+	const { nowMs, startedAtMs, lastActivityAtMs, ttftSatisfied, timeouts } = args;
+
+	const candidates: Array<{
+		kind: StreamTimeoutKind;
+		remainingMs: number;
+		configuredMs: number;
+	}> = [];
+
+	if (timeouts.totalMs) {
+		candidates.push({
+			kind: "total",
+			remainingMs: timeouts.totalMs - (nowMs - startedAtMs),
+			configuredMs: timeouts.totalMs,
+		});
+	}
+	if (timeouts.idleMs) {
+		candidates.push({
+			kind: "idle",
+			remainingMs: timeouts.idleMs - (nowMs - lastActivityAtMs),
+			configuredMs: timeouts.idleMs,
+		});
+	}
+	if (!ttftSatisfied && timeouts.ttftMs) {
+		candidates.push({
+			kind: "ttft",
+			remainingMs: timeouts.ttftMs - (nowMs - startedAtMs),
+			configuredMs: timeouts.ttftMs,
+		});
+	}
+
+	if (candidates.length === 0) {
+		return {};
+	}
+
+	// If any deadlines are already expired, pick the one that is most overdue
+	// (smallest remainingMs) to approximate which would have fired first.
+	const expired = candidates
+		.filter((c) => c.remainingMs <= 0)
+		.sort((a, b) => a.remainingMs - b.remainingMs)[0];
+	if (expired) {
+		return { expired: new StreamTimeoutError(expired.kind, expired.configuredMs) };
+	}
+
+	const next = candidates.sort((a, b) => a.remainingMs - b.remainingMs)[0];
+	if (!next) return {};
+	return {
+		next: {
+			remainingMs: next.remainingMs,
+			error: new StreamTimeoutError(next.kind, next.configuredMs),
+		},
+	};
+}
+
+async function readWithTimeout<T>(
+	readPromise: Promise<T>,
+	next: { remainingMs: number; error: StreamTimeoutError },
+	onTimeout: (err: StreamTimeoutError) => Promise<void> | void,
+): Promise<T> {
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const timeoutPromise = new Promise<never>((_, reject) => {
+		timer = setTimeout(() => reject(next.error), next.remainingMs);
+	});
+	try {
+		return (await Promise.race([readPromise, timeoutPromise])) as T;
+	} catch (err) {
+		if (err instanceof StreamTimeoutError) {
+			await onTimeout(err);
+			// Best-effort: avoid unhandled rejections on the in-flight read.
+			void readPromise.catch(() => undefined);
+		}
+		throw err;
+	} finally {
+		if (timer) clearTimeout(timer);
 	}
 }

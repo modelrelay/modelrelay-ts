@@ -176,6 +176,24 @@ export class ResponseBuilder {
 		return this.with({ options: { trace } });
 	}
 
+	streamTTFTTimeoutMs(timeoutMs: number): ResponseBuilder {
+		return this.with({
+			options: { streamTTFTTimeoutMs: Math.max(0, timeoutMs) },
+		});
+	}
+
+	streamIdleTimeoutMs(timeoutMs: number): ResponseBuilder {
+		return this.with({
+			options: { streamIdleTimeoutMs: Math.max(0, timeoutMs) },
+		});
+	}
+
+	streamTotalTimeoutMs(timeoutMs: number): ResponseBuilder {
+		return this.with({
+			options: { streamTotalTimeoutMs: Math.max(0, timeoutMs) },
+		});
+	}
+
 	signal(signal: AbortSignal): ResponseBuilder {
 		return this.with({ options: { signal } });
 	}
@@ -204,4 +222,3 @@ export class ResponseBuilder {
 		return makeResponsesRequest(body, { ...(this.options || {}) });
 	}
 }
-

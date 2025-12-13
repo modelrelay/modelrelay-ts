@@ -1,5 +1,11 @@
 import type { AuthClient } from "./auth";
-import { APIError, ConfigError, TransportError, parseErrorResponse } from "./errors";
+import {
+	APIError,
+	ConfigError,
+	StreamProtocolError,
+	TransportError,
+	parseErrorResponse,
+} from "./errors";
 import type { HTTPClient } from "./http";
 import type {
 	APIResponsesResponse,
@@ -292,6 +298,7 @@ export class ResponsesClient {
 			requestId,
 		};
 
+		const startedAtMs = Date.now();
 		const response = await this.http.request(RESPONSES_PATH, {
 			method: "POST",
 			body: req.body,
@@ -314,6 +321,18 @@ export class ResponsesClient {
 		if (!response.ok) {
 			throw await parseErrorResponse(response);
 		}
+		const contentType = response.headers.get("Content-Type");
+		if (
+			!contentType ||
+			(!contentType.toLowerCase().includes("application/x-ndjson") &&
+				!contentType.toLowerCase().includes("application/ndjson"))
+		) {
+			throw new StreamProtocolError({
+				expectedContentType: "application/x-ndjson",
+				receivedContentType: contentType,
+				status: response.status,
+			});
+		}
 		const streamContext = {
 			...baseContext,
 			requestId: resolvedRequestId ?? baseContext.requestId,
@@ -324,6 +343,12 @@ export class ResponsesClient {
 			streamContext,
 			metrics,
 			trace,
+			{
+				ttftMs: merged.streamTTFTTimeoutMs,
+				idleMs: merged.streamIdleTimeoutMs,
+				totalMs: merged.streamTotalTimeoutMs,
+			},
+			startedAtMs,
 		);
 	}
 
@@ -367,6 +392,7 @@ export class ResponsesClient {
 			requestId,
 		};
 
+		const startedAtMs = Date.now();
 		const response = await this.http.request(RESPONSES_PATH, {
 			method: "POST",
 			body: req.body,
@@ -393,13 +419,15 @@ export class ResponsesClient {
 
 		const contentType = response.headers.get("Content-Type");
 		if (
-			contentType &&
-			!contentType.toLowerCase().includes("application/x-ndjson")
+			!contentType ||
+			(!contentType.toLowerCase().includes("application/x-ndjson") &&
+				!contentType.toLowerCase().includes("application/ndjson"))
 		) {
-			throw new TransportError(
-				`expected NDJSON structured stream, got Content-Type ${contentType}`,
-				{ kind: "request" },
-			);
+			throw new StreamProtocolError({
+				expectedContentType: "application/x-ndjson",
+				receivedContentType: contentType,
+				status: response.status,
+			});
 		}
 
 		return new StructuredJSONStream<T>(
@@ -411,6 +439,12 @@ export class ResponsesClient {
 			},
 			metrics,
 			trace,
+			{
+				ttftMs: merged.streamTTFTTimeoutMs,
+				idleMs: merged.streamIdleTimeoutMs,
+				totalMs: merged.streamTotalTimeoutMs,
+			},
+			startedAtMs,
 		);
 	}
 

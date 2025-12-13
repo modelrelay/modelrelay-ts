@@ -8,7 +8,12 @@ import {
 	type OutputFormat,
 	type StructuredJSONEvent,
 } from "../src";
-import { APIError, ConfigError, TransportError } from "../src/errors";
+import {
+	APIError,
+	ConfigError,
+	StreamProtocolError,
+	TransportError,
+} from "../src/errors";
 
 const future = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
@@ -187,6 +192,184 @@ describe("ModelRelay TypeScript SDK", () => {
 			seen.push(d);
 		}
 		expect(seen).toEqual(["Done"]);
+	});
+
+	it("rejects non-NDJSON content-type for responses streaming", async () => {
+		const fetchMock = vi.fn(async (url) => {
+			const path = String(url);
+			if (path.endsWith("/responses")) {
+				return new Response("<html>nope</html>", {
+					status: 200,
+					headers: { "Content-Type": "text/html; charset=utf-8" },
+				});
+			}
+			throw new Error(`unexpected URL: ${url}`);
+		});
+
+		const client = new ModelRelay({
+			key: "mr_sk_stream_ct",
+			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
+			fetch: fetchMock as any,
+		});
+
+		const req = client.responses
+			.new()
+			.model("gpt-4o")
+			.input([createUserMessage("hi")])
+			.build();
+
+		await expect(client.responses.stream(req)).rejects.toBeInstanceOf(
+			StreamProtocolError,
+		);
+	});
+
+	it("enforces TTFT timeout for response streams", async () => {
+		const fetchMock = vi.fn(async (url) => {
+			const path = String(url);
+			if (path.endsWith("/responses")) {
+				return buildDelayedNDJSONResponse(
+					[
+						{
+							delayMs: 0,
+							line: JSON.stringify({
+								type: "start",
+								request_id: "resp-1",
+								model: "gpt-4o",
+							}),
+						},
+						{
+							delayMs: 60,
+							line: JSON.stringify({
+								type: "completion",
+								payload: { content: "Done" },
+								stop_reason: "end_turn",
+								usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
+							}),
+						},
+					],
+					{ "X-ModelRelay-Request-Id": "req-ttft-1" },
+				);
+			}
+			throw new Error(`unexpected URL: ${url}`);
+		});
+
+		const client = new ModelRelay({
+			key: "mr_sk_stream_ttft",
+			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
+			fetch: fetchMock as any,
+		});
+
+		const req = client.responses
+			.new()
+			.model("gpt-4o")
+			.input([createUserMessage("hi")])
+			.build();
+
+		const stream = await client.responses.stream(req, { streamTTFTTimeoutMs: 20 });
+		const it = stream[Symbol.asyncIterator]();
+		await it.next(); // message_start
+		await expect(it.next()).rejects.toMatchObject({ streamKind: "ttft" });
+	});
+
+	it("enforces idle timeout for response streams", async () => {
+		const fetchMock = vi.fn(async (url) => {
+			const path = String(url);
+			if (path.endsWith("/responses")) {
+				return buildDelayedNDJSONResponse(
+					[
+						{
+							delayMs: 0,
+							line: JSON.stringify({
+								type: "start",
+								request_id: "resp-1",
+								model: "gpt-4o",
+							}),
+						},
+						{
+							delayMs: 60,
+							line: JSON.stringify({
+								type: "completion",
+								payload: { content: "Done" },
+								stop_reason: "end_turn",
+								usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
+							}),
+						},
+					],
+					{ "X-ModelRelay-Request-Id": "req-idle-1" },
+				);
+			}
+			throw new Error(`unexpected URL: ${url}`);
+		});
+
+		const client = new ModelRelay({
+			key: "mr_sk_stream_idle",
+			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
+			fetch: fetchMock as any,
+		});
+
+		const req = client.responses
+			.new()
+			.model("gpt-4o")
+			.input([createUserMessage("hi")])
+			.build();
+
+		const stream = await client.responses.stream(req, { streamIdleTimeoutMs: 20 });
+		const it = stream[Symbol.asyncIterator]();
+		await it.next(); // message_start
+		await expect(it.next()).rejects.toMatchObject({ streamKind: "idle" });
+	});
+
+	it("enforces total timeout for response streams even with keepalive bytes", async () => {
+		const fetchMock = vi.fn(async (url) => {
+			const path = String(url);
+			if (path.endsWith("/responses")) {
+				const encoder = new TextEncoder();
+				let interval: ReturnType<typeof setInterval> | undefined;
+				const stream = new ReadableStream({
+					start(controller) {
+						controller.enqueue(
+							encoder.encode(
+								`${JSON.stringify({
+									type: "start",
+									request_id: "resp-1",
+									model: "gpt-4o",
+								})}\n`,
+							),
+						);
+						interval = setInterval(() => {
+							controller.enqueue(
+								encoder.encode(`${JSON.stringify({ type: "keepalive" })}\n`),
+							);
+						}, 5);
+					},
+					cancel() {
+						if (interval) clearInterval(interval);
+					},
+				});
+				return new Response(stream, {
+					status: 200,
+					headers: { "Content-Type": "application/x-ndjson" },
+				});
+			}
+			throw new Error(`unexpected URL: ${url}`);
+		});
+
+		const client = new ModelRelay({
+			key: "mr_sk_stream_total",
+			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
+			fetch: fetchMock as any,
+		});
+
+		const req = client.responses
+			.new()
+			.model("gpt-4o")
+			.input([createUserMessage("hi")])
+			.build();
+
+		const stream = await client.responses.stream(req, { streamTotalTimeoutMs: 20 });
+		const it = stream[Symbol.asyncIterator]();
+		await it.next(); // message_start
+		await expect(it.next()).rejects.toMatchObject({ streamKind: "total" });
 	});
 
 	it("caches frontend tokens issued from publishable keys", async () => {
@@ -392,6 +575,89 @@ describe("ModelRelay TypeScript SDK", () => {
 		expect(events.map((e) => e.type)).toEqual(["update", "completion"]);
 		expect(events[0]?.payload.items[0]?.id).toBe("one");
 		expect(events[1]?.payload.items[1]?.id).toBe("two");
+	});
+
+	it("rejects non-NDJSON content-type for structured streaming", async () => {
+		const fetchMock = vi.fn(async (url) => {
+			const path = String(url);
+			if (path.endsWith("/responses")) {
+				return new Response("<html>nope</html>", {
+					status: 200,
+					headers: { "Content-Type": "text/html; charset=utf-8" },
+				});
+			}
+			throw new Error(`unexpected URL: ${url}`);
+		});
+
+		const client = new ModelRelay({
+			key: "mr_sk_structured_ct",
+			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
+			fetch: fetchMock as any,
+		});
+
+		type ItemPayload = { items: Array<{ id: string }> };
+		const format: OutputFormat = {
+			type: "json_schema",
+			json_schema: { name: "items", schema: { type: "object" } },
+		};
+
+		const req = client.responses
+			.new()
+			.model("echo-1")
+			.input([createUserMessage("hi")])
+			.outputFormat(format)
+			.build();
+
+		await expect(client.responses.streamJSON<ItemPayload>(req)).rejects.toBeInstanceOf(
+			StreamProtocolError,
+		);
+	});
+
+	it("enforces TTFT timeout for structured response streams", async () => {
+		const fetchMock = vi.fn(async (url) => {
+			const path = String(url);
+			if (path.endsWith("/responses")) {
+				return buildDelayedNDJSONResponse(
+					[
+						{ delayMs: 0, line: JSON.stringify({ type: "start", request_id: "items-1" }) },
+						{
+							delayMs: 60,
+							line: JSON.stringify({
+								type: "completion",
+								payload: { items: [{ id: "one" }] },
+							}),
+						},
+					],
+					{ "X-ModelRelay-Request-Id": "req-structured-ttft-1" },
+				);
+			}
+			throw new Error(`unexpected URL: ${url}`);
+		});
+
+		const client = new ModelRelay({
+			key: "mr_sk_structured_ttft",
+			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
+			fetch: fetchMock as any,
+		});
+
+		type ItemPayload = { items: Array<{ id: string }> };
+		const format: OutputFormat = {
+			type: "json_schema",
+			json_schema: { name: "items", schema: { type: "object" } },
+		};
+
+		const req = client.responses
+			.new()
+			.model("echo-1")
+			.input([createUserMessage("hi")])
+			.outputFormat(format)
+			.build();
+
+		const stream = await client.responses.streamJSON<ItemPayload>(req, {
+			streamTTFTTimeoutMs: 20,
+		});
+		const it = stream[Symbol.asyncIterator]();
+		await expect(it.next()).rejects.toMatchObject({ streamKind: "ttft" });
 	});
 
 	it("validates output_format type for structured streaming", async () => {
@@ -1014,6 +1280,37 @@ function buildNDJSONResponse(
 				controller.enqueue(encoder.encode(`${line}\n`));
 			}
 			controller.close();
+		},
+	});
+	return new Response(stream, {
+		status: 200,
+		headers: {
+			"Content-Type": "application/x-ndjson",
+			...headers,
+		},
+	});
+}
+
+function buildDelayedNDJSONResponse(
+	steps: Array<{ delayMs: number; line: string }>,
+	headers: Record<string, string> = {},
+): Response {
+	const encoder = new TextEncoder();
+	const stream = new ReadableStream({
+		start(controller) {
+			let idx = 0;
+			const pushNext = () => {
+				if (idx >= steps.length) {
+					controller.close();
+					return;
+				}
+				const step = steps[idx++];
+				setTimeout(() => {
+					controller.enqueue(encoder.encode(`${step.line}\n`));
+					pushNext();
+				}, Math.max(0, step.delayMs));
+			};
+			pushNext();
 		},
 	});
 	return new Response(stream, {
