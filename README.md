@@ -4,17 +4,20 @@
 bun add @modelrelay/sdk
 ```
 
-## Streaming Chat
+## Streaming Responses
 
 ```ts
 import { ModelRelay } from "@modelrelay/sdk";
 
 const mr = new ModelRelay({ key: "mr_sk_..." });
 
-const stream = await mr.chat.completions.create({
-  model: "claude-sonnet-4-20250514",
-  messages: [{ role: "user", content: "Hello" }],
-});
+const req = mr.responses
+  .new()
+  .model("claude-sonnet-4-20250514")
+  .user("Hello")
+  .build();
+
+const stream = await mr.responses.stream(req);
 
 for await (const event of stream) {
   if (event.type === "message_delta" && event.textDelta) {
@@ -26,17 +29,21 @@ for await (const event of stream) {
 ## Structured Outputs with Zod
 
 ```ts
+import { ModelRelay } from "@modelrelay/sdk";
 import { z } from "zod";
+
+const mr = new ModelRelay({ key: "mr_sk_..." });
 
 const Person = z.object({
   name: z.string(),
   age: z.number(),
 });
 
-const result = await mr.chat.completions.structured(Person, {
-  model: "claude-sonnet-4-20250514",
-  messages: [{ role: "user", content: "Extract: John Doe is 30" }],
-});
+const result = await mr.responses.structured(
+  Person,
+  mr.responses.new().model("claude-sonnet-4-20250514").user("Extract: John Doe is 30").build(),
+  { maxRetries: 2 },
+);
 
 console.log(result.value); // { name: "John Doe", age: 30 }
 ```
@@ -46,16 +53,21 @@ console.log(result.value); // { name: "John Doe", age: 30 }
 Build progressive UIs that render fields as they complete:
 
 ```ts
+import { ModelRelay } from "@modelrelay/sdk";
+import { z } from "zod";
+
+const mr = new ModelRelay({ key: "mr_sk_..." });
+
 const Article = z.object({
   title: z.string(),
   summary: z.string(),
   body: z.string(),
 });
 
-const stream = await mr.chat.completions.streamStructured(Article, {
-  model: "claude-sonnet-4-20250514",
-  messages: [{ role: "user", content: "Write an article about TypeScript" }],
-});
+const stream = await mr.responses.streamStructured(
+  Article,
+  mr.responses.new().model("claude-sonnet-4-20250514").user("Write an article about TypeScript").build(),
+);
 
 for await (const event of stream) {
   // Render fields as soon as they're complete
@@ -75,12 +87,16 @@ for await (const event of stream) {
 
 ## Customer-Attributed Requests
 
-For metered billing, use `forCustomer()` — the customer's tier determines the model:
+For metered billing, use `customerId()` — the customer's tier determines the model and `model` can be omitted:
 
 ```ts
-const stream = await mr.chat.forCustomer("customer-123").create({
-  messages: [{ role: "user", content: "Hello" }],
-});
+const req = mr.responses
+  .new()
+  .customerId("customer-123")
+  .user("Hello")
+  .build();
+
+const stream = await mr.responses.stream(req);
 ```
 
 ## Customer Management (Backend)

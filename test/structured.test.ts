@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import {
-	responseFormatFromZod,
+	outputFormatFromZod,
 	validateWithZod,
 	defaultRetryHandler,
 	StructuredDecodeError,
@@ -11,14 +11,14 @@ import type { ZodLikeSchema } from "../src/tools";
 import type { StructuredJSONEvent, DeepPartial } from "../src/types";
 
 describe("Structured Output", () => {
-	describe("responseFormatFromZod", () => {
+	describe("outputFormatFromZod", () => {
 		it("creates response format from simple object schema", () => {
 			const PersonSchema = z.object({
 				name: z.string(),
 				age: z.number(),
 			});
 
-			const format = responseFormatFromZod(
+			const format = outputFormatFromZod(
 				PersonSchema as unknown as ZodLikeSchema,
 			);
 
@@ -41,7 +41,7 @@ describe("Structured Output", () => {
 				conditions: z.string(),
 			});
 
-			const format = responseFormatFromZod(
+			const format = outputFormatFromZod(
 				WeatherSchema as unknown as ZodLikeSchema,
 				"weather",
 			);
@@ -59,11 +59,13 @@ describe("Structured Output", () => {
 				address: AddressSchema,
 			});
 
-			const format = responseFormatFromZod(
+			const format = outputFormatFromZod(
 				PersonSchema as unknown as ZodLikeSchema,
 			);
 
-			expect(format.json_schema?.schema?.properties?.address).toEqual({
+			// biome-ignore lint/suspicious/noExplicitAny: schema is untyped json
+			const schema = format.json_schema?.schema as any;
+			expect(schema?.properties?.address).toEqual({
 				type: "object",
 				properties: {
 					street: { type: "string" },
@@ -79,7 +81,7 @@ describe("Structured Output", () => {
 				optional: z.string().optional(),
 			});
 
-			const format = responseFormatFromZod(
+			const format = outputFormatFromZod(
 				Schema as unknown as ZodLikeSchema,
 			);
 
@@ -91,11 +93,13 @@ describe("Structured Output", () => {
 				tags: z.array(z.string()),
 			});
 
-			const format = responseFormatFromZod(
+			const format = outputFormatFromZod(
 				Schema as unknown as ZodLikeSchema,
 			);
 
-			expect(format.json_schema?.schema?.properties?.tags).toEqual({
+			// biome-ignore lint/suspicious/noExplicitAny: schema is untyped json
+			const schema = format.json_schema?.schema as any;
+			expect(schema?.properties?.tags).toEqual({
 				type: "array",
 				items: { type: "string" },
 			});
@@ -106,11 +110,13 @@ describe("Structured Output", () => {
 				status: z.enum(["active", "inactive", "pending"]),
 			});
 
-			const format = responseFormatFromZod(
+			const format = outputFormatFromZod(
 				Schema as unknown as ZodLikeSchema,
 			);
 
-			expect(format.json_schema?.schema?.properties?.status).toEqual({
+			// biome-ignore lint/suspicious/noExplicitAny: schema is untyped json
+			const schema = format.json_schema?.schema as any;
+			expect(schema?.properties?.status).toEqual({
 				type: "string",
 				enum: ["active", "inactive", "pending"],
 			});
@@ -148,7 +154,8 @@ describe("Structured Output", () => {
 
 			expect(result.success).toBe(false);
 			if (!result.success) {
-				expect(result.error).toBeDefined();
+				expect(result.issues).toBeDefined();
+				expect(result.issues.length).toBeGreaterThan(0);
 			}
 		});
 
@@ -173,13 +180,18 @@ describe("Structured Output", () => {
 				1,
 				'{"invalid": json}',
 				{ kind: "decode", message: "Unexpected token" },
-				[{ role: "user", content: "Extract info" }],
+				[{
+					type: "message",
+					role: "user",
+					content: [{ type: "text", text: "Extract info" }],
+				}],
 			);
 
 			expect(result).toHaveLength(1);
 			expect(result![0].role).toBe("user");
-			expect(result![0].content).toContain("Unexpected token");
-			expect(result![0].content).toContain("did not match the expected schema");
+			expect(result![0].content[0]?.type).toBe("text");
+			expect(result![0].content[0] && "text" in result![0].content[0] ? result![0].content[0].text : "").toContain("Unexpected token");
+			expect(result![0].content[0] && "text" in result![0].content[0] ? result![0].content[0].text : "").toContain("did not match the expected schema");
 		});
 
 		it("returns user message with validation error details", () => {
@@ -193,13 +205,18 @@ describe("Structured Output", () => {
 						{ path: "age", message: "Required" },
 					],
 				},
-				[{ role: "user", content: "Extract info" }],
+				[{
+					type: "message",
+					role: "user",
+					content: [{ type: "text", text: "Extract info" }],
+				}],
 			);
 
 			expect(result).toHaveLength(1);
 			expect(result![0].role).toBe("user");
-			expect(result![0].content).toContain("Expected string, got number");
-			expect(result![0].content).toContain("Required");
+			expect(result![0].content[0]?.type).toBe("text");
+			expect(result![0].content[0] && "text" in result![0].content[0] ? result![0].content[0].text : "").toContain("Expected string, got number");
+			expect(result![0].content[0] && "text" in result![0].content[0] ? result![0].content[0].text : "").toContain("Required");
 		});
 	});
 

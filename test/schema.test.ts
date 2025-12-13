@@ -5,6 +5,7 @@ import {
 	zodToJsonSchema,
 	type ZodLikeSchema,
 } from "../src/tools";
+import { ConfigError } from "../src/errors";
 
 describe("Schema Inference", () => {
 	describe("zodToJsonSchema", () => {
@@ -158,6 +159,13 @@ describe("Schema Inference", () => {
 				type: "object",
 				additionalProperties: { type: "number" },
 			});
+		});
+
+		it("throws on unsupported schema types", () => {
+			const schema = z.date();
+			expect(() => zodToJsonSchema(schema as unknown as ZodLikeSchema)).toThrowError(
+				ConfigError,
+			);
 		});
 	});
 

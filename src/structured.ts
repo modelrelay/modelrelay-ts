@@ -14,9 +14,9 @@
  *   age: z.number(),
  * });
  *
- * const result = await client.chat.completions.structured(
+ * const result = await client.responses.structured(
  *   PersonSchema,
- *   { model: "claude-sonnet-4-20250514", messages: [...] },
+ *   client.responses.new().model("claude-sonnet-4-20250514").user("...").build(),
  *   { maxRetries: 2 }
  * );
  *
@@ -26,7 +26,7 @@
 
 import type { ZodLikeSchema } from "./tools";
 import { zodToJsonSchema } from "./tools";
-import type { ResponseFormat, ChatMessage } from "./types";
+import type { OutputFormat, InputItem } from "./types";
 
 // ============================================================================
 // Error Types
@@ -128,8 +128,8 @@ export interface RetryHandler {
 		attempt: number,
 		rawJson: string,
 		error: StructuredErrorKind,
-		originalMessages: ChatMessage[],
-	): ChatMessage[] | null;
+		originalInput: InputItem[],
+	): InputItem[] | null;
 }
 
 /**
@@ -140,19 +140,18 @@ export const defaultRetryHandler: RetryHandler = {
 		_attempt: number,
 		_rawJson: string,
 		error: StructuredErrorKind,
-		_originalMessages: ChatMessage[],
-	): ChatMessage[] | null {
+		_originalInput: InputItem[],
+	): InputItem[] | null {
 		const errorMsg =
 			error.kind === "decode"
 				? error.message
 				: error.issues.map((i) => `${i.path ?? ""}: ${i.message}`).join("; ");
 
-		return [
-			{
-				role: "user",
-				content: `The previous response did not match the expected schema. Error: ${errorMsg}. Please provide a response that matches the schema exactly.`,
-			},
-		];
+		return [{
+			type: "message",
+			role: "user",
+			content: [{ type: "text", text: `The previous response did not match the expected schema. Error: ${errorMsg}. Please provide a response that matches the schema exactly.` }],
+		}];
 	},
 };
 
@@ -189,14 +188,14 @@ export interface StructuredResult<T> {
 // ============================================================================
 
 /**
- * Creates a ResponseFormat from a Zod schema with automatic JSON schema generation.
+ * Creates an OutputFormat from a Zod schema with automatic JSON schema generation.
  *
  * This function uses `zodToJsonSchema` to convert a Zod schema to JSON Schema,
- * then wraps it in a ResponseFormat with `type = "json_schema"` and `strict = true`.
+ * then wraps it in an OutputFormat with `type = "json_schema"` and `strict = true`.
  *
  * @param schema - A Zod schema
  * @param name - Optional schema name (defaults to "response")
- * @returns A ResponseFormat configured for structured outputs
+ * @returns An OutputFormat configured for structured outputs
  *
  * @example
  * ```typescript
@@ -207,13 +206,13 @@ export interface StructuredResult<T> {
  *   conditions: z.string(),
  * });
  *
- * const format = responseFormatFromZod(WeatherSchema, "weather");
+ * const format = outputFormatFromZod(WeatherSchema, "weather");
  * ```
  */
-export function responseFormatFromZod(
+export function outputFormatFromZod(
 	schema: ZodLikeSchema,
 	name = "response",
-): ResponseFormat {
+): OutputFormat {
 	const jsonSchema = zodToJsonSchema(schema);
 	return {
 		type: "json_schema",
@@ -235,15 +234,39 @@ export function responseFormatFromZod(
 export function validateWithZod<T>(
 	schema: ZodLikeSchema,
 	data: unknown,
-): { success: true; data: T } | { success: false; error: string } {
+): { success: true; data: T } | { success: false; issues: ValidationIssue[] } {
 	const result = schema.safeParse(data);
 	if (result.success) {
 		return { success: true, data: result.data as T };
 	}
-	// Extract error message from Zod error
-	const errorMsg =
-		result.error && typeof result.error === "object" && "message" in result.error
-			? String(result.error.message)
+	const err = result.error as unknown;
+	// Try to extract Zod-style issues
+	const issuesRaw =
+		err && typeof err === "object" && "issues" in err
+			? (err as { issues?: unknown }).issues
+			: undefined;
+	if (Array.isArray(issuesRaw)) {
+		return {
+			success: false,
+			issues: issuesRaw.map((i: unknown) => {
+				const ii =
+					i && typeof i === "object" ? (i as Record<string, unknown>) : {};
+				return {
+					path: Array.isArray(ii.path)
+						? ii.path.filter((p) => typeof p === "string" || typeof p === "number").join(".")
+						: undefined,
+					message:
+						typeof ii.message === "string" && ii.message.trim()
+							? ii.message
+							: "validation failed",
+				};
+			}),
+		};
+	}
+	// Fallback: single generic issue
+	const message =
+		err && typeof err === "object" && "message" in (err as object)
+			? String((err as { message?: unknown }).message)
 			: "validation failed";
-	return { success: false, error: errorMsg };
+	return { success: false, issues: [{ message }] };
 }

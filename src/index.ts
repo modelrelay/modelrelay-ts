@@ -1,5 +1,5 @@
 import { AuthClient, isPublishableKey, createApiKeyAuth, createAccessTokenAuth } from "./auth";
-import { ChatClient, ChatCompletionsStream, StructuredJSONStream, CustomerChatClient } from "./chat";
+import { ResponsesClient, ResponsesStream, StructuredJSONStream } from "./responses";
 import { CustomersClient } from "./customers";
 import { TiersClient } from "./tiers";
 import { ConfigError } from "./errors";
@@ -11,7 +11,7 @@ import {
 } from "./types";
 
 export class ModelRelay {
-	readonly chat: ChatClient;
+	readonly responses: ResponsesClient;
 	readonly auth: AuthClient;
 	readonly customers: CustomersClient;
 	readonly tiers: TiersClient;
@@ -42,7 +42,7 @@ export class ModelRelay {
 			customer: cfg.customer,
 		});
 		this.auth = auth;
-		this.chat = new ChatClient(http, auth, {
+		this.responses = new ResponsesClient(http, auth, {
 			metrics: cfg.metrics,
 			trace: cfg.trace,
 		});
@@ -57,10 +57,9 @@ export class ModelRelay {
 
 export {
 	AuthClient,
-	ChatClient,
-	ChatCompletionsStream,
+	ResponsesClient,
+	ResponsesStream,
 	StructuredJSONStream,
-	CustomerChatClient,
 	ConfigError,
 	CustomersClient,
 	TiersClient,
@@ -146,7 +145,7 @@ export type {
 
 // Structured output utilities
 export {
-	responseFormatFromZod,
+	outputFormatFromZod,
 	validateWithZod,
 	defaultRetryHandler,
 	StructuredDecodeError,

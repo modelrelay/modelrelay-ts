@@ -214,7 +214,7 @@ export async function parseErrorResponse(
 	retries?: RetryMetadata,
 ): Promise<APIError> {
 	const requestId =
-		response.headers.get("X-ModelRelay-Chat-Request-Id") ||
+		response.headers.get("X-ModelRelay-Request-Id") ||
 		response.headers.get("X-Request-Id") ||
 		undefined;
 	const fallbackMessage = response.statusText || "Request failed";

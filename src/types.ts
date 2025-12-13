@@ -305,27 +305,56 @@ export const MessageRoles = {
 } as const;
 export type MessageRole = (typeof MessageRoles)[keyof typeof MessageRoles];
 
-export interface ChatMessage {
+// --- Content + Input/Output Items (Responses API) ---
+
+export const ContentPartTypes = {
+	Text: "text",
+} as const;
+export type ContentPartType = (typeof ContentPartTypes)[keyof typeof ContentPartTypes];
+
+export type ContentPart =
+	| { type: "text"; text: string };
+
+export const InputItemTypes = {
+	Message: "message",
+} as const;
+export type InputItemType = (typeof InputItemTypes)[keyof typeof InputItemTypes];
+
+export type InputItem = {
+	type: "message";
 	role: MessageRole;
-	content: string;
+	content: ContentPart[];
 	toolCalls?: ToolCall[];
 	toolCallId?: string;
-}
+};
+
+export const OutputItemTypes = {
+	Message: "message",
+} as const;
+export type OutputItemType = (typeof OutputItemTypes)[keyof typeof OutputItemTypes];
+
+export type OutputItem = {
+	type: "message";
+	role: MessageRole;
+	content: ContentPart[];
+	toolCalls?: ToolCall[];
+};
 
 // --- Tool Types ---
 
 export const ToolTypes = {
 	Function: "function",
 	Web: "web",
-	WebSearch: "web_search",
 	XSearch: "x_search",
 	CodeExecution: "code_execution",
 } as const;
 export type ToolType = (typeof ToolTypes)[keyof typeof ToolTypes];
 
 export const WebToolModes = {
-	Search: "search",
-	Browse: "browse",
+	Auto: "auto",
+	SearchOnly: "search_only",
+	FetchOnly: "fetch_only",
+	SearchAndFetch: "search_and_fetch",
 } as const;
 export type WebToolMode = (typeof WebToolModes)[keyof typeof WebToolModes];
 
@@ -339,7 +368,7 @@ export interface WebSearchConfig {
 	allowedDomains?: string[];
 	excludedDomains?: string[];
 	maxUses?: number;
-	mode?: string;
+	mode?: WebToolMode;
 }
 
 export interface XSearchConfig {
@@ -357,8 +386,6 @@ export interface CodeExecConfig {
 export interface Tool {
 	type: ToolType;
 	function?: FunctionTool;
-	webSearch?: WebSearchConfig;
-	/** Alias for webSearch - used in API normalization */
 	web?: WebSearchConfig;
 	xSearch?: XSearchConfig;
 	codeExecution?: CodeExecConfig;
@@ -373,6 +400,11 @@ export type ToolChoiceType = (typeof ToolChoiceTypes)[keyof typeof ToolChoiceTyp
 
 export interface ToolChoice {
 	type: ToolChoiceType;
+	/**
+	 * Optional function tool name to force.
+	 * Only valid when type is "required".
+	 */
+	function?: string;
 }
 
 export interface FunctionCall {
@@ -386,104 +418,43 @@ export interface ToolCall {
 	function?: FunctionCall;
 }
 
-// --- Structured Outputs (response_format) ---
+// --- Structured Outputs (output_format) ---
 
-export const ResponseFormatTypes = {
+export const OutputFormatTypes = {
 	Text: "text",
 	JsonSchema: "json_schema",
 } as const;
 
-export type ResponseFormatType =
-	(typeof ResponseFormatTypes)[keyof typeof ResponseFormatTypes];
+export type OutputFormatType =
+	(typeof OutputFormatTypes)[keyof typeof OutputFormatTypes];
 
-export interface ResponseJSONSchemaFormat {
+export interface JSONSchemaFormat {
 	name: string;
 	description?: string;
 	schema: Record<string, unknown>;
 	strict?: boolean;
 }
 
-export interface ResponseFormat {
-	type: ResponseFormatType;
+export interface OutputFormat {
+	type: OutputFormatType;
 	// Use the wire-compatible field name so JSON.stringify matches the API.
-	json_schema?: ResponseJSONSchemaFormat;
+	json_schema?: JSONSchemaFormat;
 }
 
-/**
- * Parameters for direct chat completions (owner PAYGO mode).
- * Model is required - the developer specifies which model to use.
- */
-export interface ChatCompletionCreateParams {
-	model: ModelId;
-	messages: NonEmptyArray<ChatMessage>;
-	maxTokens?: number;
-	temperature?: number;
-	stop?: string[];
-	stopSequences?: string[];
-	/**
-	 * Tools available for the model to call.
-	 */
-	tools?: Tool[];
-	/**
-	 * Controls how the model responds to tool calls.
-	 */
-	toolChoice?: ToolChoice;
-	/**
-	 * Structured outputs configuration. When set with type `json_schema`,
-	 * the backend validates and returns structured JSON.
-	 */
-	responseFormat?: ResponseFormat;
-	/**
-	 * Opt out of SSE streaming and request a blocking JSON response.
-	 */
-	stream?: boolean;
-	/**
-	 * Optional request id to set on the call. If omitted, the server will generate one.
-	 */
-	requestId?: string;
+export interface Citation {
+	url?: string;
+	title?: string;
 }
 
-/**
- * Parameters for customer-attributed chat completions.
- * Model is NOT included - the customer's tier determines the model.
- */
-export interface CustomerChatParams {
-	messages: NonEmptyArray<ChatMessage>;
-	maxTokens?: number;
-	temperature?: number;
-	stop?: string[];
-	stopSequences?: string[];
-	/**
-	 * Tools available for the model to call.
-	 */
-	tools?: Tool[];
-	/**
-	 * Controls how the model responds to tool calls.
-	 */
-	toolChoice?: ToolChoice;
-	/**
-	 * Structured outputs configuration. When set with type `json_schema`,
-	 * the backend validates and returns structured JSON.
-	 */
-	responseFormat?: ResponseFormat;
-	/**
-	 * Opt out of SSE streaming and request a blocking JSON response.
-	 */
-	stream?: boolean;
-	/**
-	 * Optional request id to set on the call. If omitted, the server will generate one.
-	 */
-	requestId?: string;
-}
-
-export interface ChatCompletionResponse {
+export interface Response {
 	id: string;
-	content: string[];
+	output: OutputItem[];
 	stopReason?: StopReason;
-	model?: ModelId;
+	model: ModelId;
 	usage: Usage;
 	requestId?: string;
-	toolCalls?: ToolCall[];
+	provider?: ProviderId;
+	citations?: Citation[];
 }
 
 export interface FieldError {
@@ -550,7 +521,7 @@ export interface TraceCallbacks {
 	}) => void;
 	streamEvent?: (info: {
 		context: RequestContext;
-		event: ChatCompletionEvent;
+		event: ResponseEvent;
 	}) => void;
 	streamError?: (info: { context: RequestContext; error: unknown }) => void;
 }
@@ -611,7 +582,7 @@ export function modelToString(value: ModelId): string {
 	return String(value).trim();
 }
 
-export type ChatEventType =
+export type ResponseEventType =
 	| "message_start"
 	| "message_delta"
 	| "message_stop"
@@ -657,8 +628,8 @@ export interface FunctionCallDelta {
 	arguments?: string;
 }
 
-export interface ChatCompletionEvent<T = unknown> {
-	type: ChatEventType;
+export interface ResponseEvent<T = unknown> {
+	type: ResponseEventType;
 	event: string;
 	data?: T;
 	textDelta?: string;
@@ -738,24 +709,20 @@ export interface APICheckoutSession {
 	completed_at?: string;
 }
 
-export interface APIChatUsage {
+export interface APIUsage {
 	input_tokens?: number;
 	output_tokens?: number;
 	total_tokens?: number;
 }
 
-export interface APIChatResponse {
+export interface APIResponsesResponse {
 	id?: string;
-	content?: string | string[];
 	stop_reason?: string;
 	model?: string;
-	usage?: APIChatUsage;
-	// Streaming event payload variations
-	response_id?: string;
-	message?: { id?: string; model?: string };
-	delta?: string | { text?: string; content?: string };
-	type?: string;
-	event?: string;
+	usage?: APIUsage;
+	provider?: string;
+	output?: OutputItem[];
+	citations?: Citation[];
 }
 
 export interface APIKey {

@@ -5,12 +5,13 @@ import type {
 	ToolType,
 	FunctionTool,
 	FunctionCall,
-	ChatMessage,
-	ChatCompletionResponse,
 	ToolCallDelta,
 	WebToolMode,
+	InputItem,
+	Response,
 } from "./types";
 import { ToolTypes, ToolChoiceTypes } from "./types";
+import { ConfigError } from "./errors";
 
 // ============================================================================
 // Message Factory Functions
@@ -19,22 +20,34 @@ import { ToolTypes, ToolChoiceTypes } from "./types";
 /**
  * Creates a user message.
  */
-export function createUserMessage(content: string): ChatMessage {
-	return { role: "user", content };
+export function createUserMessage(content: string): InputItem {
+	return {
+		type: "message",
+		role: "user",
+		content: [{ type: "text", text: content }],
+	};
 }
 
 /**
  * Creates an assistant message.
  */
-export function createAssistantMessage(content: string): ChatMessage {
-	return { role: "assistant", content };
+export function createAssistantMessage(content: string): InputItem {
+	return {
+		type: "message",
+		role: "assistant",
+		content: [{ type: "text", text: content }],
+	};
 }
 
 /**
  * Creates a system message.
  */
-export function createSystemMessage(content: string): ChatMessage {
-	return { role: "system", content };
+export function createSystemMessage(content: string): InputItem {
+	return {
+		type: "message",
+		role: "system",
+		content: [{ type: "text", text: content }],
+	};
 }
 
 // ============================================================================
@@ -162,8 +175,10 @@ function convertZodType(schema: ZodLikeSchema): Record<string, unknown> {
 		case "ZodUnknown":
 			return {};
 		default:
-			// For unsupported types, return empty schema (accepts anything)
-			return {};
+			throw new ConfigError(
+				`sdk: unsupported Zod schema type ${JSON.stringify(typeName)}; pass JSON Schema directly or use a full converter like zod-to-json-schema`,
+				{ typeName },
+			);
 	}
 }
 
@@ -491,17 +506,24 @@ export function toolChoiceNone(): ToolChoice {
 /**
  * Returns true if the response contains tool calls.
  */
-export function hasToolCalls(response: ChatCompletionResponse): boolean {
-	return (response.toolCalls?.length ?? 0) > 0;
+export function hasToolCalls(response: Response): boolean {
+	for (const item of response.output || []) {
+		if (item?.toolCalls?.length) return true;
+	}
+	return false;
 }
 
 /**
  * Returns the first tool call from a response, or undefined if none exist.
  */
 export function firstToolCall(
-	response: ChatCompletionResponse,
+	response: Response,
 ): ToolCall | undefined {
-	return response.toolCalls?.[0];
+	for (const item of response.output || []) {
+		const call = item?.toolCalls?.[0];
+		if (call) return call;
+	}
+	return undefined;
 }
 
 /**
@@ -510,13 +532,13 @@ export function firstToolCall(
 export function toolResultMessage(
 	toolCallId: string,
 	result: unknown,
-): ChatMessage {
-	const content =
-		typeof result === "string" ? result : JSON.stringify(result);
+): InputItem {
+	const content = typeof result === "string" ? result : JSON.stringify(result);
 	return {
+		type: "message",
 		role: "tool",
-		content,
 		toolCallId,
+		content: [{ type: "text", text: content }],
 	};
 }
 
@@ -527,7 +549,7 @@ export function toolResultMessage(
 export function respondToToolCall(
 	call: ToolCall,
 	result: unknown,
-): ChatMessage {
+): InputItem {
 	return toolResultMessage(call.id, result);
 }
 
@@ -538,10 +560,11 @@ export function respondToToolCall(
 export function assistantMessageWithToolCalls(
 	content: string,
 	toolCalls: ToolCall[],
-): ChatMessage {
+): InputItem {
 	return {
+		type: "message",
 		role: "assistant",
-		content,
+		content: [{ type: "text", text: content }],
 		toolCalls,
 	};
 }
@@ -963,9 +986,9 @@ export class ToolRegistry {
 	 * Converts execution results to tool result messages.
 	 * Useful for appending to the conversation history.
 	 * @param results - Array of execution results
-	 * @returns Array of ChatMessage objects with role "tool"
+	 * @returns Array of tool result input items (role "tool")
 	 */
-	resultsToMessages(results: ToolExecutionResult[]): ChatMessage[] {
+	resultsToMessages(results: ToolExecutionResult[]): InputItem[] {
 		return results.map((r) => {
 			const content = r.error
 				? `Error: ${r.error}`
@@ -1047,7 +1070,7 @@ export function getRetryableErrors(
  */
 export function createRetryMessages(
 	results: ToolExecutionResult[],
-): ChatMessage[] {
+): InputItem[] {
 	return results
 		.filter((r) => r.error && r.isRetryable)
 		.map((r) => toolResultMessage(r.toolCallId, formatToolErrorForModel(r)));
@@ -1073,7 +1096,7 @@ export interface RetryOptions {
 	 * @returns New tool calls from the model, or empty array to stop retrying
 	 */
 	onRetry?: (
-		errorMessages: ChatMessage[],
+		errorMessages: InputItem[],
 		attempt: number,
 	) => Promise<ToolCall[]>;
 }
@@ -1100,8 +1123,14 @@ export interface RetryOptions {
  *     // Add error messages to conversation and call the model again
  *     messages.push(assistantMessageWithToolCalls("", toolCalls));
  *     messages.push(...errorMessages);
- *     const response = await client.chat.completions.create({ messages, tools });
- *     return response.toolCalls ?? [];
+ *     const req = client.responses
+ *       .new()
+ *       .model("...")
+ *       .input(messages)
+ *       .tools(tools)
+ *       .build();
+ *     const response = await client.responses.create(req);
+ *     return firstToolCall(response) ? [firstToolCall(response)!] : [];
  *   },
  * });
  * ```

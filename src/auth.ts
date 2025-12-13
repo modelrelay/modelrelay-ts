@@ -132,10 +132,10 @@ export class AuthClient {
 	}
 
 	/**
-	 * Determine the correct auth headers for chat completions.
+	 * Determine the correct auth headers for /responses.
 	 * Publishable keys are automatically exchanged for frontend tokens.
 	 */
-	async authForChat(
+	async authForResponses(
 		customerId?: string,
 		overrides?: Partial<FrontendCustomer>,
 	): Promise<AuthHeaders> {

@@ -536,7 +536,7 @@ function withRequestId(
 	headers: Headers,
 ): RequestContext {
 	const requestId =
-		headers.get("X-ModelRelay-Chat-Request-Id") ||
+		headers.get("X-ModelRelay-Request-Id") ||
 		headers.get("X-Request-Id") ||
 		context.requestId;
 	if (!requestId) return context;
