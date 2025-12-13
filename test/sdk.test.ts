@@ -683,7 +683,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
-	it("ignores unknown structured record types", async () => {
+	it("throws on unknown structured record types", async () => {
 		const fetchMock = vi.fn(async (url, init) => {
 			const path = String(url);
 			if (path.endsWith("/responses")) {
@@ -726,13 +726,13 @@ describe("ModelRelay TypeScript SDK", () => {
 			.outputFormat(format)
 			.build();
 
-		const stream = await client.responses.streamJSON<ItemPayload>(req);
-
-		const types: Array<StructuredJSONEvent<ItemPayload>["type"]> = [];
-		for await (const evt of stream) {
-			types.push(evt.type);
-		}
-		expect(types).toEqual(["update", "completion"]);
+		await expect(
+			client.responses.streamJSON<ItemPayload>(req).then(async (stream) => {
+				for await (const _ of stream) {
+					// consume
+				}
+			}),
+		).rejects.toBeInstanceOf(TransportError);
 	});
 
 	it("throws transport error for invalid NDJSON and content-type mismatch", async () => {

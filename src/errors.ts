@@ -260,14 +260,27 @@ export async function parseErrorResponse(
 	const status = response.status || 500;
 
 	let bodyText = "";
+	let bodyReadErr: unknown | undefined;
 	try {
 		bodyText = await response.text();
-	} catch {
-		// ignore read errors and fall back to status text
+	} catch (err) {
+		bodyReadErr = err;
 	}
 
 	if (!bodyText) {
-		return new APIError(fallbackMessage, { status, requestId, retries });
+		return new APIError(fallbackMessage, {
+			status,
+			requestId,
+			retries,
+			data: bodyReadErr
+				? {
+						body_read_error:
+							bodyReadErr instanceof Error
+								? bodyReadErr.message
+								: String(bodyReadErr),
+					}
+				: undefined,
+		});
 	}
 
 	try {

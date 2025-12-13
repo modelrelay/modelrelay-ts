@@ -417,8 +417,15 @@ export class StructuredJSONStream<T>
 		if (rawType === "keepalive") {
 			return null;
 		}
-		if (rawType !== "update" && rawType !== "completion" && rawType !== "error") {
+		if (rawType === "start") {
+			// Structured streams include a "start" envelope with metadata we don't currently expose.
 			return null;
+		}
+		if (rawType !== "update" && rawType !== "completion" && rawType !== "error") {
+			throw new TransportError(
+				`unexpected structured NDJSON record type: ${rawType || "<missing>"}`,
+				{ kind: "request" },
+			);
 		}
 		if (rawType === "error") {
 			this.firstContentSeen = true;
