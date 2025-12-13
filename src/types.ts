@@ -30,6 +30,10 @@ export type StopReason =
 export type ProviderId = string;
 export type ModelId = string;
 
+export type PublishableKey = string & { readonly __brand: "PublishableKey" };
+export type SecretKey = string & { readonly __brand: "SecretKey" };
+export type ApiKey = PublishableKey | SecretKey;
+
 /**
  * Common configuration options for the ModelRelay client.
  */
@@ -82,7 +86,7 @@ export interface ModelRelayKeyOptions extends ModelRelayBaseOptions {
 	 * - Secret keys (`mr_sk_...`) are for server-side API calls.
 	 * - Publishable keys (`mr_pk_...`) are for frontend token exchange.
 	 */
-	key: string;
+	key: ApiKey;
 	/**
 	 * Optional bearer token (takes precedence over key for requests when provided).
 	 */
@@ -96,7 +100,7 @@ export interface ModelRelayTokenOptions extends ModelRelayBaseOptions {
 	/**
 	 * Optional API key.
 	 */
-	key?: string;
+	key?: ApiKey;
 	/**
 	 * Bearer token to call the API directly (server or frontend token). Required.
 	 */
@@ -111,7 +115,8 @@ export interface ModelRelayTokenOptions extends ModelRelayBaseOptions {
  *
  * @example With API key (server-side)
  * ```typescript
- * const client = new ModelRelay({ key: "mr_sk_..." });
+ * import { ModelRelay, parseSecretKey } from "@modelrelay/sdk";
+ * const client = new ModelRelay({ key: parseSecretKey("mr_sk_...") });
  * ```
  *
  * @example With access token (frontend or after token exchange)
@@ -121,7 +126,8 @@ export interface ModelRelayTokenOptions extends ModelRelayBaseOptions {
  *
  * @example With publishable key (frontend token exchange)
  * ```typescript
- * const client = new ModelRelay({ key: "mr_pk_...", customer: { id: "user123" } });
+ * import { ModelRelay, parsePublishableKey } from "@modelrelay/sdk";
+ * const client = new ModelRelay({ key: parsePublishableKey("mr_pk_..."), customer: { id: "user123" } });
  * ```
  */
 export type ModelRelayOptions = ModelRelayKeyOptions | ModelRelayTokenOptions;
@@ -134,7 +140,7 @@ export interface ModelRelayOptionsLegacy {
 	/**
 	 * API key (secret or publishable). Publishable keys are required for frontend token exchange.
 	 */
-	key?: string;
+	key?: ApiKey;
 	/**
 	 * Bearer token to call the API directly (server or frontend token).
 	 */
@@ -190,7 +196,7 @@ export interface FrontendCustomer {
  */
 export interface FrontendTokenRequest {
 	/** Publishable key (mr_pk_*) - required for authentication. */
-	publishableKey: string;
+	publishableKey: PublishableKey;
 	/** Customer identifier - required to issue a token for this customer. */
 	customerId: string;
 	/** Optional device identifier for tracking/rate limiting. */
@@ -206,7 +212,7 @@ export interface FrontendTokenRequest {
  */
 export interface FrontendTokenAutoProvisionRequest {
 	/** Publishable key (mr_pk_*) - required for authentication. */
-	publishableKey: string;
+	publishableKey: PublishableKey;
 	/** Customer identifier - required to issue a token for this customer. */
 	customerId: string;
 	/** Email address - required for auto-provisioning a new customer. */
@@ -244,7 +250,7 @@ export interface FrontendToken {
 	/**
 	 * Publishable key used for issuance. Added client-side for caching.
 	 */
-	publishableKey?: string;
+	publishableKey?: PublishableKey;
 	/**
 	 * Device identifier used when issuing the token. Added client-side for caching.
 	 */

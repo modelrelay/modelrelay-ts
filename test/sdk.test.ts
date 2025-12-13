@@ -5,6 +5,8 @@ import {
 	ResponsesStream,
 	StructuredJSONStream,
 	createUserMessage,
+	parsePublishableKey,
+	parseSecretKey,
 	type OutputFormat,
 	type StructuredJSONEvent,
 } from "../src";
@@ -48,7 +50,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		});
 
 		const client = new ModelRelay({
-			key: "mr_sk_text_helper",
+			key: parseSecretKey("mr_sk_text_helper"),
 			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
 			fetch: fetchMock as any,
 		});
@@ -76,7 +78,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		});
 
 		const client = new ModelRelay({
-			key: "mr_sk_text_empty",
+			key: parseSecretKey("mr_sk_text_empty"),
 			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
 			fetch: fetchMock as any,
 		});
@@ -116,7 +118,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		});
 
 		const client = new ModelRelay({
-			key: "mr_sk_text_customer",
+			key: parseSecretKey("mr_sk_text_customer"),
 			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
 			fetch: fetchMock as any,
 		});
@@ -147,7 +149,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		});
 
 		const client = new ModelRelay({
-			key: "mr_sk_text_stream",
+			key: parseSecretKey("mr_sk_text_stream"),
 			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
 			fetch: fetchMock as any,
 		});
@@ -181,7 +183,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		});
 
 		const client = new ModelRelay({
-			key: "mr_sk_text_stream_completion_only",
+			key: parseSecretKey("mr_sk_text_stream_completion_only"),
 			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
 			fetch: fetchMock as any,
 		});
@@ -207,7 +209,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		});
 
 		const client = new ModelRelay({
-			key: "mr_sk_stream_ct",
+			key: parseSecretKey("mr_sk_stream_ct"),
 			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
 			fetch: fetchMock as any,
 		});
@@ -254,7 +256,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		});
 
 		const client = new ModelRelay({
-			key: "mr_sk_stream_ttft",
+			key: parseSecretKey("mr_sk_stream_ttft"),
 			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
 			fetch: fetchMock as any,
 		});
@@ -302,7 +304,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		});
 
 		const client = new ModelRelay({
-			key: "mr_sk_stream_idle",
+			key: parseSecretKey("mr_sk_stream_idle"),
 			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
 			fetch: fetchMock as any,
 		});
@@ -355,7 +357,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		});
 
 		const client = new ModelRelay({
-			key: "mr_sk_stream_total",
+			key: parseSecretKey("mr_sk_stream_total"),
 			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
 			fetch: fetchMock as any,
 		});
@@ -388,13 +390,13 @@ describe("ModelRelay TypeScript SDK", () => {
 		});
 
 		const client = new ModelRelay({
-			key: "mr_pk_test_123",
+			key: parsePublishableKey("mr_pk_test_123"),
 			customer: { id: "cust-1" },
 			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
 			fetch: fetchMock as any,
 		});
 
-		const req = { publishableKey: "mr_pk_test_123", customerId: "cust-1" };
+		const req = { publishableKey: parsePublishableKey("mr_pk_test_123"), customerId: "cust-1" };
 		const first = await client.auth.frontendToken(req);
 		const second = await client.auth.frontendToken(req);
 
@@ -421,19 +423,19 @@ describe("ModelRelay TypeScript SDK", () => {
 		});
 
 		const client = new ModelRelay({
-			key: "mr_pk_test_device",
+			key: parsePublishableKey("mr_pk_test_device"),
 			customer: { id: "cust-1" },
 			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
 			fetch: fetchMock as any,
 		});
 
 		const first = await client.auth.frontendToken({
-			publishableKey: "mr_pk_test_device",
+			publishableKey: parsePublishableKey("mr_pk_test_device"),
 			customerId: "cust-1",
 			deviceId: "device-a",
 		});
 		const second = await client.auth.frontendToken({
-			publishableKey: "mr_pk_test_device",
+			publishableKey: parsePublishableKey("mr_pk_test_device"),
 			customerId: "cust-1",
 			deviceId: "device-b",
 		});
@@ -483,7 +485,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		});
 
 		const client = new ModelRelay({
-			key: "mr_pk_test_456",
+			key: parsePublishableKey("mr_pk_test_456"),
 			customer: { id: "cust-42" },
 			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
 			fetch: fetchMock as any,
@@ -543,7 +545,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		});
 
 		const client = new ModelRelay({
-			key: "mr_sk_structured",
+			key: parseSecretKey("mr_sk_structured"),
 			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
 			fetch: fetchMock as any,
 		});
@@ -590,7 +592,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		});
 
 		const client = new ModelRelay({
-			key: "mr_sk_structured_ct",
+			key: parseSecretKey("mr_sk_structured_ct"),
 			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
 			fetch: fetchMock as any,
 		});
@@ -635,7 +637,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		});
 
 		const client = new ModelRelay({
-			key: "mr_sk_structured_ttft",
+			key: parseSecretKey("mr_sk_structured_ttft"),
 			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
 			fetch: fetchMock as any,
 		});
@@ -664,7 +666,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		const fetchMock = vi.fn();
 
 		const client = new ModelRelay({
-			key: "mr_sk_structured_type",
+			key: parseSecretKey("mr_sk_structured_type"),
 			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
 			fetch: fetchMock as any,
 		});
@@ -705,7 +707,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		});
 
 		const client = new ModelRelay({
-			key: "mr_sk_structured_unknown",
+			key: parseSecretKey("mr_sk_structured_unknown"),
 			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
 			fetch: fetchMock as any,
 		});
@@ -760,7 +762,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		});
 
 		const client = new ModelRelay({
-			key: "mr_sk_structured_invalid",
+			key: parseSecretKey("mr_sk_structured_invalid"),
 			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
 			fetch: fetchMock as any,
 		});
@@ -826,7 +828,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		});
 
 		const client = new ModelRelay({
-			key: "mr_sk_structured_errors",
+			key: parseSecretKey("mr_sk_structured_errors"),
 			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
 			fetch: fetchMock as any,
 		});
@@ -892,7 +894,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		});
 
 		const client = new ModelRelay({
-			key: "mr_sk_retry",
+			key: parseSecretKey("mr_sk_retry"),
 			fetch: fetchMock as any,
 			retry: { maxAttempts: 2, baseBackoffMs: 0, maxBackoffMs: 1 },
 		});
@@ -938,7 +940,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		});
 
 		const client = new ModelRelay({
-			key: "mr_sk_typed",
+			key: parseSecretKey("mr_sk_typed"),
 			fetch: fetchMock as any,
 		});
 
@@ -979,7 +981,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		});
 
 		const client = new ModelRelay({
-			key: "mr_sk_custom_model",
+			key: parseSecretKey("mr_sk_custom_model"),
 			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
 			fetch: fetchMock as any,
 		});
@@ -1033,7 +1035,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		});
 
 		const client = new ModelRelay({
-			key: "mr_sk_tools",
+			key: parseSecretKey("mr_sk_tools"),
 			fetch: fetchMock as any,
 		});
 
@@ -1087,7 +1089,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		});
 
 		const client = new ModelRelay({
-			key: "mr_sk_keepalive",
+			key: parseSecretKey("mr_sk_keepalive"),
 			fetch: fetchMock as any,
 		});
 
@@ -1129,7 +1131,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		});
 
 		const client = new ModelRelay({
-			key: "mr_sk_metrics",
+			key: parseSecretKey("mr_sk_metrics"),
 			fetch: fetchMock as any,
 			metrics: {
 				httpRequest: (m) => httpCalls.push({ status: m.status, path: m.context.path }),
@@ -1175,7 +1177,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		});
 
 		const client = new ModelRelay({
-			key: "mr_sk_abort",
+			key: parseSecretKey("mr_sk_abort"),
 			fetch: fetchMock as any,
 			retry: { maxAttempts: 3, baseBackoffMs: 0, maxBackoffMs: 0 },
 		});
@@ -1206,7 +1208,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		});
 
 		const client = new ModelRelay({
-			key: "mr_sk_retry_meta",
+			key: parseSecretKey("mr_sk_retry_meta"),
 			fetch: fetchMock as any,
 			retry: { maxAttempts: 2, baseBackoffMs: 0, maxBackoffMs: 0 },
 		});
@@ -1237,7 +1239,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		);
 
 		const client = new ModelRelay({
-			key: "mr_sk_timeout",
+			key: parseSecretKey("mr_sk_timeout"),
 			fetch: fetchMock as any,
 			timeoutMs: 5_000,
 			connectTimeoutMs: 5_000,
@@ -1260,7 +1262,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		expect(
 			() =>
 				new ModelRelay({
-					key: "mr_sk_bad",
+					key: parseSecretKey("mr_sk_bad"),
 					baseUrl: "ftp://invalid",
 					// biome-ignore lint/suspicious/noExplicitAny: fetch stub
 					fetch: (() => {}) as any,

@@ -1,5 +1,7 @@
 import { ConfigError } from "./errors";
+import { isSecretKey, parseApiKey } from "./api_keys";
 import type { HTTPClient } from "./http";
+import type { ApiKey } from "./types";
 
 // Simple email validation regex - validates basic email format
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -99,7 +101,7 @@ interface CustomerResponse {
 }
 
 interface CustomersClientConfig {
-	apiKey?: string;
+	apiKey?: ApiKey;
 }
 
 /**
@@ -108,15 +110,17 @@ interface CustomersClientConfig {
  */
 export class CustomersClient {
 	private readonly http: HTTPClient;
-	private readonly apiKey?: string;
+	private readonly apiKey?: ApiKey;
+	private readonly hasSecretKey: boolean;
 
 	constructor(http: HTTPClient, cfg: CustomersClientConfig) {
 		this.http = http;
-		this.apiKey = cfg.apiKey;
+		this.apiKey = cfg.apiKey ? parseApiKey(cfg.apiKey) : undefined;
+		this.hasSecretKey = this.apiKey ? isSecretKey(this.apiKey) : false;
 	}
 
 	private ensureSecretKey(): void {
-		if (!this.apiKey || !this.apiKey.startsWith("mr_sk_")) {
+		if (!this.apiKey || !this.hasSecretKey) {
 			throw new ConfigError(
 				"Secret key (mr_sk_*) required for customer operations",
 			);
@@ -124,10 +128,7 @@ export class CustomersClient {
 	}
 
 	private ensureApiKey(): void {
-		if (
-			!this.apiKey ||
-			(!this.apiKey.startsWith("mr_pk_") && !this.apiKey.startsWith("mr_sk_"))
-		) {
+		if (!this.apiKey) {
 			throw new ConfigError(
 				"API key (mr_pk_* or mr_sk_*) required for claim operation",
 			);

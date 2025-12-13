@@ -7,9 +7,9 @@ bun add @modelrelay/sdk
 ## Streaming Responses
 
 ```ts
-import { ModelRelay } from "@modelrelay/sdk";
+import { ModelRelay, parseSecretKey } from "@modelrelay/sdk";
 
-const mr = new ModelRelay({ key: "mr_sk_..." });
+const mr = new ModelRelay({ key: parseSecretKey("mr_sk_...") });
 
 const req = mr.responses
   .new()
@@ -65,10 +65,10 @@ for await (const delta of deltas) {
 ## Structured Outputs with Zod
 
 ```ts
-import { ModelRelay } from "@modelrelay/sdk";
+import { ModelRelay, parseSecretKey } from "@modelrelay/sdk";
 import { z } from "zod";
 
-const mr = new ModelRelay({ key: "mr_sk_..." });
+const mr = new ModelRelay({ key: parseSecretKey("mr_sk_...") });
 
 const Person = z.object({
   name: z.string(),
@@ -89,10 +89,10 @@ console.log(result.value); // { name: "John Doe", age: 30 }
 Build progressive UIs that render fields as they complete:
 
 ```ts
-import { ModelRelay } from "@modelrelay/sdk";
+import { ModelRelay, parseSecretKey } from "@modelrelay/sdk";
 import { z } from "zod";
 
-const mr = new ModelRelay({ key: "mr_sk_..." });
+const mr = new ModelRelay({ key: parseSecretKey("mr_sk_...") });
 
 const Article = z.object({
   title: z.string(),
@@ -159,7 +159,7 @@ const status = await mr.customers.getSubscription(customer.id);
 
 ```ts
 const mr = new ModelRelay({
-  key: "mr_sk_...",
+  key: parseSecretKey("mr_sk_..."),
   environment: "production", // or "staging", "sandbox"
   timeoutMs: 30_000,
   retry: { maxAttempts: 3 },

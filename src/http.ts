@@ -5,11 +5,13 @@ import {
 	TransportError,
 	parseErrorResponse,
 } from "./errors";
+import { parseApiKey } from "./api_keys";
 import {
 	DEFAULT_BASE_URL,
 	DEFAULT_CLIENT_HEADER,
 	DEFAULT_CONNECT_TIMEOUT_MS,
 	DEFAULT_REQUEST_TIMEOUT_MS,
+	type ApiKey,
 	RetryConfig,
 	RetryMetadata,
 	TransportErrorKind,
@@ -25,7 +27,7 @@ export interface RequestOptions {
 	headers?: HeadersInit;
 	body?: unknown;
 	signal?: AbortSignal;
-	apiKey?: string;
+	apiKey?: ApiKey;
 	accessToken?: string;
 	accept?: string;
 	/**
@@ -72,7 +74,7 @@ interface NormalizedRetryConfig {
 
 export class HTTPClient {
 	private readonly baseUrl: string;
-	private readonly apiKey?: string;
+	private readonly apiKey?: ApiKey;
 	private readonly accessToken?: string;
 	private readonly fetchImpl?: typeof fetch;
 	private readonly clientHeader?: string;
@@ -85,7 +87,7 @@ export class HTTPClient {
 
 	constructor(cfg: {
 		baseUrl?: string;
-		apiKey?: string;
+		apiKey?: ApiKey;
 		accessToken?: string;
 		fetchImpl?: typeof fetch;
 		clientHeader?: string;
@@ -103,7 +105,7 @@ export class HTTPClient {
 			);
 		}
 		this.baseUrl = resolvedBase;
-		this.apiKey = cfg.apiKey?.trim();
+		this.apiKey = cfg.apiKey ? parseApiKey(cfg.apiKey) : undefined;
 		this.accessToken = cfg.accessToken?.trim();
 		this.fetchImpl = cfg.fetchImpl;
 		this.clientHeader =

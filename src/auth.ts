@@ -1,4 +1,5 @@
 import { ConfigError } from "./errors";
+import { isPublishableKey, parseApiKey } from "./api_keys";
 import type { HTTPClient } from "./http";
 import type {
 	APIFrontendToken,
@@ -7,22 +8,23 @@ import type {
 	FrontendTokenAutoProvisionRequest,
 	FrontendTokenRequest,
 } from "./types";
+import type { ApiKey, PublishableKey } from "./types";
 
 interface AuthConfig {
-	apiKey?: string;
+	apiKey?: ApiKey;
 	accessToken?: string;
 	customer?: FrontendCustomer;
 }
 
 export interface AuthHeaders {
-	apiKey?: string;
+	apiKey?: ApiKey;
 	accessToken?: string;
 }
 
 /**
  * Creates AuthHeaders with an API key.
  */
-export function createApiKeyAuth(apiKey: string): AuthHeaders {
+export function createApiKeyAuth(apiKey: ApiKey): AuthHeaders {
 	return { apiKey };
 }
 
@@ -35,14 +37,16 @@ export function createAccessTokenAuth(accessToken: string): AuthHeaders {
 
 export class AuthClient {
 	private readonly http: HTTPClient;
-	private readonly apiKey?: string;
+	private readonly apiKey?: ApiKey;
+	private readonly apiKeyIsPublishable: boolean;
 	private readonly accessToken?: string;
 	private readonly customer?: FrontendCustomer;
 	private cachedFrontend: Map<string, FrontendToken> = new Map();
 
 	constructor(http: HTTPClient, cfg: AuthConfig) {
 		this.http = http;
-		this.apiKey = cfg.apiKey;
+		this.apiKey = cfg.apiKey ? parseApiKey(cfg.apiKey) : undefined;
+		this.apiKeyIsPublishable = this.apiKey ? isPublishableKey(this.apiKey) : false;
 		this.accessToken = cfg.accessToken;
 		this.customer = cfg.customer;
 	}
@@ -145,13 +149,14 @@ export class AuthClient {
 		if (!this.apiKey) {
 			throw new ConfigError("API key or token is required");
 		}
-		if (isPublishableKey(this.apiKey)) {
+		if (this.apiKeyIsPublishable) {
+			const publishableKey = this.apiKey as PublishableKey;
 			const resolvedCustomerId = customerId || overrides?.id || this.customer?.id;
 			if (!resolvedCustomerId) {
 				throw new ConfigError("customerId is required to mint a frontend token");
 			}
 			const token = await this.frontendToken({
-				publishableKey: this.apiKey,
+				publishableKey,
 				customerId: resolvedCustomerId,
 				deviceId: overrides?.deviceId || this.customer?.deviceId,
 				ttlSeconds: overrides?.ttlSeconds ?? this.customer?.ttlSeconds,
@@ -175,16 +180,9 @@ export class AuthClient {
 	}
 }
 
-export function isPublishableKey(value?: string | null): boolean {
-	if (!value) {
-		return false;
-	}
-	return value.trim().toLowerCase().startsWith("mr_pk_");
-}
-
 function normalizeFrontendToken(
 	payload: APIFrontendToken,
-	meta: { publishableKey: string; deviceId?: string },
+	meta: { publishableKey: PublishableKey; deviceId?: string },
 ): FrontendToken {
 	return {
 		token: payload.token,

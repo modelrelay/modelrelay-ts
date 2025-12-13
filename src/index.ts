@@ -1,9 +1,10 @@
-import { AuthClient, isPublishableKey, createApiKeyAuth, createAccessTokenAuth } from "./auth";
+import { AuthClient, createApiKeyAuth, createAccessTokenAuth } from "./auth";
 import { ResponsesClient, ResponsesStream, StructuredJSONStream } from "./responses";
 import { CustomersClient } from "./customers";
 import { TiersClient } from "./tiers";
 import { ConfigError } from "./errors";
 import { HTTPClient } from "./http";
+import { parseApiKey } from "./api_keys";
 import {
 	DEFAULT_BASE_URL,
 	DEFAULT_CLIENT_HEADER,
@@ -22,10 +23,11 @@ export class ModelRelay {
 		if (!cfg.key && !cfg.token) {
 			throw new ConfigError("Provide an API key or access token");
 		}
+		const apiKey = cfg.key ? parseApiKey(cfg.key) : undefined;
 		this.baseUrl = resolveBaseUrl(cfg.baseUrl);
 		const http = new HTTPClient({
 			baseUrl: this.baseUrl,
-			apiKey: cfg.key,
+			apiKey,
 			accessToken: cfg.token,
 			fetchImpl: cfg.fetch,
 			clientHeader: cfg.clientHeader || DEFAULT_CLIENT_HEADER,
@@ -37,7 +39,7 @@ export class ModelRelay {
 			trace: cfg.trace,
 		});
 		const auth = new AuthClient(http, {
-			apiKey: cfg.key,
+			apiKey,
 			accessToken: cfg.token,
 			customer: cfg.customer,
 		});
@@ -46,12 +48,8 @@ export class ModelRelay {
 			metrics: cfg.metrics,
 			trace: cfg.trace,
 		});
-		this.customers = new CustomersClient(http, {
-			apiKey: cfg.key,
-		});
-		this.tiers = new TiersClient(http, {
-			apiKey: cfg.key,
-		});
+		this.customers = new CustomersClient(http, { apiKey });
+		this.tiers = new TiersClient(http, { apiKey });
 	}
 }
 
@@ -64,12 +62,19 @@ export {
 	CustomersClient,
 	TiersClient,
 	DEFAULT_BASE_URL,
-	isPublishableKey,
 	createApiKeyAuth,
 	createAccessTokenAuth,
 };
 
 export type { AuthHeaders } from "./auth";
+
+export {
+	parseApiKey,
+	parsePublishableKey,
+	parseSecretKey,
+	isPublishableKey,
+	isSecretKey,
+} from "./api_keys";
 
 export type {
 	Customer,

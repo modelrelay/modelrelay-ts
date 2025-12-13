@@ -1,5 +1,7 @@
 import { ConfigError } from "./errors";
+import { isSecretKey, parseApiKey } from "./api_keys";
 import type { HTTPClient } from "./http";
+import type { ApiKey } from "./types";
 
 /**
  * Billing interval for a tier.
@@ -52,7 +54,7 @@ interface TierResponse {
 }
 
 interface TiersClientConfig {
-	apiKey?: string;
+	apiKey?: ApiKey;
 }
 
 /**
@@ -61,18 +63,17 @@ interface TiersClientConfig {
  */
 export class TiersClient {
 	private readonly http: HTTPClient;
-	private readonly apiKey?: string;
+	private readonly apiKey?: ApiKey;
+	private readonly hasSecretKey: boolean;
 
 	constructor(http: HTTPClient, cfg: TiersClientConfig) {
 		this.http = http;
-		this.apiKey = cfg.apiKey;
+		this.apiKey = cfg.apiKey ? parseApiKey(cfg.apiKey) : undefined;
+		this.hasSecretKey = this.apiKey ? isSecretKey(this.apiKey) : false;
 	}
 
 	private ensureApiKey(): void {
-		if (
-			!this.apiKey ||
-			(!this.apiKey.startsWith("mr_pk_") && !this.apiKey.startsWith("mr_sk_"))
-		) {
+		if (!this.apiKey) {
 			throw new ConfigError(
 				"API key (mr_pk_* or mr_sk_*) required for tier operations",
 			);
@@ -80,7 +81,7 @@ export class TiersClient {
 	}
 
 	private ensureSecretKey(): void {
-		if (!this.apiKey || !this.apiKey.startsWith("mr_sk_")) {
+		if (!this.apiKey || !this.hasSecretKey) {
 			throw new ConfigError(
 				"Secret key (mr_sk_*) required for checkout operations",
 			);
