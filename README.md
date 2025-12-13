@@ -26,6 +26,42 @@ for await (const event of stream) {
 }
 ```
 
+## Chat-Like Text Helpers
+
+For the most common path (**system + user → assistant text**):
+
+```ts
+const text = await mr.responses.text(
+  "claude-sonnet-4-20250514",
+  "Answer concisely.",
+  "Say hi.",
+);
+console.log(text);
+```
+
+For customer-attributed requests where the backend selects the model:
+
+```ts
+const text = await mr.responses.textForCustomer(
+  "customer-123",
+  "Answer concisely.",
+  "Say hi.",
+);
+```
+
+To stream only message text deltas:
+
+```ts
+const deltas = await mr.responses.streamTextDeltas(
+  "claude-sonnet-4-20250514",
+  "Answer concisely.",
+  "Say hi.",
+);
+for await (const delta of deltas) {
+  process.stdout.write(delta);
+}
+```
+
 ## Structured Outputs with Zod
 
 ```ts

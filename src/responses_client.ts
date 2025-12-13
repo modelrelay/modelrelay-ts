@@ -4,6 +4,7 @@ import type { HTTPClient } from "./http";
 import type {
 	APIResponsesResponse,
 	MetricsCallbacks,
+	ModelId,
 	RequestContext,
 	Response,
 	TraceCallbacks,
@@ -62,6 +63,134 @@ export class ResponsesClient {
 
 	new(): ResponseBuilder {
 		return new ResponseBuilder();
+	}
+
+	/**
+	 * Convenience helper for the common "system + user -> assistant text" path.
+	 *
+	 * This is a thin wrapper around `ResponseBuilder` and `extractAssistantText`.
+	 */
+	async text(
+		model: ModelId,
+		system: string,
+		user: string,
+		options: ResponsesRequestOptions = {},
+	): Promise<string> {
+		const req = this.new().model(model).system(system).user(user).build();
+		const resp = await this.create(req, options);
+		return extractAssistantText(resp.output);
+	}
+
+	/**
+	 * Convenience helper for customer-attributed requests where the backend selects the model.
+	 *
+	 * This sets `customerId(...)` and omits `model` from the request body.
+	 */
+	async textForCustomer(
+		customerId: string,
+		system: string,
+		user: string,
+		options: ResponsesRequestOptions = {},
+	): Promise<string> {
+		const req = this.new()
+			.customerId(customerId)
+			.system(system)
+			.user(user)
+			.build();
+		const resp = await this.create(req, options);
+		return extractAssistantText(resp.output);
+	}
+
+	/**
+	 * Convenience helper to stream only message text deltas for the common prompt path.
+	 *
+	 * This yields `event.textDelta` values from the underlying `ResponsesStream`.
+	 */
+	async streamTextDeltas(
+		model: ModelId,
+		system: string,
+		user: string,
+		options: ResponsesRequestOptions = {},
+	): Promise<AsyncIterable<string>> {
+		const req = this.new().model(model).system(system).user(user).build();
+		const stream = await this.stream(req, options);
+		return {
+			async *[Symbol.asyncIterator](): AsyncIterator<string> {
+				let accumulated = "";
+				try {
+					for await (const evt of stream) {
+						if (
+							(evt.type === "message_delta" || evt.type === "message_stop") &&
+							evt.textDelta
+						) {
+							const next = evt.textDelta;
+							let delta = "";
+							if (next.startsWith(accumulated)) {
+								delta = next.slice(accumulated.length);
+								accumulated = next;
+							} else if (accumulated.startsWith(next)) {
+								accumulated = next;
+							} else {
+								delta = next;
+								accumulated += next;
+							}
+							if (delta) {
+								yield delta;
+							}
+						}
+					}
+				} finally {
+					await stream.cancel();
+				}
+			},
+		};
+	}
+
+	/**
+	 * Convenience helper to stream only message text deltas for customer-attributed requests.
+	 */
+	async streamTextDeltasForCustomer(
+		customerId: string,
+		system: string,
+		user: string,
+		options: ResponsesRequestOptions = {},
+	): Promise<AsyncIterable<string>> {
+		const req = this.new()
+			.customerId(customerId)
+			.system(system)
+			.user(user)
+			.build();
+		const stream = await this.stream(req, options);
+		return {
+			async *[Symbol.asyncIterator](): AsyncIterator<string> {
+				let accumulated = "";
+				try {
+					for await (const evt of stream) {
+						if (
+							(evt.type === "message_delta" || evt.type === "message_stop") &&
+							evt.textDelta
+						) {
+							const next = evt.textDelta;
+							let delta = "";
+							if (next.startsWith(accumulated)) {
+								delta = next.slice(accumulated.length);
+								accumulated = next;
+							} else if (accumulated.startsWith(next)) {
+								accumulated = next;
+							} else {
+								delta = next;
+								accumulated += next;
+							}
+							if (delta) {
+								yield delta;
+							}
+						}
+					}
+				} finally {
+					await stream.cancel();
+				}
+			},
+		};
 	}
 
 	async create(

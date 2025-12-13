@@ -13,6 +13,182 @@ import { APIError, ConfigError, TransportError } from "../src/errors";
 const future = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
 describe("ModelRelay TypeScript SDK", () => {
+	it("provides a chat-like text helper", async () => {
+		const fetchMock = vi.fn(async (url, init) => {
+			const path = String(url);
+			if (path.endsWith("/responses")) {
+				// biome-ignore lint/suspicious/noExplicitAny: init.body is untyped
+				const body = JSON.parse(String(init?.body as any));
+				expect(body.model).toBe("gpt-4o");
+				expect(body.input?.[0]?.role).toBe("system");
+				expect(body.input?.[1]?.role).toBe("user");
+				return new Response(
+					JSON.stringify({
+						id: "resp_1",
+						output: [
+							{
+								type: "message",
+								role: "assistant",
+								content: [{ type: "text", text: "Hi!" }],
+							},
+						],
+						model: "gpt-4o",
+						stop_reason: "stop",
+						usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
+					}),
+					{ status: 200, headers: { "Content-Type": "application/json" } },
+				);
+			}
+			throw new Error(`unexpected URL: ${url}`);
+		});
+
+		const client = new ModelRelay({
+			key: "mr_sk_text_helper",
+			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
+			fetch: fetchMock as any,
+		});
+
+		const text = await client.responses.text("gpt-4o", "sys", "user");
+		expect(text).toBe("Hi!");
+	});
+
+	it("throws when chat-like text helper returns empty assistant text", async () => {
+		const fetchMock = vi.fn(async (url) => {
+			const path = String(url);
+			if (path.endsWith("/responses")) {
+				return new Response(
+					JSON.stringify({
+						id: "resp_empty",
+						output: [{ type: "message", role: "assistant", content: [] }],
+						model: "gpt-4o",
+						stop_reason: "stop",
+						usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
+					}),
+					{ status: 200, headers: { "Content-Type": "application/json" } },
+				);
+			}
+			throw new Error(`unexpected URL: ${url}`);
+		});
+
+		const client = new ModelRelay({
+			key: "mr_sk_text_empty",
+			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
+			fetch: fetchMock as any,
+		});
+
+		await expect(client.responses.text("gpt-4o", "sys", "user")).rejects.toBeInstanceOf(
+			TransportError,
+		);
+	});
+
+	it("supports chat-like text helper for customer-attributed requests", async () => {
+		const fetchMock = vi.fn(async (url, init) => {
+			const path = String(url);
+			if (path.endsWith("/responses")) {
+				const headers = new Headers(init?.headers as HeadersInit);
+				expect(headers.get("X-ModelRelay-Customer-Id")).toBe("cust-123");
+				// biome-ignore lint/suspicious/noExplicitAny: init.body is untyped
+				const body = JSON.parse(String(init?.body as any));
+				expect(body.model).toBeUndefined();
+				return new Response(
+					JSON.stringify({
+						id: "resp_cust",
+						output: [
+							{
+								type: "message",
+								role: "assistant",
+								content: [{ type: "text", text: "ok" }],
+							},
+						],
+						model: "tier-model",
+						stop_reason: "stop",
+						usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
+					}),
+					{ status: 200, headers: { "Content-Type": "application/json" } },
+				);
+			}
+			throw new Error(`unexpected URL: ${url}`);
+		});
+
+		const client = new ModelRelay({
+			key: "mr_sk_text_customer",
+			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
+			fetch: fetchMock as any,
+		});
+
+		const text = await client.responses.textForCustomer("cust-123", "sys", "user");
+		expect(text).toBe("ok");
+	});
+
+	it("streams chat-like text deltas", async () => {
+		const fetchMock = vi.fn(async (url) => {
+			const path = String(url);
+			if (path.endsWith("/responses")) {
+				return buildNDJSONResponse(
+					[
+						JSON.stringify({ type: "start", request_id: "resp-1", model: "gpt-4o" }),
+						JSON.stringify({ type: "update", payload: { content: "Hello" } }),
+						JSON.stringify({
+							type: "completion",
+							payload: { content: "Hello world" },
+							stop_reason: "end_turn",
+							usage: { input_tokens: 1, output_tokens: 2, total_tokens: 3 },
+						}),
+					],
+					{ "X-ModelRelay-Request-Id": "req-stream-1" },
+				);
+			}
+			throw new Error(`unexpected URL: ${url}`);
+		});
+
+		const client = new ModelRelay({
+			key: "mr_sk_text_stream",
+			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
+			fetch: fetchMock as any,
+		});
+
+		const deltas = await client.responses.streamTextDeltas("gpt-4o", "sys", "user");
+		const seen: string[] = [];
+		for await (const d of deltas) {
+			seen.push(d);
+		}
+		expect(seen).toEqual(["Hello", " world"]);
+	});
+
+	it("streams chat-like text for completion-only streams", async () => {
+		const fetchMock = vi.fn(async (url) => {
+			const path = String(url);
+			if (path.endsWith("/responses")) {
+				return buildNDJSONResponse(
+					[
+						JSON.stringify({ type: "start", request_id: "resp-1", model: "gpt-4o" }),
+						JSON.stringify({
+							type: "completion",
+							payload: { content: "Done" },
+							stop_reason: "end_turn",
+							usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
+						}),
+					],
+					{ "X-ModelRelay-Request-Id": "req-stream-2" },
+				);
+			}
+			throw new Error(`unexpected URL: ${url}`);
+		});
+
+		const client = new ModelRelay({
+			key: "mr_sk_text_stream_completion_only",
+			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
+			fetch: fetchMock as any,
+		});
+
+		const deltas = await client.responses.streamTextDeltas("gpt-4o", "sys", "user");
+		const seen: string[] = [];
+		for await (const d of deltas) {
+			seen.push(d);
+		}
+		expect(seen).toEqual(["Done"]);
+	});
+
 	it("caches frontend tokens issued from publishable keys", async () => {
 		const fetchMock = vi.fn(async (url) => {
 			if (String(url).endsWith("/auth/frontend-token")) {
