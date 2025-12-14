@@ -15,7 +15,13 @@
  */
 
 import { describe, expect, it, beforeAll } from "vitest";
-import { ModelRelay, APIError, isEmailRequired, isProvisioningError } from "../src";
+import {
+	ModelRelay,
+	APIError,
+	isEmailRequired,
+	isProvisioningError,
+	parsePublishableKey,
+} from "../src";
 
 // Access environment variables via globalThis for compatibility
 const getEnv = (key: string): string | undefined => {
@@ -32,26 +38,26 @@ const shouldRun = TEST_URL && PUBLISHABLE_KEY;
 describe.skipIf(!shouldRun)("TypeScript SDK Integration", () => {
   let client: ModelRelay;
 
-  beforeAll(() => {
-    if (!TEST_URL || !PUBLISHABLE_KEY) {
-      throw new Error("MODELRELAY_TEST_URL and MODELRELAY_TEST_PUBLISHABLE_KEY must be set");
-    }
+	  beforeAll(() => {
+	    if (!TEST_URL || !PUBLISHABLE_KEY) {
+	      throw new Error("MODELRELAY_TEST_URL and MODELRELAY_TEST_PUBLISHABLE_KEY must be set");
+	    }
 
-    client = new ModelRelay({
-      key: PUBLISHABLE_KEY,
-      baseUrl: TEST_URL,
-    });
-  });
+	    client = new ModelRelay({
+	      key: parsePublishableKey(PUBLISHABLE_KEY),
+	      baseUrl: TEST_URL,
+	    });
+	  });
 
   it("auto-provisions a new customer with email", async () => {
     const customerId = `ts-sdk-customer-${Date.now()}`;
     const email = `ts-sdk-${Date.now()}@example.com`;
 
-    const token = await client.auth.frontendTokenAutoProvision({
-      publishableKey: PUBLISHABLE_KEY!,
-      customerId,
-      email,
-    });
+	    const token = await client.auth.frontendTokenAutoProvision({
+	      publishableKey: parsePublishableKey(PUBLISHABLE_KEY!),
+	      customerId,
+	      email,
+	    });
 
     expect(token.token).toBeDefined();
     expect(token.token.length).toBeGreaterThan(0);
@@ -68,17 +74,17 @@ describe.skipIf(!shouldRun)("TypeScript SDK Integration", () => {
     const customerId = `ts-sdk-existing-${Date.now()}`;
     const email = `ts-sdk-existing-${Date.now()}@example.com`;
 
-    await client.auth.frontendTokenAutoProvision({
-      publishableKey: PUBLISHABLE_KEY!,
-      customerId,
-      email,
-    });
+	    await client.auth.frontendTokenAutoProvision({
+	      publishableKey: parsePublishableKey(PUBLISHABLE_KEY!),
+	      customerId,
+	      email,
+	    });
 
     // Now get token for existing customer (no email needed)
-    const token = await client.auth.frontendToken({
-      publishableKey: PUBLISHABLE_KEY!,
-      customerId,
-    });
+	    const token = await client.auth.frontendToken({
+	      publishableKey: parsePublishableKey(PUBLISHABLE_KEY!),
+	      customerId,
+	    });
 
     expect(token.token).toBeDefined();
     expect(token.token.length).toBeGreaterThan(0);
@@ -90,10 +96,10 @@ describe.skipIf(!shouldRun)("TypeScript SDK Integration", () => {
     const customerId = `ts-sdk-nonexistent-${Date.now()}`;
 
     try {
-      await client.auth.frontendToken({
-        publishableKey: PUBLISHABLE_KEY!,
-        customerId,
-      });
+	      await client.auth.frontendToken({
+	        publishableKey: parsePublishableKey(PUBLISHABLE_KEY!),
+	        customerId,
+	      });
       // Should not reach here
       expect.fail("Expected EMAIL_REQUIRED error");
     } catch (err) {

@@ -1,5 +1,6 @@
 import { AuthClient, createApiKeyAuth, createAccessTokenAuth } from "./auth";
 import { ResponsesClient, ResponsesStream, StructuredJSONStream } from "./responses";
+import { RunsClient } from "./runs";
 import { CustomersClient } from "./customers";
 import { TiersClient } from "./tiers";
 import { ConfigError } from "./errors";
@@ -13,6 +14,7 @@ import {
 
 export class ModelRelay {
 	readonly responses: ResponsesClient;
+	readonly runs: RunsClient;
 	readonly auth: AuthClient;
 	readonly customers: CustomersClient;
 	readonly tiers: TiersClient;
@@ -48,6 +50,10 @@ export class ModelRelay {
 			metrics: cfg.metrics,
 			trace: cfg.trace,
 		});
+		this.runs = new RunsClient(http, auth, {
+			metrics: cfg.metrics,
+			trace: cfg.trace,
+		});
 		this.customers = new CustomersClient(http, { apiKey });
 		this.tiers = new TiersClient(http, { apiKey });
 	}
@@ -58,6 +64,7 @@ export {
 	ResponsesClient,
 	ResponsesStream,
 	StructuredJSONStream,
+	RunsClient,
 	ConfigError,
 	CustomersClient,
 	TiersClient,
@@ -67,6 +74,9 @@ export {
 };
 
 export type { AuthHeaders } from "./auth";
+
+export * from "./runs";
+export { workflowV0Schema } from "./workflow_schema";
 
 export {
 	parseApiKey,

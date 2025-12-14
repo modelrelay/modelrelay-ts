@@ -1,0 +1,110 @@
+import { describe, expect, it, vi } from "vitest";
+
+import {
+	ModelRelay,
+	WorkflowKinds,
+	WorkflowNodeTypes,
+	parseNodeId,
+	parseOutputName,
+	parseRunId,
+	parseSecretKey,
+} from "../src";
+
+function buildNDJSONResponse(lines: string[]): Response {
+	const encoder = new TextEncoder();
+	const body = new ReadableStream<Uint8Array>({
+		start(controller) {
+			for (const line of lines) {
+				controller.enqueue(encoder.encode(`${line}\n`));
+			}
+			controller.close();
+		},
+	});
+	return new Response(body, {
+		status: 200,
+		headers: { "Content-Type": "application/x-ndjson" },
+	});
+}
+
+describe("runs", () => {
+	it("creates a run, fetches status, and streams events", async () => {
+		const runId = parseRunId("11111111-1111-1111-1111-111111111111");
+		const planHash =
+			"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
+		const fetchMock = vi.fn(async (url, init) => {
+			const path = String(url);
+			if (path.endsWith("/runs") && init?.method === "POST") {
+				// biome-ignore lint/suspicious/noExplicitAny: init.body is untyped
+				const body = JSON.parse(String(init?.body as any));
+				expect(body.spec?.kind).toBe("workflow.v0");
+				return new Response(JSON.stringify({ run_id: runId, status: "running" }), {
+					status: 200,
+					headers: { "Content-Type": "application/json" },
+				});
+			}
+			if (path.endsWith(`/runs/${runId}`) && init?.method === "GET") {
+				return new Response(
+					JSON.stringify({
+						run_id: runId,
+						status: "running",
+						plan_hash: planHash,
+						nodes: [],
+						outputs: {},
+					}),
+					{ status: 200, headers: { "Content-Type": "application/json" } },
+				);
+			}
+			if (path.endsWith(`/runs/${runId}/events`) && init?.method === "GET") {
+				const headers = new Headers(init?.headers as HeadersInit);
+				expect(headers.get("Accept")).toBe("application/x-ndjson");
+				return buildNDJSONResponse([
+					JSON.stringify({
+						envelope_version: "v0",
+						run_id: runId,
+						seq: 1,
+						ts: new Date().toISOString(),
+						type: "run_started",
+						plan_hash: planHash,
+					}),
+					JSON.stringify({
+						envelope_version: "v0",
+						run_id: runId,
+						seq: 2,
+						ts: new Date().toISOString(),
+						type: "run_completed",
+						plan_hash: planHash,
+						outputs: { result: { ok: true } },
+					}),
+				]);
+			}
+			throw new Error(`unexpected URL: ${url}`);
+		});
+
+		const mr = new ModelRelay({
+			key: parseSecretKey("mr_sk_runs"),
+			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
+			fetch: fetchMock as any,
+		});
+
+		const spec = {
+			kind: WorkflowKinds.WorkflowV0,
+			nodes: [{ id: parseNodeId("a"), type: WorkflowNodeTypes.JoinAll }],
+			outputs: [{ name: parseOutputName("result"), from: parseNodeId("a") }],
+		} as const;
+
+		const created = await mr.runs.create(spec);
+		expect(created.run_id).toBe(runId);
+
+		const snap = await mr.runs.get(runId);
+		expect(snap.plan_hash).toBe(planHash);
+
+		const stream = await mr.runs.events(runId);
+		const types: string[] = [];
+		for await (const ev of stream) {
+			expect(ev.envelope_version).toBe("v0");
+			types.push(ev.type);
+		}
+		expect(types).toEqual(["run_started", "run_completed"]);
+	});
+});

@@ -1,0 +1,265 @@
+import type { AuthClient } from "./auth";
+import { parseErrorResponse, StreamProtocolError } from "./errors";
+import type { HTTPClient } from "./http";
+import type { MetricsCallbacks, RequestContext, TraceCallbacks } from "./types";
+import { mergeMetrics, mergeTrace } from "./types";
+	import {
+		RUNS_PATH,
+		RUN_EVENT_V0_SCHEMA_PATH,
+		WORKFLOW_V0_SCHEMA_PATH,
+		type RunsCreateRequest,
+		type RunsCreateResponse,
+		type RunsGetResponse,
+	runByIdPath,
+	runEventsPath,
+} from "./runs_request";
+import { RunsEventStream } from "./runs_stream";
+import type { RunEventV0, WorkflowSpecV0 } from "./runs_types";
+import type { RunId } from "./runs_ids";
+import { parseNodeId, parsePlanHash, parseRunId } from "./runs_ids";
+
+export type RunsCreateOptions = {
+	customerId?: string;
+	idempotencyKey?: string;
+	signal?: AbortSignal;
+	headers?: Record<string, string>;
+	timeoutMs?: number;
+	connectTimeoutMs?: number;
+	retry?: import("./types").RetryConfig | false;
+	metrics?: MetricsCallbacks;
+	trace?: TraceCallbacks;
+};
+
+export type RunsGetOptions = {
+	customerId?: string;
+	signal?: AbortSignal;
+	headers?: Record<string, string>;
+	timeoutMs?: number;
+	connectTimeoutMs?: number;
+	retry?: import("./types").RetryConfig | false;
+	metrics?: MetricsCallbacks;
+	trace?: TraceCallbacks;
+};
+
+export type RunsEventsOptions = {
+	customerId?: string;
+	afterSeq?: number;
+	limit?: number;
+	wait?: boolean;
+	signal?: AbortSignal;
+	headers?: Record<string, string>;
+	connectTimeoutMs?: number;
+	retry?: import("./types").RetryConfig | false;
+	metrics?: MetricsCallbacks;
+	trace?: TraceCallbacks;
+};
+
+export class RunsClient {
+	private readonly http: HTTPClient;
+	private readonly auth: AuthClient;
+	private readonly metrics?: MetricsCallbacks;
+	private readonly trace?: TraceCallbacks;
+
+	constructor(
+		http: HTTPClient,
+		auth: AuthClient,
+		cfg: { metrics?: MetricsCallbacks; trace?: TraceCallbacks } = {},
+	) {
+		this.http = http;
+		this.auth = auth;
+		this.metrics = cfg.metrics;
+		this.trace = cfg.trace;
+	}
+
+	async create(
+		spec: WorkflowSpecV0,
+		options: RunsCreateOptions = {},
+	): Promise<RunsCreateResponse> {
+		const metrics = mergeMetrics(this.metrics, options.metrics);
+		const trace = mergeTrace(this.trace, options.trace);
+		const authHeaders = await this.auth.authForResponses(options.customerId);
+
+		const headers: Record<string, string> = { ...(options.headers || {}) };
+		const payload: RunsCreateRequest = { spec };
+		if (options.idempotencyKey?.trim()) {
+			payload.options = { idempotency_key: options.idempotencyKey.trim() };
+		}
+
+		const out = await this.http.json<
+			Omit<RunsCreateResponse, "run_id"> & { run_id: string }
+		>(RUNS_PATH, {
+			method: "POST",
+			headers,
+			body: payload,
+			signal: options.signal,
+			apiKey: authHeaders.apiKey,
+			accessToken: authHeaders.accessToken,
+			timeoutMs: options.timeoutMs,
+			connectTimeoutMs: options.connectTimeoutMs,
+			retry: options.retry,
+			metrics,
+			trace,
+			context: { method: "POST", path: RUNS_PATH },
+		});
+		return { ...out, run_id: parseRunId(out.run_id) };
+	}
+
+	async schemaV0(options: {
+		signal?: AbortSignal;
+		headers?: Record<string, string>;
+		timeoutMs?: number;
+		connectTimeoutMs?: number;
+		retry?: import("./types").RetryConfig | false;
+		metrics?: MetricsCallbacks;
+		trace?: TraceCallbacks;
+	} = {}): Promise<unknown> {
+		const metrics = mergeMetrics(this.metrics, options.metrics);
+		const trace = mergeTrace(this.trace, options.trace);
+
+		return this.http.json<unknown>(WORKFLOW_V0_SCHEMA_PATH, {
+			method: "GET",
+			headers: options.headers,
+			signal: options.signal,
+			timeoutMs: options.timeoutMs,
+			connectTimeoutMs: options.connectTimeoutMs,
+			retry: options.retry,
+			metrics,
+			trace,
+			context: { method: "GET", path: WORKFLOW_V0_SCHEMA_PATH },
+			accept: "application/schema+json",
+		});
+	}
+
+	async runEventSchemaV0(options: {
+		signal?: AbortSignal;
+		headers?: Record<string, string>;
+		timeoutMs?: number;
+		connectTimeoutMs?: number;
+		retry?: import("./types").RetryConfig | false;
+		metrics?: MetricsCallbacks;
+		trace?: TraceCallbacks;
+	} = {}): Promise<unknown> {
+		const metrics = mergeMetrics(this.metrics, options.metrics);
+		const trace = mergeTrace(this.trace, options.trace);
+
+		return this.http.json<unknown>(RUN_EVENT_V0_SCHEMA_PATH, {
+			method: "GET",
+			headers: options.headers,
+			signal: options.signal,
+			timeoutMs: options.timeoutMs,
+			connectTimeoutMs: options.connectTimeoutMs,
+			retry: options.retry,
+			metrics,
+			trace,
+			context: { method: "GET", path: RUN_EVENT_V0_SCHEMA_PATH },
+			accept: "application/schema+json",
+		});
+	}
+
+	async get(runId: RunId, options: RunsGetOptions = {}): Promise<RunsGetResponse> {
+		const metrics = mergeMetrics(this.metrics, options.metrics);
+		const trace = mergeTrace(this.trace, options.trace);
+		const authHeaders = await this.auth.authForResponses(options.customerId);
+		const path = runByIdPath(runId);
+		const out = await this.http.json<
+			Omit<RunsGetResponse, "run_id" | "plan_hash" | "nodes"> & {
+				run_id: string;
+				plan_hash: string;
+				nodes?: Array<
+					Omit<NonNullable<RunsGetResponse["nodes"]>[number], "id"> & { id: string }
+				>;
+			}
+		>(path, {
+			method: "GET",
+			headers: options.headers,
+			signal: options.signal,
+			apiKey: authHeaders.apiKey,
+			accessToken: authHeaders.accessToken,
+			timeoutMs: options.timeoutMs,
+			connectTimeoutMs: options.connectTimeoutMs,
+			retry: options.retry,
+			metrics,
+			trace,
+			context: { method: "GET", path },
+		});
+		return {
+			...out,
+			run_id: parseRunId(out.run_id),
+			plan_hash: parsePlanHash(out.plan_hash),
+			nodes: out.nodes?.map((n) => ({ ...n, id: parseNodeId(n.id) })),
+		} as RunsGetResponse;
+	}
+
+	async events(runId: RunId, options: RunsEventsOptions = {}): Promise<RunsEventStream> {
+		const metrics = mergeMetrics(this.metrics, options.metrics);
+		const trace = mergeTrace(this.trace, options.trace);
+		const authHeaders = await this.auth.authForResponses(options.customerId);
+
+		const basePath = runEventsPath(runId);
+		const params = new URLSearchParams();
+		if (typeof options.afterSeq === "number" && options.afterSeq >= 0) {
+			params.set("after_seq", String(Math.floor(options.afterSeq)));
+		}
+		if (typeof options.limit === "number" && options.limit > 0) {
+			params.set("limit", String(Math.floor(options.limit)));
+		}
+		if (options.wait === false) {
+			params.set("wait", "0");
+		}
+		const path = params.toString() ? `${basePath}?${params}` : basePath;
+
+		const headers: Record<string, string> = { ...(options.headers || {}) };
+
+		const resp = await this.http.request(path, {
+			method: "GET",
+			headers,
+			signal: options.signal,
+			apiKey: authHeaders.apiKey,
+			accessToken: authHeaders.accessToken,
+			accept: "application/x-ndjson",
+			raw: true,
+			useDefaultTimeout: false,
+			connectTimeoutMs: options.connectTimeoutMs,
+			retry: options.retry,
+			metrics,
+			trace,
+			context: { method: "GET", path: basePath } as RequestContext,
+		});
+		if (!resp.ok) {
+			throw await parseErrorResponse(resp);
+		}
+		const contentType = resp.headers.get("Content-Type") || "";
+		const ct = contentType.toLowerCase();
+		if (!ct.includes("application/x-ndjson") && !ct.includes("application/ndjson")) {
+			throw new StreamProtocolError({
+				expectedContentType: "application/x-ndjson",
+				receivedContentType: contentType,
+				status: resp.status,
+			});
+		}
+
+		return new RunsEventStream({
+			http: this.http,
+			response: resp,
+			context: { method: "GET", path: basePath },
+			metrics,
+			trace,
+		});
+	}
+
+	async listEvents(
+		runId: RunId,
+		options: Omit<RunsEventsOptions, "wait"> = {},
+	): Promise<RunEventV0[]> {
+		const stream = await this.events(runId, { ...options, wait: false });
+		const out: RunEventV0[] = [];
+		try {
+			for await (const ev of stream) {
+				out.push(ev);
+			}
+		} finally {
+			await stream.cancel();
+		}
+		return out;
+	}
+}

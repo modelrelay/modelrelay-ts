@@ -26,6 +26,87 @@ for await (const event of stream) {
 }
 ```
 
+## Workflow Runs (workflow.v0)
+
+```ts
+import { ModelRelay, WorkflowKinds, WorkflowNodeTypes, parseNodeId, parseOutputName, parseSecretKey } from "@modelrelay/sdk";
+
+const mr = new ModelRelay({ key: parseSecretKey("mr_sk_...") });
+
+const spec = {
+  kind: WorkflowKinds.WorkflowV0,
+  nodes: [
+    {
+      id: parseNodeId("agent_a"),
+      type: WorkflowNodeTypes.LLMResponses,
+      input: {
+        request: {
+          model: "claude-sonnet-4-20250514",
+          input: [
+            { type: "message", role: "system", content: [{ type: "text", text: "You are Agent A." }] },
+            { type: "message", role: "user", content: [{ type: "text", text: "Write 3 ideas for a landing page." }] },
+          ],
+        },
+      },
+    },
+    {
+      id: parseNodeId("agent_b"),
+      type: WorkflowNodeTypes.LLMResponses,
+      input: {
+        request: {
+          model: "claude-sonnet-4-20250514",
+          input: [
+            { type: "message", role: "system", content: [{ type: "text", text: "You are Agent B." }] },
+            { type: "message", role: "user", content: [{ type: "text", text: "Write 3 objections a user might have." }] },
+          ],
+        },
+      },
+    },
+    {
+      id: parseNodeId("agent_c"),
+      type: WorkflowNodeTypes.LLMResponses,
+      input: {
+        request: {
+          model: "claude-sonnet-4-20250514",
+          input: [
+            { type: "message", role: "system", content: [{ type: "text", text: "You are Agent C." }] },
+            { type: "message", role: "user", content: [{ type: "text", text: "Write 3 alternative headlines." }] },
+          ],
+        },
+      },
+    },
+    { id: parseNodeId("join"), type: WorkflowNodeTypes.JoinAll },
+    {
+      id: parseNodeId("aggregate"),
+      type: WorkflowNodeTypes.TransformJSON,
+      input: {
+        object: {
+          agent_a: { from: parseNodeId("join"), pointer: "/agent_a" },
+          agent_b: { from: parseNodeId("join"), pointer: "/agent_b" },
+          agent_c: { from: parseNodeId("join"), pointer: "/agent_c" },
+        },
+      },
+    },
+  ],
+  edges: [
+    { from: parseNodeId("agent_a"), to: parseNodeId("join") },
+    { from: parseNodeId("agent_b"), to: parseNodeId("join") },
+    { from: parseNodeId("agent_c"), to: parseNodeId("join") },
+    { from: parseNodeId("join"), to: parseNodeId("aggregate") },
+  ],
+  outputs: [{ name: parseOutputName("result"), from: parseNodeId("aggregate") }],
+} as const;
+
+const { run_id } = await mr.runs.create(spec);
+
+const events = await mr.runs.events(run_id);
+for await (const ev of events) {
+  if (ev.type === "run_completed") {
+    console.log("outputs:", ev.outputs);
+  }
+}
+```
+
 ## Chat-Like Text Helpers
 
 For the most common path (**system + user → assistant text**):
