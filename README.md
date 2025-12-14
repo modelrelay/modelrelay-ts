@@ -29,83 +29,66 @@ for await (const event of stream) {
 ## Workflow Runs (workflow.v0)
 
 ```ts
-import { ModelRelay, WorkflowKinds, WorkflowNodeTypes, parseNodeId, parseOutputName, parseSecretKey } from "@modelrelay/sdk";
+import {
+  ModelRelay,
+  parseNodeId,
+  parseOutputName,
+  parseSecretKey,
+  workflowV0,
+} from "@modelrelay/sdk";
 
 const mr = new ModelRelay({ key: parseSecretKey("mr_sk_...") });
 
-const spec = {
-  kind: WorkflowKinds.WorkflowV0,
-  nodes: [
-    {
-      id: parseNodeId("agent_a"),
-      type: WorkflowNodeTypes.LLMResponses,
-      input: {
-        request: {
-          model: "claude-sonnet-4-20250514",
-          input: [
-            { type: "message", role: "system", content: [{ type: "text", text: "You are Agent A." }] },
-            { type: "message", role: "user", content: [{ type: "text", text: "Write 3 ideas for a landing page." }] },
-          ],
-        },
-      },
-    },
-    {
-      id: parseNodeId("agent_b"),
-      type: WorkflowNodeTypes.LLMResponses,
-      input: {
-        request: {
-          model: "claude-sonnet-4-20250514",
-          input: [
-            { type: "message", role: "system", content: [{ type: "text", text: "You are Agent B." }] },
-            { type: "message", role: "user", content: [{ type: "text", text: "Write 3 objections a user might have." }] },
-          ],
-        },
-      },
-    },
-    {
-      id: parseNodeId("agent_c"),
-      type: WorkflowNodeTypes.LLMResponses,
-      input: {
-        request: {
-          model: "claude-sonnet-4-20250514",
-          input: [
-            { type: "message", role: "system", content: [{ type: "text", text: "You are Agent C." }] },
-            { type: "message", role: "user", content: [{ type: "text", text: "Write 3 alternative headlines." }] },
-          ],
-        },
-      },
-    },
-    { id: parseNodeId("join"), type: WorkflowNodeTypes.JoinAll },
-    {
-      id: parseNodeId("aggregate"),
-      type: WorkflowNodeTypes.TransformJSON,
-      input: {
-        object: {
-          agent_a: { from: parseNodeId("join"), pointer: "/agent_a" },
-          agent_b: { from: parseNodeId("join"), pointer: "/agent_b" },
-          agent_c: { from: parseNodeId("join"), pointer: "/agent_c" },
-        },
-      },
-    },
-  ],
-  edges: [
-    { from: parseNodeId("agent_a"), to: parseNodeId("join") },
-    { from: parseNodeId("agent_b"), to: parseNodeId("join") },
-    { from: parseNodeId("agent_c"), to: parseNodeId("join") },
-    { from: parseNodeId("join"), to: parseNodeId("aggregate") },
-  ],
-  outputs: [{ name: parseOutputName("result"), from: parseNodeId("aggregate") }],
-} as const;
+const spec = workflowV0()
+  .name("multi_agent_v0_example")
+  .execution({ max_parallelism: 3, node_timeout_ms: 20_000, run_timeout_ms: 30_000 })
+  .llmResponses(parseNodeId("agent_a"), {
+    model: "claude-sonnet-4-20250514",
+    input: [
+      { type: "message", role: "system", content: [{ type: "text", text: "You are Agent A." }] },
+      { type: "message", role: "user", content: [{ type: "text", text: "Write 3 ideas for a landing page." }] },
+    ],
+  })
+  .llmResponses(parseNodeId("agent_b"), {
+    model: "claude-sonnet-4-20250514",
+    input: [
+      { type: "message", role: "system", content: [{ type: "text", text: "You are Agent B." }] },
+      { type: "message", role: "user", content: [{ type: "text", text: "Write 3 objections a user might have." }] },
+    ],
+  })
+  .llmResponses(parseNodeId("agent_c"), {
+    model: "claude-sonnet-4-20250514",
+    input: [
+      { type: "message", role: "system", content: [{ type: "text", text: "You are Agent C." }] },
+      { type: "message", role: "user", content: [{ type: "text", text: "Write 3 alternative headlines." }] },
+    ],
+  })
+  .joinAll(parseNodeId("join"))
+  .llmResponses(parseNodeId("aggregate"), {
+    model: "claude-sonnet-4-20250514",
+    input: [
+      { type: "message", role: "system", content: [{ type: "text", text: "Synthesize the best answer." }] },
+    ],
+  })
+  .edge(parseNodeId("agent_a"), parseNodeId("join"))
+  .edge(parseNodeId("agent_b"), parseNodeId("join"))
+  .edge(parseNodeId("agent_c"), parseNodeId("join"))
+  .edge(parseNodeId("join"), parseNodeId("aggregate"))
+  .output(parseOutputName("result"), parseNodeId("aggregate"))
+  .build();
 
 const { run_id } = await mr.runs.create(spec);
 
 const events = await mr.runs.events(run_id);
 for await (const ev of events) {
   if (ev.type === "run_completed") {
-    console.log("outputs:", ev.outputs);
+    const status = await mr.runs.get(run_id);
+    console.log("outputs:", status.outputs);
   }
 }
 ```
+
+See the full example in `sdk/ts/examples/workflows_multi_agent.ts`.
 
 ## Chat-Like Text Helpers
 

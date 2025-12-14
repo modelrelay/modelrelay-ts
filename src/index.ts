@@ -76,6 +76,7 @@ export {
 export type { AuthHeaders } from "./auth";
 
 export * from "./runs";
+export * from "./workflow_builder";
 export { workflowV0Schema } from "./workflow_schema";
 
 export {

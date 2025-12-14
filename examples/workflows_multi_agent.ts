@@ -1,6 +1,6 @@
 import { ModelRelay } from "../src";
-import { WorkflowKinds, WorkflowNodeTypes } from "../src/runs_types";
 import { parseNodeId, parseOutputName } from "../src/runs_ids";
+import { workflowV0 } from "../src/workflow_builder";
 
 type DevLoginResponse = {
 	access_token: string;
@@ -61,99 +61,87 @@ async function bootstrapSecretKey(apiBaseUrl: string): Promise<string> {
 }
 
 function multiAgentSpec(model: string) {
-	return {
-		kind: WorkflowKinds.WorkflowV0,
-		name: "multi_agent_v0_example",
-		execution: {
+	return workflowV0()
+		.name("multi_agent_v0_example")
+		.execution({
 			max_parallelism: 3,
 			node_timeout_ms: 20_000,
 			run_timeout_ms: 30_000,
-		},
-		nodes: [
+		})
+		.llmResponses(
+			parseNodeId("agent_a"),
 			{
-				id: parseNodeId("agent_a"),
-				type: WorkflowNodeTypes.LLMResponses,
-				input: {
-					request: {
-						model,
-						input: [
-							{
-								type: "message",
-								role: "system",
-								content: [{ type: "text", text: "You are Agent A." }],
-							},
-							{
-								type: "message",
-								role: "user",
-								content: [{ type: "text", text: "Write 3 ideas for a landing page." }],
-							},
+				model,
+				max_output_tokens: 64,
+				input: [
+					{
+						type: "message",
+						role: "system",
+						content: [{ type: "text", text: "You are Agent A." }],
+					},
+					{
+						type: "message",
+						role: "user",
+						content: [
+							{ type: "text", text: "Write 3 ideas for a landing page." },
 						],
 					},
-				},
+				],
 			},
-			{
-				id: parseNodeId("agent_b"),
-				type: WorkflowNodeTypes.LLMResponses,
-				input: {
-					request: {
-						model,
-						input: [
-							{
-								type: "message",
-								role: "system",
-								content: [{ type: "text", text: "You are Agent B." }],
-							},
-							{
-								type: "message",
-								role: "user",
-								content: [{ type: "text", text: "Write 3 objections a user might have." }],
-							},
-						],
-					},
+			{ stream: false },
+		)
+		.llmResponses(parseNodeId("agent_b"), {
+			model,
+			max_output_tokens: 64,
+			input: [
+				{
+					type: "message",
+					role: "system",
+					content: [{ type: "text", text: "You are Agent B." }],
 				},
-			},
-			{
-				id: parseNodeId("agent_c"),
-				type: WorkflowNodeTypes.LLMResponses,
-				input: {
-					request: {
-						model,
-						input: [
-							{
-								type: "message",
-								role: "system",
-								content: [{ type: "text", text: "You are Agent C." }],
-							},
-							{
-								type: "message",
-								role: "user",
-								content: [{ type: "text", text: "Write 3 alternative headlines." }],
-							},
-						],
-					},
+				{
+					type: "message",
+					role: "user",
+					content: [
+						{ type: "text", text: "Write 3 objections a user might have." },
+					],
 				},
-			},
-			{ id: parseNodeId("join"), type: WorkflowNodeTypes.JoinAll },
-			{
-				id: parseNodeId("aggregate"),
-				type: WorkflowNodeTypes.TransformJSON,
-				input: {
-					object: {
-						agent_a: { from: parseNodeId("join"), pointer: "/agent_a" },
-						agent_b: { from: parseNodeId("join"), pointer: "/agent_b" },
-						agent_c: { from: parseNodeId("join"), pointer: "/agent_c" },
-					},
+			],
+		})
+		.llmResponses(parseNodeId("agent_c"), {
+			model,
+			max_output_tokens: 64,
+			input: [
+				{
+					type: "message",
+					role: "system",
+					content: [{ type: "text", text: "You are Agent C." }],
 				},
-			},
-		],
-		edges: [
-			{ from: parseNodeId("agent_a"), to: parseNodeId("join") },
-			{ from: parseNodeId("agent_b"), to: parseNodeId("join") },
-			{ from: parseNodeId("agent_c"), to: parseNodeId("join") },
-			{ from: parseNodeId("join"), to: parseNodeId("aggregate") },
-		],
-		outputs: [{ name: parseOutputName("result"), from: parseNodeId("aggregate") }],
-	} as const;
+				{
+					type: "message",
+					role: "user",
+					content: [{ type: "text", text: "Write 3 alternative headlines." }],
+				},
+			],
+		})
+		.joinAll(parseNodeId("join"))
+		.llmResponses(parseNodeId("aggregate"), {
+			model,
+			max_output_tokens: 256,
+			input: [
+				{
+					type: "message",
+					role: "system",
+					content: [{ type: "text", text: "Synthesize the best answer." }],
+				},
+			],
+		})
+		.edge(parseNodeId("agent_a"), parseNodeId("join"))
+		.edge(parseNodeId("agent_b"), parseNodeId("join"))
+		.edge(parseNodeId("agent_c"), parseNodeId("join"))
+		.edge(parseNodeId("join"), parseNodeId("aggregate"))
+		.output(parseOutputName("result"), parseNodeId("aggregate"))
+		.build();
 }
 
 async function runOnce(cfg: { apiBaseUrl: string; apiKey: string; spec: any; label: string }) {
@@ -161,6 +149,9 @@ async function runOnce(cfg: { apiBaseUrl: string; apiKey: string; spec: any; lab
 		apiKey: cfg.apiKey,
 		baseUrl: cfg.apiBaseUrl,
 	});
+
+	console.log(`[${cfg.label}] compiled workflow.v0:`);
+	console.log(JSON.stringify(cfg.spec, null, 2));
 
 	const { run_id } = await mr.runs.create(cfg.spec);
 	console.log(`[${cfg.label}] run_id=${run_id}`);
@@ -174,7 +165,8 @@ async function runOnce(cfg: { apiBaseUrl: string; apiKey: string; spec: any; lab
 			console.log(`[${cfg.label}] run_canceled: ${ev.error.message}`);
 		}
 		if (ev.type === "run_completed") {
-			console.log(`[${cfg.label}] outputs:`, JSON.stringify(ev.outputs, null, 2));
+			const status = await mr.runs.get(run_id);
+			console.log(`[${cfg.label}] outputs:`, JSON.stringify(status.outputs, null, 2));
 		}
 	}
 }
@@ -222,4 +214,3 @@ main().catch((err) => {
 	console.error(err);
 	process.exitCode = 1;
 });
-
