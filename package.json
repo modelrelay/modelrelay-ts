@@ -1,6 +1,6 @@
 {
 	"name": "@modelrelay/sdk",
-	"version": "0.41.1",
+	"version": "0.41.3",
 	"description": "TypeScript SDK for the ModelRelay API",
 	"type": "module",
 	"main": "dist/index.cjs",
@@ -20,7 +20,7 @@
 	"scripts": {
 		"build": "tsup src/index.ts --format esm,cjs --dts",
 		"dev": "tsup src/index.ts --format esm,cjs --dts --watch",
-		"lint": "tsc --noEmit",
+		"lint": "tsc --noEmit --project tsconfig.lint.json",
 		"test": "vitest run"
 	},
 	"keywords": [

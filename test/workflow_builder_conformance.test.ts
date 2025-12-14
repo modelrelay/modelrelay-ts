@@ -100,6 +100,65 @@ describe("workflow builder conformance", () => {
 		expect(spec).toEqual(fixture);
 	});
 
+	it("builds the canonical bindings workflow.v0", () => {
+		const fixture = readJSONFixture<any>(
+			"../../../platform/workflow/testdata/workflow_v0_bindings_join_into_aggregate.json",
+		);
+
+		const spec = workflowV0()
+			.name("bindings_join_into_aggregate")
+			.llmResponses(parseNodeId("agent_a"), {
+				model: "echo-1",
+				input: [
+					{
+						type: "message",
+						role: "user",
+						content: [{ type: "text", text: "hello a" }],
+					},
+				],
+			})
+			.llmResponses(parseNodeId("agent_b"), {
+				model: "echo-1",
+				input: [
+					{
+						type: "message",
+						role: "user",
+						content: [{ type: "text", text: "hello b" }],
+					},
+				],
+			})
+			.joinAll(parseNodeId("join"))
+			.llmResponses(
+				parseNodeId("aggregate"),
+				{
+					model: "echo-1",
+					input: [
+						{
+							type: "message",
+							role: "user",
+							content: [{ type: "text", text: "" }],
+						},
+					],
+				},
+				{
+					bindings: [
+						{
+							from: parseNodeId("join"),
+							to: "/input/0/content/0/text",
+							encoding: "json_string",
+						},
+					],
+				},
+			)
+			.edge(parseNodeId("agent_a"), parseNodeId("join"))
+			.edge(parseNodeId("agent_b"), parseNodeId("join"))
+			.edge(parseNodeId("join"), parseNodeId("aggregate"))
+			.output(parseOutputName("final"), parseNodeId("aggregate"), "/output/0/content/0/text")
+			.build();
+
+		expect(spec).toEqual(fixture);
+	});
+
 	it("reports conformance fixture issues", () => {
 		const fixtures = [
 			{
@@ -134,4 +193,3 @@ describe("workflow builder conformance", () => {
 		}
 	});
 });
-

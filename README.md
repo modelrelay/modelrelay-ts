@@ -31,6 +31,7 @@ for await (const event of stream) {
 ```ts
 import {
   ModelRelay,
+  type LLMResponsesBindingV0,
   parseNodeId,
   parseOutputName,
   parseSecretKey,
@@ -64,12 +65,30 @@ const spec = workflowV0()
     ],
   })
   .joinAll(parseNodeId("join"))
-  .llmResponses(parseNodeId("aggregate"), {
-    model: "claude-sonnet-4-20250514",
-    input: [
-      { type: "message", role: "system", content: [{ type: "text", text: "Synthesize the best answer." }] },
-    ],
-  })
+  .llmResponses(
+    parseNodeId("aggregate"),
+    {
+      model: "claude-sonnet-4-20250514",
+      input: [
+        {
+          type: "message",
+          role: "system",
+          content: [{ type: "text", text: "Synthesize the best answer from the following agent outputs (JSON)." }],
+        },
+        { type: "message", role: "user", content: [{ type: "text", text: "" }] }, // overwritten by bindings
+      ],
+    },
+    {
+      // Bind the join output into the aggregator prompt (fan-in).
+      bindings: [
+        {
+          from: parseNodeId("join"),
+          to: "/input/1/content/0/text",
+          encoding: "json_string",
+        } satisfies LLMResponsesBindingV0,
+      ],
+    },
+  )
   .edge(parseNodeId("agent_a"), parseNodeId("join"))
   .edge(parseNodeId("agent_b"), parseNodeId("join"))
   .edge(parseNodeId("agent_c"), parseNodeId("join"))
@@ -84,6 +103,7 @@ for await (const ev of events) {
   if (ev.type === "run_completed") {
     const status = await mr.runs.get(run_id);
     console.log("outputs:", status.outputs);
+    console.log("cost_summary:", status.cost_summary);
   }
 }
 ```

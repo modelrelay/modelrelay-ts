@@ -6,6 +6,7 @@ import type {
 import { asInternal } from "./responses_request";
 import type { NodeId, OutputName } from "./runs_ids";
 import type {
+	LLMResponsesBindingV0,
 	WorkflowEdgeV0,
 	WorkflowNodeV0,
 	WorkflowOutputRefV0,
@@ -170,6 +171,7 @@ export function validateWorkflowSpecV0(
 type LLMResponsesNodeInputV0 = {
 	request: WireResponsesRequest;
 	stream?: boolean;
+	bindings?: ReadonlyArray<LLMResponsesBindingV0>;
 };
 
 function wireRequest(req: WireResponsesRequest | ResponsesRequest): WireResponsesRequest {
@@ -228,11 +230,12 @@ export class WorkflowBuilderV0 {
 	llmResponses(
 		id: NodeId,
 		request: WireResponsesRequest | ResponsesRequest,
-		options: { stream?: boolean } = {},
+		options: { stream?: boolean; bindings?: ReadonlyArray<LLMResponsesBindingV0> } = {},
 	): WorkflowBuilderV0 {
 		const input: LLMResponsesNodeInputV0 = {
 			request: wireRequest(request),
 			...(options.stream === undefined ? {} : { stream: options.stream }),
+			...(options.bindings === undefined ? {} : { bindings: options.bindings.slice() }),
 		};
 		return this.node({
 			id,

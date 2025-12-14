@@ -35,7 +35,11 @@ export type WorkflowNodeV0 =
 	| {
 			id: NodeId;
 			type: typeof WorkflowNodeTypes.LLMResponses;
-			input: { request: WireResponsesRequest; stream?: boolean };
+			input: {
+				request: WireResponsesRequest;
+				stream?: boolean;
+				bindings?: ReadonlyArray<LLMResponsesBindingV0>;
+			};
 	  }
 	| {
 			id: NodeId;
@@ -60,6 +64,15 @@ export type WorkflowOutputRefV0 = {
 	name: OutputName;
 	from: NodeId;
 	pointer?: string;
+};
+
+export type LLMResponsesBindingEncodingV0 = "json" | "json_string";
+
+export type LLMResponsesBindingV0 = {
+	from: NodeId;
+	pointer?: string;
+	to: string;
+	encoding?: LLMResponsesBindingEncodingV0;
 };
 
 export type RunStatusV0 = "running" | "succeeded" | "failed" | "canceled";

@@ -49,6 +49,7 @@ describe("runs", () => {
 						run_id: runId,
 						status: "running",
 						plan_hash: planHash,
+						cost_summary: { total_usd_cents: 0, line_items: [] },
 						nodes: [],
 						outputs: {},
 					}),

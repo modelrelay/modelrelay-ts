@@ -125,17 +125,35 @@ function multiAgentSpec(model: string) {
 			],
 		})
 		.joinAll(parseNodeId("join"))
-		.llmResponses(parseNodeId("aggregate"), {
-			model,
-			max_output_tokens: 256,
-			input: [
-				{
-					type: "message",
-					role: "system",
-					content: [{ type: "text", text: "Synthesize the best answer." }],
-				},
-			],
-		})
+		.llmResponses(
+			parseNodeId("aggregate"),
+			{
+				model,
+				max_output_tokens: 256,
+				input: [
+					{
+						type: "message",
+						role: "system",
+						content: [
+							{
+								type: "text",
+								text: "Synthesize the best answer from the following agent outputs (JSON).",
+							},
+						],
+					},
+					{
+						type: "message",
+						role: "user",
+						content: [{ type: "text", text: "" }], // overwritten by bindings
+					},
+				],
+			},
+			{
+				bindings: [
+					{ from: parseNodeId("join"), to: "/input/1/content/0/text", encoding: "json_string" },
+				],
+			},
+		)
 		.edge(parseNodeId("agent_a"), parseNodeId("join"))
 		.edge(parseNodeId("agent_b"), parseNodeId("join"))
 		.edge(parseNodeId("agent_c"), parseNodeId("join"))
