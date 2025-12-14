@@ -106,7 +106,8 @@ export type RunEventRunStartedV0 = RunEventBaseV0 & {
 export type RunEventRunCompletedV0 = RunEventBaseV0 & {
 	type: "run_completed";
 	plan_hash: PlanHash;
-	outputs: Record<string, unknown>;
+	outputs_artifact_key: string;
+	outputs_info: PayloadInfoV0;
 };
 
 export type RunEventRunFailedV0 = RunEventBaseV0 & {
@@ -140,8 +141,8 @@ export type RunEventNodeFailedV0 = RunEventBaseV0 & {
 export type RunEventNodeOutputV0 = RunEventBaseV0 & {
 	type: "node_output";
 	node_id: NodeId;
+	artifact_key: string;
 	output_info: PayloadInfoV0;
-	output?: unknown;
 };
 
 export type RunEventV0 =
@@ -186,7 +187,8 @@ const runEventWireSchema = z
 			...baseSchema,
 			type: z.literal("run_completed"),
 			plan_hash: z.string().min(1),
-			outputs: z.record(z.unknown()),
+			outputs_artifact_key: z.string().min(1),
+			outputs_info: payloadInfoSchema,
 		})
 		.strict(),
 	z
@@ -220,26 +222,27 @@ const runEventWireSchema = z
 			...baseSchema,
 			type: z.literal("node_output"),
 			node_id: z.string().min(1),
-			output: z.unknown().optional(),
+			artifact_key: z.string().min(1),
 			output_info: payloadInfoSchema,
 		})
 		.strict(),
 ])
 	.superRefine((v, ctx) => {
-		if (v.type !== "node_output") return;
-		// output_info.included must match presence of output.
-		const hasOutput = Object.prototype.hasOwnProperty.call(v, "output");
-		if (hasOutput && v.output_info.included !== true) {
-			ctx.addIssue({
-				code: z.ZodIssueCode.custom,
-				message: "output_info.included must be true when output is present",
-			});
+		if (v.type === "node_output") {
+			if (v.output_info.included !== false) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: "node_output output_info.included must be false",
+				});
+			}
 		}
-		if (!hasOutput && v.output_info.included !== false) {
-			ctx.addIssue({
-				code: z.ZodIssueCode.custom,
-				message: "output_info.included must be false when output is omitted",
-			});
+		if (v.type === "run_completed") {
+			if (v.outputs_info.included !== false) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: "run_completed outputs_info.included must be false",
+				});
+			}
 		}
 	});
 
@@ -274,7 +277,8 @@ export function parseRunEventV0(line: string): RunEventV0 | null {
 					...base,
 					type: "run_completed",
 					plan_hash: parsePlanHash(res.data.plan_hash),
-					outputs: res.data.outputs,
+					outputs_artifact_key: res.data.outputs_artifact_key,
+					outputs_info: res.data.outputs_info,
 				};
 			case "run_failed":
 				return {
@@ -306,10 +310,8 @@ export function parseRunEventV0(line: string): RunEventV0 | null {
 					...base,
 					type: "node_output",
 					node_id: parseNodeId(res.data.node_id),
+					artifact_key: res.data.artifact_key,
 					output_info: res.data.output_info,
-					...(Object.prototype.hasOwnProperty.call(res.data, "output")
-						? { output: res.data.output }
-						: {}),
 				};
 			default:
 				throw new TransportError(`Unknown run event type: ${(res.data as any).type}`, { kind: "request" });

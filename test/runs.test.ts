@@ -67,17 +67,23 @@ describe("runs", () => {
 						type: "run_started",
 						plan_hash: planHash,
 					}),
-					JSON.stringify({
-						envelope_version: "v0",
-						run_id: runId,
-						seq: 2,
-						ts: new Date().toISOString(),
-						type: "run_completed",
-						plan_hash: planHash,
-						outputs: { result: { ok: true } },
-					}),
-				]);
-			}
+						JSON.stringify({
+							envelope_version: "v0",
+							run_id: runId,
+							seq: 2,
+							ts: new Date().toISOString(),
+							type: "run_completed",
+							plan_hash: planHash,
+							outputs_artifact_key: "run_outputs.v0",
+							outputs_info: {
+								bytes: 0,
+								sha256:
+									"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+								included: false,
+							},
+						}),
+					]);
+				}
 			throw new Error(`unexpected URL: ${url}`);
 		});
 
