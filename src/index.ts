@@ -45,7 +45,6 @@ export class ModelRelay {
 		const auth = new AuthClient(http, {
 			apiKey,
 			accessToken: cfg.token,
-			customer: cfg.customer,
 		});
 		this.auth = auth;
 		this.responses = new ResponsesClient(http, auth, {

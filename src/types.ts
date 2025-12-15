@@ -44,10 +44,6 @@ export interface ModelRelayBaseOptions {
 	baseUrl?: string;
 	fetch?: typeof fetch;
 	/**
-	 * Default customer metadata used when exchanging publishable keys for frontend tokens.
-	 */
-	customer?: FrontendCustomer;
-	/**
 	 * Optional client header override for telemetry.
 	 */
 	clientHeader?: string;
@@ -84,7 +80,7 @@ export interface ModelRelayKeyOptions extends ModelRelayBaseOptions {
 	/**
 	 * API key (secret or publishable). Required.
 	 * - Secret keys (`mr_sk_...`) are for server-side API calls.
-	 * - Publishable keys (`mr_pk_...`) are for frontend token exchange.
+	 * - Publishable keys (`mr_pk_...`) are for limited public endpoints (e.g., pricing/tiers) and cannot call /responses or /runs.
 	 */
 	key: ApiKey;
 	/**
@@ -102,7 +98,7 @@ export interface ModelRelayTokenOptions extends ModelRelayBaseOptions {
 	 */
 	key?: ApiKey;
 	/**
-	 * Bearer token to call the API directly (server or frontend token). Required.
+	 * Bearer token to call the API directly (customer token). Required.
 	 */
 	token: string;
 }
@@ -121,13 +117,7 @@ export interface ModelRelayTokenOptions extends ModelRelayBaseOptions {
  *
  * @example With access token (frontend or after token exchange)
  * ```typescript
- * const client = new ModelRelay({ token: frontendToken });
- * ```
- *
- * @example With publishable key (frontend token exchange)
- * ```typescript
- * import { ModelRelay, parsePublishableKey } from "@modelrelay/sdk";
- * const client = new ModelRelay({ key: parsePublishableKey("mr_pk_..."), customer: { id: "user123" } });
+ * const client = new ModelRelay({ token: customerToken });
  * ```
  */
 export type ModelRelayOptions = ModelRelayKeyOptions | ModelRelayTokenOptions;
@@ -138,11 +128,11 @@ export type ModelRelayOptions = ModelRelayKeyOptions | ModelRelayTokenOptions;
  */
 export interface ModelRelayOptionsLegacy {
 	/**
-	 * API key (secret or publishable). Publishable keys are required for frontend token exchange.
+	 * API key (secret or publishable).
 	 */
 	key?: ApiKey;
 	/**
-	 * Bearer token to call the API directly (server or frontend token).
+	 * Bearer token to call the API directly (customer token).
 	 */
 	token?: string;
 	/**
@@ -150,10 +140,6 @@ export interface ModelRelayOptionsLegacy {
 	 */
 	baseUrl?: string;
 	fetch?: typeof fetch;
-	/**
-	 * Default customer metadata used when exchanging publishable keys for frontend tokens.
-	 */
-	customer?: FrontendCustomer;
 	/**
 	 * Optional client header override for telemetry.
 	 */
@@ -184,50 +170,18 @@ export interface ModelRelayOptionsLegacy {
 	trace?: TraceCallbacks;
 }
 
-export interface FrontendCustomer {
-	id: string;
-	deviceId?: string;
-	ttlSeconds?: number;
-}
-
-/**
- * Request for fetching a frontend token for an existing customer.
- * Use this when the customer already exists in the system.
- */
-export interface FrontendTokenRequest {
-	/** Publishable key (mr_pk_*) - required for authentication. */
-	publishableKey: PublishableKey;
-	/** Customer identifier - required to issue a token for this customer. */
-	customerId: string;
-	/** Optional device identifier for tracking/rate limiting. */
-	deviceId?: string;
-	/** Optional TTL in seconds for the issued token. */
-	ttlSeconds?: number;
-}
-
-/**
- * Request for fetching a frontend token with auto-provisioning.
- * Use this when the customer may not exist and should be created on the free tier.
- * The email is required for auto-provisioning.
- */
-export interface FrontendTokenAutoProvisionRequest {
-	/** Publishable key (mr_pk_*) - required for authentication. */
-	publishableKey: PublishableKey;
-	/** Customer identifier - required to issue a token for this customer. */
-	customerId: string;
-	/** Email address - required for auto-provisioning a new customer. */
-	email: string;
-	/** Optional device identifier for tracking/rate limiting. */
-	deviceId?: string;
-	/** Optional TTL in seconds for the issued token. */
+export interface CustomerTokenRequest {
+	projectId: string;
+	customerId?: string;
+	customerExternalId?: string;
 	ttlSeconds?: number;
 }
 
 /** Token type for OAuth2 bearer tokens. */
 export type TokenType = "Bearer";
 
-export interface FrontendToken {
-	/** The bearer token for authenticating LLM requests. */
+export interface CustomerToken {
+	/** The bearer token for authenticating data-plane requests. */
 	token: string;
 	/** When the token expires. */
 	expiresAt: Date;
@@ -235,26 +189,14 @@ export interface FrontendToken {
 	expiresIn: number;
 	/** Token type, always "Bearer". */
 	tokenType: TokenType;
-	/** The publishable key ID that issued this token. */
-	keyId: string;
-	/** Unique session identifier for this token. */
-	sessionId: string;
 	/** The project ID this token is scoped to. */
 	projectId: string;
 	/** The internal customer ID (UUID). */
 	customerId: string;
-	/** The external customer ID provided by the application. */
+	/** The external customer ID, when present. */
 	customerExternalId: string;
 	/** The tier code for the customer (e.g., "free", "pro", "enterprise"). */
 	tierCode: string;
-	/**
-	 * Publishable key used for issuance. Added client-side for caching.
-	 */
-	publishableKey?: PublishableKey;
-	/**
-	 * Device identifier used when issuing the token. Added client-side for caching.
-	 */
-	deviceId?: string;
 }
 
 
@@ -687,13 +629,11 @@ export interface StructuredJSONEvent<T> {
 
 // --- Raw API Response Types ---
 
-export interface APIFrontendToken {
+export interface APICustomerToken {
 	token: string;
 	expires_at: string;
 	expires_in: number;
 	token_type: TokenType;
-	key_id: string;
-	session_id: string;
 	project_id: string;
 	customer_id: string;
 	customer_external_id: string;

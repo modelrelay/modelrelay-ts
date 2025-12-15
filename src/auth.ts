@@ -2,18 +2,15 @@ import { ConfigError } from "./errors";
 import { isPublishableKey, parseApiKey } from "./api_keys";
 import type { HTTPClient } from "./http";
 import type {
-	APIFrontendToken,
-	FrontendCustomer,
-	FrontendToken,
-	FrontendTokenAutoProvisionRequest,
-	FrontendTokenRequest,
+	APICustomerToken,
+	CustomerToken,
+	CustomerTokenRequest,
 } from "./types";
-import type { ApiKey, PublishableKey } from "./types";
+import type { ApiKey } from "./types";
 
 interface AuthConfig {
 	apiKey?: ApiKey;
 	accessToken?: string;
-	customer?: FrontendCustomer;
 }
 
 export interface AuthHeaders {
@@ -40,109 +37,61 @@ export class AuthClient {
 	private readonly apiKey?: ApiKey;
 	private readonly apiKeyIsPublishable: boolean;
 	private readonly accessToken?: string;
-	private readonly customer?: FrontendCustomer;
-	private cachedFrontend: Map<string, FrontendToken> = new Map();
 
 	constructor(http: HTTPClient, cfg: AuthConfig) {
 		this.http = http;
 		this.apiKey = cfg.apiKey ? parseApiKey(cfg.apiKey) : undefined;
 		this.apiKeyIsPublishable = this.apiKey ? isPublishableKey(this.apiKey) : false;
 		this.accessToken = cfg.accessToken;
-		this.customer = cfg.customer;
 	}
 
 	/**
-	 * Exchange a publishable key for a short-lived frontend token for an existing customer.
-	 * Tokens are cached until they are close to expiry.
-	 *
-	 * Use this method when the customer already exists in the system.
-	 * For auto-provisioning new customers, use frontendTokenAutoProvision instead.
+	 * Mint a customer-scoped bearer token (requires secret key auth).
 	 */
-	async frontendToken(request: FrontendTokenRequest): Promise<FrontendToken> {
-		if (!request.publishableKey?.trim()) {
-			throw new ConfigError("publishableKey is required");
+	async customerToken(request: CustomerTokenRequest): Promise<CustomerToken> {
+		if (!this.apiKey) {
+			throw new ConfigError("API key is required");
 		}
-		if (!request.customerId?.trim()) {
-			throw new ConfigError("customerId is required");
+		if (this.apiKeyIsPublishable) {
+			throw new ConfigError(
+				"publishable keys cannot mint customer tokens; use a secret key (mr_sk_*)",
+			);
 		}
-		return this.sendFrontendTokenRequest(request);
-	}
-
-	/**
-	 * Exchange a publishable key for a frontend token, creating the customer if needed.
-	 * The customer will be auto-provisioned on the project's free tier.
-	 * Tokens are cached until they are close to expiry.
-	 *
-	 * Use this method when the customer may not exist and should be created automatically.
-	 * The email is required for auto-provisioning.
-	 */
-	async frontendTokenAutoProvision(
-		request: FrontendTokenAutoProvisionRequest,
-	): Promise<FrontendToken> {
-		if (!request.publishableKey?.trim()) {
-			throw new ConfigError("publishableKey is required");
+		if (!request.projectId?.trim()) {
+			throw new ConfigError("projectId is required");
 		}
-		if (!request.customerId?.trim()) {
-			throw new ConfigError("customerId is required");
+		const hasCustomerId = Boolean(request.customerId?.trim());
+		const hasCustomerExternalId = Boolean(request.customerExternalId?.trim());
+		if (hasCustomerId === hasCustomerExternalId) {
+			throw new ConfigError(
+				"provide exactly one of customerId or customerExternalId",
+			);
 		}
-		if (!request.email?.trim()) {
-			throw new ConfigError("email is required for auto-provisioning");
-		}
-		return this.sendFrontendTokenRequest(request);
-	}
-
-	/**
-	 * Internal method to send frontend token requests.
-	 */
-	private async sendFrontendTokenRequest(
-		request: FrontendTokenRequest | FrontendTokenAutoProvisionRequest,
-	): Promise<FrontendToken> {
-		const { publishableKey, customerId, deviceId, ttlSeconds } = request;
-		const email = "email" in request ? request.email : undefined;
-
-		const cacheKey = `${publishableKey}:${customerId}:${deviceId || ""}`;
-		const cached = this.cachedFrontend.get(cacheKey);
-		if (cached && isTokenReusable(cached)) {
-			return cached;
-		}
-
 		const payload: Record<string, unknown> = {
-			publishable_key: publishableKey,
-			customer_id: customerId,
+			project_id: request.projectId,
 		};
-		if (deviceId) {
-			payload.device_id = deviceId;
+		if (hasCustomerId) {
+			payload.customer_id = request.customerId;
+		} else {
+			payload.customer_external_id = request.customerExternalId;
 		}
-		if (typeof ttlSeconds === "number" && ttlSeconds > 0) {
-			payload.ttl_seconds = ttlSeconds;
-		}
-		if (email) {
-			payload.email = email;
+		if (typeof request.ttlSeconds === "number" && request.ttlSeconds > 0) {
+			payload.ttl_seconds = request.ttlSeconds;
 		}
 
-		const response = await this.http.json<APIFrontendToken>(
-			"/auth/frontend-token",
-			{
-				method: "POST",
-				body: payload,
-			},
-		);
-		const token = normalizeFrontendToken(response, {
-			publishableKey,
-			deviceId,
+		const response = await this.http.json<APICustomerToken>("/auth/customer-token", {
+			method: "POST",
+			body: payload,
 		});
-		this.cachedFrontend.set(cacheKey, token);
-		return token;
+		return normalizeCustomerToken(response);
 	}
 
 	/**
 	 * Determine the correct auth headers for /responses.
-	 * Publishable keys are automatically exchanged for frontend tokens.
+	 * Publishable keys are not accepted on data-plane endpoints.
 	 */
-	async authForResponses(
-		customerId?: string,
-		overrides?: Partial<FrontendCustomer>,
-	): Promise<AuthHeaders> {
+	async authForResponses(customerId?: string): Promise<AuthHeaders> {
+		void customerId; // passed via headers by callers when using secret keys
 		if (this.accessToken) {
 			return createAccessTokenAuth(this.accessToken);
 		}
@@ -150,18 +99,9 @@ export class AuthClient {
 			throw new ConfigError("API key or token is required");
 		}
 		if (this.apiKeyIsPublishable) {
-			const publishableKey = this.apiKey as PublishableKey;
-			const resolvedCustomerId = customerId || overrides?.id || this.customer?.id;
-			if (!resolvedCustomerId) {
-				throw new ConfigError("customerId is required to mint a frontend token");
-			}
-			const token = await this.frontendToken({
-				publishableKey,
-				customerId: resolvedCustomerId,
-				deviceId: overrides?.deviceId || this.customer?.deviceId,
-				ttlSeconds: overrides?.ttlSeconds ?? this.customer?.ttlSeconds,
-			});
-			return createAccessTokenAuth(token.token);
+			throw new ConfigError(
+				"publishable keys cannot call /responses; use a customer token or a secret key",
+			);
 		}
 		return createApiKeyAuth(this.apiKey);
 	}
@@ -180,30 +120,15 @@ export class AuthClient {
 	}
 }
 
-function normalizeFrontendToken(
-	payload: APIFrontendToken,
-	meta: { publishableKey: PublishableKey; deviceId?: string },
-): FrontendToken {
+function normalizeCustomerToken(payload: APICustomerToken): CustomerToken {
 	return {
 		token: payload.token,
 		expiresAt: new Date(payload.expires_at),
 		expiresIn: payload.expires_in,
 		tokenType: payload.token_type,
-		keyId: payload.key_id,
-		sessionId: payload.session_id,
 		projectId: payload.project_id,
 		customerId: payload.customer_id,
 		customerExternalId: payload.customer_external_id,
 		tierCode: payload.tier_code,
-		publishableKey: meta.publishableKey,
-		deviceId: meta.deviceId,
 	};
-}
-
-function isTokenReusable(token: FrontendToken): boolean {
-	if (!token.token) {
-		return false;
-	}
-	// Refresh when within 60s of expiry to avoid races.
-	return token.expiresAt.getTime() - Date.now() > 60_000;
 }

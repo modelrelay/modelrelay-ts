@@ -237,11 +237,6 @@ export class ResponseBuilder {
 		if (input.length === 0) {
 			throw new ConfigError("at least one input item is required");
 		}
-		const customerId = this.options.customerId?.trim();
-		const model = this.body.model?.trim();
-		if (!customerId && !model) {
-			throw new ConfigError("provide model(...) or customerId(...)");
-		}
 		const body: WireResponsesRequest = {
 			provider: this.body.provider,
 			model: this.body.model,
