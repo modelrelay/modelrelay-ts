@@ -1,6 +1,8 @@
 import type { NodeId, PlanHash, RunId } from "./runs_ids";
-import type { WorkflowSpecV0 } from "./runs_types";
+import type { RunStatusV0, WorkflowSpecV0 } from "./runs_types";
 import type { ModelId, ProviderId } from "./types";
+
+export type NodeStatusV0 = "pending" | "running" | "succeeded" | "failed" | "canceled";
 
 export const RUNS_PATH = "/runs";
 export const WORKFLOW_V0_SCHEMA_PATH = "/schemas/workflow_v0.schema.json";
@@ -24,13 +26,13 @@ export type RunsCreateRequest = {
 
 export type RunsCreateResponse = {
 	run_id: RunId;
-	status: string;
+	status: RunStatusV0;
 	plan_hash: PlanHash;
 };
 
 export type RunsGetResponse = {
 	run_id: RunId;
-	status: string;
+	status: RunStatusV0;
 	plan_hash: PlanHash;
 	cost_summary: RunCostSummaryV0;
 	nodes?: NodeResultV0[];
@@ -54,7 +56,7 @@ export type RunCostLineItemV0 = {
 export type NodeResultV0 = {
 	id: NodeId;
 	type: string;
-	status: string;
+	status: NodeStatusV0;
 	started_at?: string;
 	ended_at?: string;
 	output?: unknown;
