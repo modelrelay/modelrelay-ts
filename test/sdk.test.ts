@@ -20,6 +20,20 @@ import {
 const future = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
 describe("ModelRelay TypeScript SDK", () => {
+	it("does not leak raw API keys in config errors", () => {
+		const rawSecret = "mr_sk_leak_me";
+		let err: unknown;
+		try {
+			parsePublishableKey(rawSecret);
+		} catch (e) {
+			err = e;
+		}
+		expect(err).toBeInstanceOf(ConfigError);
+		// Ensure error metadata does not include the raw secret string.
+		const data = (err as ConfigError).data;
+		expect(JSON.stringify(data ?? {})).not.toContain(rawSecret);
+	});
+
 	it("provides a chat-like text helper", async () => {
 		const fetchMock = vi.fn(async (url, init) => {
 			const path = String(url);
