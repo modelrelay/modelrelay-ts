@@ -44,6 +44,10 @@ export interface ModelRelayBaseOptions {
 	baseUrl?: string;
 	fetch?: typeof fetch;
 	/**
+	 * Default customer metadata used when exchanging publishable keys for frontend tokens.
+	 */
+	customer?: FrontendCustomer;
+	/**
 	 * Optional client header override for telemetry.
 	 */
 	clientHeader?: string;
@@ -80,7 +84,7 @@ export interface ModelRelayKeyOptions extends ModelRelayBaseOptions {
 	/**
 	 * API key (secret or publishable). Required.
 	 * - Secret keys (`mr_sk_...`) are for server-side API calls.
-	 * - Publishable keys (`mr_pk_...`) are for limited public endpoints (e.g., pricing/tiers) and cannot call /responses or /runs.
+	 * - Publishable keys (`mr_pk_...`) are for frontend token exchange.
 	 */
 	key: ApiKey;
 	/**
@@ -98,7 +102,7 @@ export interface ModelRelayTokenOptions extends ModelRelayBaseOptions {
 	 */
 	key?: ApiKey;
 	/**
-	 * Bearer token to call the API directly (customer token). Required.
+	 * Bearer token to call the API directly (server or frontend token). Required.
 	 */
 	token: string;
 }
@@ -117,7 +121,13 @@ export interface ModelRelayTokenOptions extends ModelRelayBaseOptions {
  *
  * @example With access token (frontend or after token exchange)
  * ```typescript
- * const client = new ModelRelay({ token: customerToken });
+ * const client = new ModelRelay({ token: frontendToken });
+ * ```
+ *
+ * @example With publishable key (frontend token exchange)
+ * ```typescript
+ * import { ModelRelay, parsePublishableKey } from "@modelrelay/sdk";
+ * const client = new ModelRelay({ key: parsePublishableKey("mr_pk_..."), customer: { provider: "oidc", subject: "user123" } });
  * ```
  */
 export type ModelRelayOptions = ModelRelayKeyOptions | ModelRelayTokenOptions;
@@ -128,11 +138,11 @@ export type ModelRelayOptions = ModelRelayKeyOptions | ModelRelayTokenOptions;
  */
 export interface ModelRelayOptionsLegacy {
 	/**
-	 * API key (secret or publishable).
+	 * API key (secret or publishable). Publishable keys are required for frontend token exchange.
 	 */
 	key?: ApiKey;
 	/**
-	 * Bearer token to call the API directly (customer token).
+	 * Bearer token to call the API directly (server or frontend token).
 	 */
 	token?: string;
 	/**
@@ -140,6 +150,10 @@ export interface ModelRelayOptionsLegacy {
 	 */
 	baseUrl?: string;
 	fetch?: typeof fetch;
+	/**
+	 * Default customer metadata used when exchanging publishable keys for frontend tokens.
+	 */
+	customer?: FrontendCustomer;
 	/**
 	 * Optional client header override for telemetry.
 	 */
@@ -170,18 +184,58 @@ export interface ModelRelayOptionsLegacy {
 	trace?: TraceCallbacks;
 }
 
-export interface CustomerTokenRequest {
-	projectId: string;
-	customerId?: string;
-	customerExternalId?: string;
+export interface FrontendCustomer {
+	provider: string;
+	subject: string;
+	/**
+	 * Email address for auto-provisioning (if enabled for the project).
+	 * If omitted and the identity isn't linked yet, the API may return EMAIL_REQUIRED.
+	 */
+	email?: string;
+	deviceId?: string;
+	ttlSeconds?: number;
+}
+
+/**
+ * Request for fetching a frontend token for an existing identity.
+ */
+export interface FrontendTokenRequest {
+	/** Publishable key (mr_pk_*) - required for authentication. */
+	publishableKey: PublishableKey;
+	/** Identity provider namespace (e.g. "oidc", "github", "oidc:https://issuer"). */
+	identityProvider: string;
+	/** Provider-scoped subject identifier (e.g. OIDC sub). */
+	identitySubject: string;
+	/** Optional device identifier for tracking/rate limiting. */
+	deviceId?: string;
+	/** Optional TTL in seconds for the issued token. */
+	ttlSeconds?: number;
+}
+
+/**
+ * Request for fetching a frontend token with auto-provisioning enabled.
+ * The project must explicitly enable auto-provisioning; email is required for customer creation.
+ */
+export interface FrontendTokenAutoProvisionRequest {
+	/** Publishable key (mr_pk_*) - required for authentication. */
+	publishableKey: PublishableKey;
+	/** Identity provider namespace (e.g. "oidc", "github", "oidc:https://issuer"). */
+	identityProvider: string;
+	/** Provider-scoped subject identifier (e.g. OIDC sub). */
+	identitySubject: string;
+	/** Email address - required for auto-provisioning a new customer. */
+	email: string;
+	/** Optional device identifier for tracking/rate limiting. */
+	deviceId?: string;
+	/** Optional TTL in seconds for the issued token. */
 	ttlSeconds?: number;
 }
 
 /** Token type for OAuth2 bearer tokens. */
 export type TokenType = "Bearer";
 
-export interface CustomerToken {
-	/** The bearer token for authenticating data-plane requests. */
+export interface FrontendToken {
+	/** The bearer token for authenticating LLM requests. */
 	token: string;
 	/** When the token expires. */
 	expiresAt: Date;
@@ -189,14 +243,34 @@ export interface CustomerToken {
 	expiresIn: number;
 	/** Token type, always "Bearer". */
 	tokenType: TokenType;
+	/** The publishable key ID that issued this token. */
+	keyId: string;
+	/** Unique session identifier for this token. */
+	sessionId: string;
 	/** The project ID this token is scoped to. */
 	projectId: string;
 	/** The internal customer ID (UUID). */
 	customerId: string;
-	/** The external customer ID, when present. */
+	/** The external customer ID provided by the application. */
 	customerExternalId: string;
 	/** The tier code for the customer (e.g., "free", "pro", "enterprise"). */
 	tierCode: string;
+	/**
+	 * Publishable key used for issuance. Added client-side for caching.
+	 */
+	publishableKey?: PublishableKey;
+	/**
+	 * Device identifier used when issuing the token. Added client-side for caching.
+	 */
+	deviceId?: string;
+	/**
+	 * Identity provider used for issuance. Added client-side for caching.
+	 */
+	identityProvider?: string;
+	/**
+	 * Identity subject used for issuance. Added client-side for caching.
+	 */
+	identitySubject?: string;
 }
 
 
@@ -629,11 +703,13 @@ export interface StructuredJSONEvent<T> {
 
 // --- Raw API Response Types ---
 
-export interface APICustomerToken {
+export interface APIFrontendToken {
 	token: string;
 	expires_at: string;
 	expires_in: number;
 	token_type: TokenType;
+	key_id: string;
+	session_id: string;
 	project_id: string;
 	customer_id: string;
 	customer_external_id: string;

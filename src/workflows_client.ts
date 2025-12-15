@@ -68,7 +68,7 @@ export class WorkflowsClient {
 	): Promise<WorkflowsCompileV0Result> {
 		const metrics = mergeMetrics(this.metrics, options.metrics);
 		const trace = mergeTrace(this.trace, options.trace);
-		const authHeaders = await this.auth.authForResponses(options.customerId);
+		const authHeaders = await this.auth.authForResponses();
 
 		try {
 			const out = await this.http.json<{ plan_json: unknown; plan_hash: string }>(

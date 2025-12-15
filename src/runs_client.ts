@@ -77,7 +77,7 @@ export class RunsClient {
 	): Promise<RunsCreateResponse> {
 		const metrics = mergeMetrics(this.metrics, options.metrics);
 		const trace = mergeTrace(this.trace, options.trace);
-		const authHeaders = await this.auth.authForResponses(options.customerId);
+		const authHeaders = await this.auth.authForResponses();
 
 		const headers: Record<string, string> = { ...(options.headers || {}) };
 		const payload: RunsCreateRequest = { spec };
@@ -159,7 +159,7 @@ export class RunsClient {
 	async get(runId: RunId, options: RunsGetOptions = {}): Promise<RunsGetResponse> {
 		const metrics = mergeMetrics(this.metrics, options.metrics);
 		const trace = mergeTrace(this.trace, options.trace);
-		const authHeaders = await this.auth.authForResponses(options.customerId);
+		const authHeaders = await this.auth.authForResponses();
 		const path = runByIdPath(runId);
 		const out = await this.http.json<
 			Omit<RunsGetResponse, "run_id" | "plan_hash" | "nodes"> & {
@@ -193,7 +193,7 @@ export class RunsClient {
 	async events(runId: RunId, options: RunsEventsOptions = {}): Promise<RunsEventStream> {
 		const metrics = mergeMetrics(this.metrics, options.metrics);
 		const trace = mergeTrace(this.trace, options.trace);
-		const authHeaders = await this.auth.authForResponses(options.customerId);
+		const authHeaders = await this.auth.authForResponses();
 
 		const basePath = runEventsPath(runId);
 		const params = new URLSearchParams();

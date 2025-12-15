@@ -16,6 +16,14 @@ export const ErrorCodes = {
 	INVALID_INPUT: "INVALID_INPUT",
 	PAYMENT_REQUIRED: "PAYMENT_REQUIRED",
 	METHOD_NOT_ALLOWED: "METHOD_NOT_ALLOWED",
+	/** Identity provider + subject required for identity-based auth. */
+	IDENTITY_REQUIRED: "IDENTITY_REQUIRED",
+	/** Auto-provision disabled for the project. */
+	AUTO_PROVISION_DISABLED: "AUTO_PROVISION_DISABLED",
+	/** Auto-provision tier misconfigured for the project. */
+	AUTO_PROVISION_MISCONFIGURED: "AUTO_PROVISION_MISCONFIGURED",
+	/** Email required for auto-provisioning a new customer. */
+	EMAIL_REQUIRED: "EMAIL_REQUIRED",
 } as const;
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
@@ -176,6 +184,44 @@ export class APIError extends ModelRelayError {
 	isUnavailable(): boolean {
 		return this.code === ErrorCodes.SERVICE_UNAVAILABLE;
 	}
+
+	/**
+	 * Returns true if the error indicates identity is missing/invalid for identity-based auth.
+	 */
+	isIdentityRequired(): boolean {
+		return this.code === ErrorCodes.IDENTITY_REQUIRED;
+	}
+
+	/**
+	 * Returns true if auto-provisioning is disabled for the project.
+	 * To resolve: configure customer auto-provisioning on the project (select a default tier).
+	 */
+	isAutoProvisionDisabled(): boolean {
+		return this.code === ErrorCodes.AUTO_PROVISION_DISABLED;
+	}
+
+	/**
+	 * Returns true if email is required for auto-provisioning a new customer.
+	 * To resolve: provide the 'email' field in your frontend token request.
+	 */
+	isEmailRequired(): boolean {
+		return this.code === ErrorCodes.EMAIL_REQUIRED;
+	}
+
+	/**
+	 * Returns true if auto-provisioning is misconfigured for the project.
+	 * To resolve: ensure the configured auto-provision tier exists and belongs to the project.
+	 */
+	isAutoProvisionMisconfigured(): boolean {
+		return this.code === ErrorCodes.AUTO_PROVISION_MISCONFIGURED;
+	}
+
+	/**
+	 * Returns true if this is a customer provisioning error (identity not found + auto-provision disabled/misconfigured, or email required).
+	 */
+	isProvisioningError(): boolean {
+		return this.isAutoProvisionDisabled() || this.isAutoProvisionMisconfigured() || this.isEmailRequired();
+	}
 }
 
 export type WorkflowValidationIssue = {
@@ -207,6 +253,43 @@ export class WorkflowValidationError extends ModelRelayError {
 		});
 		this.issues = opts.issues;
 	}
+}
+
+// Package-level helper functions for checking error types.
+
+/**
+ * Returns true if the error indicates email is required for auto-provisioning.
+ */
+export function isEmailRequired(err: unknown): boolean {
+	return err instanceof APIError && err.isEmailRequired();
+}
+
+/**
+ * Returns true if the error indicates identity is required for identity-based auth.
+ */
+export function isIdentityRequired(err: unknown): boolean {
+	return err instanceof APIError && err.isIdentityRequired();
+}
+
+/**
+ * Returns true if the error indicates auto-provisioning is disabled.
+ */
+export function isAutoProvisionDisabled(err: unknown): boolean {
+	return err instanceof APIError && err.isAutoProvisionDisabled();
+}
+
+/**
+ * Returns true if the error indicates auto-provisioning is misconfigured.
+ */
+export function isAutoProvisionMisconfigured(err: unknown): boolean {
+	return err instanceof APIError && err.isAutoProvisionMisconfigured();
+}
+
+/**
+ * Returns true if the error is a customer provisioning error.
+ */
+export function isProvisioningError(err: unknown): boolean {
+	return err instanceof APIError && err.isProvisioningError();
 }
 
 export async function parseErrorResponse(

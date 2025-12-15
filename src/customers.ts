@@ -56,13 +56,13 @@ export interface CustomerUpsertRequest {
 }
 
 /**
- * Request to claim a customer by email, setting their external_id.
- * Used when a customer subscribes via Stripe Checkout (email only) and later
- * authenticates to the app, needing to link their identity.
+ * Request to link an end-user identity to a customer by email.
+ * Used when a customer subscribes via Stripe Checkout (email only) and later authenticates to the app.
  */
 export interface CustomerClaimRequest {
 	email: string;
-	external_id: string;
+	provider: string;
+	subject: string;
 }
 
 /**
@@ -218,9 +218,8 @@ export class CustomersClient {
 	}
 
 	/**
-	 * Claim a customer by email, setting their external_id.
-	 * Used when a customer subscribes via Stripe Checkout (email only) and later
-	 * authenticates to the app, needing to link their identity.
+	 * Link an end-user identity (provider + subject) to a customer found by email.
+	 * Used when a customer subscribes via Stripe Checkout (email only) and later authenticates to the app.
 	 *
 	 * This is a user self-service operation that works with publishable keys,
 	 * allowing CLI tools and frontends to link subscriptions to user identities.
@@ -228,7 +227,7 @@ export class CustomersClient {
 	 * Works with both publishable keys (mr_pk_*) and secret keys (mr_sk_*).
 	 *
 	 * @throws {APIError} with status 404 if customer not found by email
-	 * @throws {APIError} with status 409 if customer already claimed or external_id in use
+	 * @throws {APIError} with status 409 if the identity is already linked to a different customer
 	 */
 	async claim(request: CustomerClaimRequest): Promise<Customer> {
 		this.ensureApiKey();
@@ -238,8 +237,11 @@ export class CustomersClient {
 		if (!isValidEmail(request.email)) {
 			throw new ConfigError("invalid email format");
 		}
-		if (!request.external_id?.trim()) {
-			throw new ConfigError("external_id is required");
+		if (!request.provider?.trim()) {
+			throw new ConfigError("provider is required");
+		}
+		if (!request.subject?.trim()) {
+			throw new ConfigError("subject is required");
 		}
 		const response = await this.http.json<CustomerResponse>("/customers/claim", {
 			method: "POST",

@@ -210,7 +210,7 @@ export class ResponsesClient {
 
 		const requestId = merged.requestId;
 		const customerId = merged.customerId;
-		const authHeaders = await this.auth.authForResponses(customerId);
+		const authHeaders = await this.auth.authForResponses();
 
 		const headers: Record<string, string> = { ...(merged.headers || {}) };
 		if (requestId) {
@@ -281,7 +281,7 @@ export class ResponsesClient {
 
 		const requestId = merged.requestId;
 		const customerId = merged.customerId;
-		const authHeaders = await this.auth.authForResponses(customerId);
+		const authHeaders = await this.auth.authForResponses();
 
 		const headers: Record<string, string> = { ...(merged.headers || {}) };
 		if (requestId) {
@@ -375,7 +375,7 @@ export class ResponsesClient {
 
 		const requestId = merged.requestId;
 		const customerId = merged.customerId;
-		const authHeaders = await this.auth.authForResponses(customerId);
+		const authHeaders = await this.auth.authForResponses();
 
 		const headers: Record<string, string> = { ...(merged.headers || {}) };
 		if (requestId) {
