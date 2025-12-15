@@ -1,14 +1,17 @@
 import { existsSync, readFileSync } from "node:fs";
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
 import {
+	ModelRelay,
 	parseNodeId,
 	parseOutputName,
-	validateWorkflowSpecV0,
+	parseSecretKey,
 	workflowV0,
+	WorkflowValidationError,
 } from "../src";
 
 function conformanceWorkflowsV0Dir(): string | null {
@@ -45,7 +48,6 @@ function readJSONFixture<T>(name: string): T {
 }
 
 type WorkflowValidationIssueFixture =
-	| string[]
 	| {
 			issues: Array<{
 				code: string;
@@ -54,39 +56,18 @@ type WorkflowValidationIssueFixture =
 			}>;
 	  };
 
-function mapWorkflowIssueToSDKCode(iss: { code: string; path: string }): string | null {
-	switch (iss.code) {
-		case "INVALID_KIND":
-			return "invalid_kind";
-		case "MISSING_NODES":
-			return "missing_nodes";
-		case "MISSING_OUTPUTS":
-			return "missing_outputs";
-		case "DUPLICATE_NODE_ID":
-			return "duplicate_node_id";
-		case "DUPLICATE_OUTPUT_NAME":
-			return "duplicate_output_name";
-		case "UNKNOWN_EDGE_ENDPOINT":
-			if (iss.path.endsWith(".from")) return "edge_from_unknown_node";
-			if (iss.path.endsWith(".to")) return "edge_to_unknown_node";
-			return null;
-		case "UNKNOWN_OUTPUT_NODE":
-			return "output_from_unknown_node";
-		default:
-			// TS SDK preflight validation is intentionally lightweight; ignore
-			// semantic issues the server/compiler can produce (e.g. join constraints).
-			return null;
+async function withTestServer(handler: (req: IncomingMessage, res: ServerResponse) => void) {
+	const server = createServer(handler);
+	await new Promise<void>((resolve) => server.listen(0, resolve));
+	const addr = server.address();
+	if (!addr || typeof addr === "string") {
+		throw new Error("failed to bind test server");
 	}
-}
-
-function fixtureCodes(fx: WorkflowValidationIssueFixture): string[] {
-	if (Array.isArray(fx)) return fx;
-	const out: string[] = [];
-	for (const iss of fx.issues) {
-		const code = mapWorkflowIssueToSDKCode(iss);
-		if (code) out.push(code);
-	}
-	return out;
+	const baseUrl = `http://127.0.0.1:${addr.port}/api/v1`;
+	return {
+		baseUrl,
+		close: () => new Promise<void>((resolve) => server.close(() => resolve())),
+	};
 }
 
 const CONFORMANCE_DIR = conformanceWorkflowsV0Dir();
@@ -238,43 +219,81 @@ conformanceSuite("workflow builder conformance", () => {
 		expect(spec).toEqual(fixture);
 	});
 
-	it("reports conformance fixture issues", () => {
+	it("workflows.compileV0 returns canonical plan + plan_hash", async () => {
+		const fixtureSpec = readJSONFixture<any>("workflow_v0_parallel_agents.json");
+		const fixturePlan = readJSONFixture<any>("workflow_v0_parallel_agents.plan.json");
+		const planHash =
+			"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
+		const { baseUrl, close } = await withTestServer((req, res) => {
+			if (req.method !== "POST" || req.url !== "/api/v1/workflows/compile") {
+				res.statusCode = 404;
+				res.end();
+				return;
+			}
+			let body = "";
+			req.setEncoding("utf8");
+			req.on("data", (chunk) => {
+				body += chunk;
+			});
+			req.on("end", () => {
+				expect(JSON.parse(body)).toEqual(fixtureSpec);
+				res.statusCode = 200;
+				res.setHeader("Content-Type", "application/json");
+				res.end(JSON.stringify({ plan_json: fixturePlan, plan_hash: planHash }));
+			});
+		});
+
+		try {
+			const mr = new ModelRelay({ key: parseSecretKey("mr_sk_test"), baseUrl });
+			const out = await mr.workflows.compileV0(fixtureSpec);
+			expect(out.plan_hash).toBe(planHash);
+			expect(out.plan_json).toEqual(fixturePlan);
+		} finally {
+			await close();
+		}
+	});
+
+	it("workflows.compileV0 surfaces server validation issues (no SDK validator)", async () => {
 		const fixtures = [
-			{
-				spec: readJSONFixture<any>(
-					"workflow_v0_invalid_duplicate_node_id.json",
-				),
-				codes: fixtureCodes(
-					readJSONFixture<WorkflowValidationIssueFixture>(
-						"workflow_v0_invalid_duplicate_node_id.issues.json",
-					),
-				),
-			},
-			{
-				spec: readJSONFixture<any>(
-					"workflow_v0_invalid_edge_unknown_node.json",
-				),
-				codes: fixtureCodes(
-					readJSONFixture<WorkflowValidationIssueFixture>(
-						"workflow_v0_invalid_edge_unknown_node.issues.json",
-					),
-				),
-			},
-			{
-				spec: readJSONFixture<any>(
-					"workflow_v0_invalid_output_unknown_node.json",
-				),
-				codes: fixtureCodes(
-					readJSONFixture<WorkflowValidationIssueFixture>(
-						"workflow_v0_invalid_output_unknown_node.issues.json",
-					),
-				),
-			},
+			[
+				"workflow_v0_invalid_duplicate_node_id.json",
+				"workflow_v0_invalid_duplicate_node_id.issues.json",
+			],
+			[
+				"workflow_v0_invalid_edge_unknown_node.json",
+				"workflow_v0_invalid_edge_unknown_node.issues.json",
+			],
+			[
+				"workflow_v0_invalid_output_unknown_node.json",
+				"workflow_v0_invalid_output_unknown_node.issues.json",
+			],
 		] as const;
 
-		for (const fx of fixtures) {
-			const got = validateWorkflowSpecV0(fx.spec);
-			expect(got.map((i) => i.code).sort()).toEqual(fx.codes.slice().sort());
+		for (const [specRel, issuesRel] of fixtures) {
+			const spec = readJSONFixture<any>(specRel);
+			const issues = readJSONFixture<WorkflowValidationIssueFixture>(issuesRel);
+
+			const { baseUrl, close } = await withTestServer((_req, res) => {
+				res.statusCode = 400;
+				res.setHeader("Content-Type", "application/json");
+				res.end(JSON.stringify(issues));
+			});
+
+			try {
+				const mr = new ModelRelay({ key: parseSecretKey("mr_sk_test"), baseUrl });
+				await expect(mr.workflows.compileV0(spec)).rejects.toBeInstanceOf(
+					WorkflowValidationError,
+				);
+				try {
+					await mr.workflows.compileV0(spec);
+				} catch (err) {
+					if (!(err instanceof WorkflowValidationError)) throw err;
+					expect(err.issues).toEqual(issues.issues);
+				}
+			} finally {
+				await close();
+			}
 		}
 	});
 });

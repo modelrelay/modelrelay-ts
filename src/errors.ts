@@ -218,6 +218,37 @@ export class APIError extends ModelRelayError {
 	}
 }
 
+export type WorkflowValidationIssue = {
+	code: string;
+	path: string;
+	message: string;
+};
+
+export class WorkflowValidationError extends ModelRelayError {
+	issues: ReadonlyArray<WorkflowValidationIssue>;
+
+	constructor(opts: {
+		status: number;
+		requestId?: string;
+		issues: ReadonlyArray<WorkflowValidationIssue>;
+		retries?: RetryMetadata;
+		data?: unknown;
+	}) {
+		const msg =
+			opts.issues.length === 0
+				? "workflow validation error"
+				: opts.issues[0]?.message || "workflow validation error";
+		super(msg, {
+			category: "api",
+			status: opts.status,
+			requestId: opts.requestId,
+			data: opts.data,
+			retries: opts.retries,
+		});
+		this.issues = opts.issues;
+	}
+}
+
 // Package-level helper functions for checking error types.
 
 /**
@@ -251,7 +282,7 @@ export function isProvisioningError(err: unknown): boolean {
 export async function parseErrorResponse(
 	response: Response,
 	retries?: RetryMetadata,
-): Promise<APIError> {
+): Promise<ModelRelayError> {
 	const requestId =
 		response.headers.get("X-ModelRelay-Request-Id") ||
 		response.headers.get("X-Request-Id") ||
@@ -283,18 +314,43 @@ export async function parseErrorResponse(
 		});
 	}
 
-	try {
-		const parsed: unknown = JSON.parse(bodyText);
-		const parsedObj =
-			typeof parsed === "object" && parsed !== null
-				? (parsed as Record<string, unknown>)
-				: null;
+		try {
+			const parsed: unknown = JSON.parse(bodyText);
+			const parsedObj =
+				typeof parsed === "object" && parsed !== null
+					? (parsed as Record<string, unknown>)
+					: null;
 
-		// Check for nested error object format: { error: { code, message, ... } }
-		if (parsedObj?.error && typeof parsedObj.error === "object") {
-			const errPayload = parsedObj.error as Record<string, unknown>;
-			const message = (errPayload?.message as string) || fallbackMessage;
-			const code = (errPayload?.code as string) || undefined;
+			const issues = Array.isArray(parsedObj?.issues)
+				? (parsedObj?.issues as unknown[])
+				: null;
+			if (status === 400 && issues && issues.length > 0) {
+				const normalized: WorkflowValidationIssue[] = [];
+				for (const raw of issues) {
+					if (!raw || typeof raw !== "object") continue;
+					const obj = raw as Record<string, unknown>;
+					const code = typeof obj.code === "string" ? obj.code : "";
+					const path = typeof obj.path === "string" ? obj.path : "";
+					const message = typeof obj.message === "string" ? obj.message : "";
+					if (!code || !path || !message) continue;
+					normalized.push({ code, path, message });
+				}
+				if (normalized.length > 0) {
+					return new WorkflowValidationError({
+						status,
+						requestId,
+						issues: normalized,
+						retries,
+						data: parsed,
+					});
+				}
+			}
+
+			// Check for nested error object format: { error: { code, message, ... } }
+			if (parsedObj?.error && typeof parsedObj.error === "object") {
+				const errPayload = parsedObj.error as Record<string, unknown>;
+				const message = (errPayload?.message as string) || fallbackMessage;
+				const code = (errPayload?.code as string) || undefined;
 			const fields = Array.isArray(errPayload?.fields)
 				? (errPayload?.fields as FieldError[])
 				: undefined;
