@@ -38,7 +38,7 @@ describe("runs", () => {
 				// biome-ignore lint/suspicious/noExplicitAny: init.body is untyped
 				const body = JSON.parse(String(init?.body as any));
 				expect(body.spec?.kind).toBe("workflow.v0");
-				return new Response(JSON.stringify({ run_id: runId, status: "running" }), {
+				return new Response(JSON.stringify({ run_id: runId, status: "running", plan_hash: planHash }), {
 					status: 200,
 					headers: { "Content-Type": "application/json" },
 				});

@@ -25,6 +25,7 @@ export type RunsCreateRequest = {
 export type RunsCreateResponse = {
 	run_id: RunId;
 	status: string;
+	plan_hash: PlanHash;
 };
 
 export type RunsGetResponse = {

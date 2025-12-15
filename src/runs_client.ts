@@ -86,7 +86,7 @@ export class RunsClient {
 		}
 
 		const out = await this.http.json<
-			Omit<RunsCreateResponse, "run_id"> & { run_id: string }
+			Omit<RunsCreateResponse, "run_id" | "plan_hash"> & { run_id: string; plan_hash: string }
 		>(RUNS_PATH, {
 			method: "POST",
 			headers,
@@ -101,7 +101,7 @@ export class RunsClient {
 			trace,
 			context: { method: "POST", path: RUNS_PATH },
 		});
-		return { ...out, run_id: parseRunId(out.run_id) };
+		return { ...out, run_id: parseRunId(out.run_id), plan_hash: parsePlanHash(out.plan_hash) };
 	}
 
 	async schemaV0(options: {
