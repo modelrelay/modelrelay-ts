@@ -89,6 +89,9 @@ export type RunEventTypeV0 =
 	| "run_completed"
 	| "run_failed"
 	| "run_canceled"
+	| "node_llm_call"
+	| "node_tool_call"
+	| "node_tool_result"
 	| "node_started"
 	| "node_succeeded"
 	| "node_failed"
@@ -103,19 +106,49 @@ export type NodeErrorV0 = {
 /**
  * Stream event kind from an LLM provider.
  */
-export type StreamEventKind =
-	| "message_start"
-	| "message_delta"
-	| "message_stop"
-	| "tool_use_start"
-	| "tool_use_delta"
-	| "tool_use_stop";
+export type StreamEventKind = string;
 
 export type NodeOutputDeltaV0 = {
 	kind: StreamEventKind;
 	text_delta?: string;
 	response_id?: string;
 	model?: string;
+};
+
+export type TokenUsageV0 = {
+	input_tokens?: number;
+	output_tokens?: number;
+	total_tokens?: number;
+};
+
+export type NodeLLMCallV0 = {
+	step: number;
+	request_id: string;
+	provider?: string;
+	model?: string;
+	response_id?: string;
+	stop_reason?: string;
+	usage?: TokenUsageV0;
+};
+
+export type FunctionToolCallV0 = {
+	id: string;
+	name: string;
+	arguments: string;
+};
+
+export type NodeToolCallV0 = {
+	step: number;
+	request_id: string;
+	tool_call: FunctionToolCallV0;
+};
+
+export type NodeToolResultV0 = {
+	step: number;
+	request_id: string;
+	tool_call_id: string;
+	name: string;
+	output: string;
 };
 
 export type RunEventBaseV0 = {
@@ -170,6 +203,24 @@ export type RunEventNodeFailedV0 = RunEventBaseV0 & {
 	error: NodeErrorV0;
 };
 
+export type RunEventNodeLLMCallV0 = RunEventBaseV0 & {
+	type: "node_llm_call";
+	node_id: NodeId;
+	llm_call: NodeLLMCallV0;
+};
+
+export type RunEventNodeToolCallV0 = RunEventBaseV0 & {
+	type: "node_tool_call";
+	node_id: NodeId;
+	tool_call: NodeToolCallV0;
+};
+
+export type RunEventNodeToolResultV0 = RunEventBaseV0 & {
+	type: "node_tool_result";
+	node_id: NodeId;
+	tool_result: NodeToolResultV0;
+};
+
 export type RunEventNodeOutputDeltaV0 = RunEventBaseV0 & {
 	type: "node_output_delta";
 	node_id: NodeId;
@@ -189,6 +240,9 @@ export type RunEventV0 =
 	| RunEventRunCompletedV0
 	| RunEventRunFailedV0
 	| RunEventRunCanceledV0
+	| RunEventNodeLLMCallV0
+	| RunEventNodeToolCallV0
+	| RunEventNodeToolResultV0
 	| RunEventNodeStartedV0
 	| RunEventNodeSucceededV0
 	| RunEventNodeFailedV0
@@ -216,6 +270,52 @@ const nodeOutputDeltaSchema = z
 		text_delta: z.string().optional(),
 		response_id: z.string().optional(),
 		model: z.string().optional(),
+	})
+	.strict();
+
+const tokenUsageSchema = z
+	.object({
+		input_tokens: z.number().int().nonnegative().optional(),
+		output_tokens: z.number().int().nonnegative().optional(),
+		total_tokens: z.number().int().nonnegative().optional(),
+	})
+	.strict();
+
+const nodeLLMCallSchema = z
+	.object({
+		step: z.number().int().nonnegative(),
+		request_id: z.string().min(1),
+		provider: z.string().optional(),
+		model: z.string().optional(),
+		response_id: z.string().optional(),
+		stop_reason: z.string().optional(),
+		usage: tokenUsageSchema.optional(),
+	})
+	.strict();
+
+const functionToolCallSchema = z
+	.object({
+		id: z.string().min(1),
+		name: z.string().min(1),
+		arguments: z.string(),
+	})
+	.strict();
+
+const nodeToolCallSchema = z
+	.object({
+		step: z.number().int().nonnegative(),
+		request_id: z.string().min(1),
+		tool_call: functionToolCallSchema,
+	})
+	.strict();
+
+const nodeToolResultSchema = z
+	.object({
+		step: z.number().int().nonnegative(),
+		request_id: z.string().min(1),
+		tool_call_id: z.string().min(1),
+		name: z.string().min(1),
+		output: z.string(),
 	})
 	.strict();
 
@@ -253,6 +353,30 @@ const runEventWireSchema = z
 			type: z.literal("run_canceled"),
 			plan_hash: z.string().min(1),
 			error: nodeErrorSchema,
+		})
+		.strict(),
+	z
+		.object({
+			...baseSchema,
+			type: z.literal("node_llm_call"),
+			node_id: z.string().min(1),
+			llm_call: nodeLLMCallSchema,
+		})
+		.strict(),
+	z
+		.object({
+			...baseSchema,
+			type: z.literal("node_tool_call"),
+			node_id: z.string().min(1),
+			tool_call: nodeToolCallSchema,
+		})
+		.strict(),
+	z
+		.object({
+			...baseSchema,
+			type: z.literal("node_tool_result"),
+			node_id: z.string().min(1),
+			tool_result: nodeToolResultSchema,
 		})
 		.strict(),
 	z.object({ ...baseSchema, type: z.literal("node_started"), node_id: z.string().min(1) }).strict(),
@@ -352,6 +476,12 @@ export function parseRunEventV0(line: string): RunEventV0 | null {
 				};
 			case "node_started":
 				return { ...base, type: "node_started", node_id: parseNodeId(res.data.node_id) };
+			case "node_llm_call":
+				return { ...base, type: "node_llm_call", node_id: parseNodeId(res.data.node_id), llm_call: res.data.llm_call };
+			case "node_tool_call":
+				return { ...base, type: "node_tool_call", node_id: parseNodeId(res.data.node_id), tool_call: res.data.tool_call };
+			case "node_tool_result":
+				return { ...base, type: "node_tool_result", node_id: parseNodeId(res.data.node_id), tool_result: res.data.tool_result };
 			case "node_succeeded":
 				return { ...base, type: "node_succeeded", node_id: parseNodeId(res.data.node_id) };
 			case "node_failed":
