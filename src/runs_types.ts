@@ -97,6 +97,7 @@ export type RunEventTypeV0 =
 	| "node_llm_call"
 	| "node_tool_call"
 	| "node_tool_result"
+	| "node_waiting"
 	| "node_started"
 	| "node_succeeded"
 	| "node_failed"
@@ -154,6 +155,19 @@ export type NodeToolResultV0 = {
 	tool_call_id: string;
 	name: string;
 	output: string;
+};
+
+export type PendingToolCallV0 = {
+	tool_call_id: string;
+	name: string;
+	arguments: string;
+};
+
+export type NodeWaitingV0 = {
+	step: number;
+	request_id: string;
+	pending_tool_calls: PendingToolCallV0[];
+	reason: string;
 };
 
 export type RunEventBaseV0 = {
@@ -226,6 +240,12 @@ export type RunEventNodeToolResultV0 = RunEventBaseV0 & {
 	tool_result: NodeToolResultV0;
 };
 
+export type RunEventNodeWaitingV0 = RunEventBaseV0 & {
+	type: "node_waiting";
+	node_id: NodeId;
+	waiting: NodeWaitingV0;
+};
+
 export type RunEventNodeOutputDeltaV0 = RunEventBaseV0 & {
 	type: "node_output_delta";
 	node_id: NodeId;
@@ -248,6 +268,7 @@ export type RunEventV0 =
 	| RunEventNodeLLMCallV0
 	| RunEventNodeToolCallV0
 	| RunEventNodeToolResultV0
+	| RunEventNodeWaitingV0
 	| RunEventNodeStartedV0
 	| RunEventNodeSucceededV0
 	| RunEventNodeFailedV0
@@ -324,6 +345,23 @@ const nodeToolResultSchema = z
 	})
 	.strict();
 
+const pendingToolCallSchema = z
+	.object({
+		tool_call_id: z.string().min(1),
+		name: z.string().min(1),
+		arguments: z.string(),
+	})
+	.strict();
+
+const nodeWaitingSchema = z
+	.object({
+		step: z.number().int().nonnegative(),
+		request_id: z.string().min(1),
+		pending_tool_calls: z.array(pendingToolCallSchema).min(1),
+		reason: z.string().min(1),
+	})
+	.strict();
+
 const baseSchema = {
 	envelope_version: z.literal("v0").optional().default("v0"),
 	run_id: z.string().min(1),
@@ -382,6 +420,14 @@ const runEventWireSchema = z
 			type: z.literal("node_tool_result"),
 			node_id: z.string().min(1),
 			tool_result: nodeToolResultSchema,
+		})
+		.strict(),
+	z
+		.object({
+			...baseSchema,
+			type: z.literal("node_waiting"),
+			node_id: z.string().min(1),
+			waiting: nodeWaitingSchema,
 		})
 		.strict(),
 	z.object({ ...baseSchema, type: z.literal("node_started"), node_id: z.string().min(1) }).strict(),
@@ -487,6 +533,8 @@ export function parseRunEventV0(line: string): RunEventV0 | null {
 				return { ...base, type: "node_tool_call", node_id: parseNodeId(res.data.node_id), tool_call: res.data.tool_call };
 			case "node_tool_result":
 				return { ...base, type: "node_tool_result", node_id: parseNodeId(res.data.node_id), tool_result: res.data.tool_result };
+			case "node_waiting":
+				return { ...base, type: "node_waiting", node_id: parseNodeId(res.data.node_id), waiting: res.data.waiting };
 			case "node_succeeded":
 				return { ...base, type: "node_succeeded", node_id: parseNodeId(res.data.node_id) };
 			case "node_failed":

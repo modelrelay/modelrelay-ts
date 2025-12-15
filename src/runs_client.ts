@@ -10,10 +10,12 @@ import {
 	type RunsCreateRequest,
 	type RunsCreateResponse,
 	type RunsGetResponse,
+	type RunsPendingToolsResponse,
 	type RunsToolResultsRequest,
 	type RunsToolResultsResponse,
 	runByIdPath,
 	runEventsPath,
+	runPendingToolsPath,
 	runToolResultsPath,
 } from "./runs_request";
 import { RunsEventStream } from "./runs_stream";
@@ -58,6 +60,17 @@ export type RunsEventsOptions = {
 };
 
 export type RunsToolResultsOptions = {
+	customerId?: string;
+	signal?: AbortSignal;
+	headers?: Record<string, string>;
+	timeoutMs?: number;
+	connectTimeoutMs?: number;
+	retry?: import("./types").RetryConfig | false;
+	metrics?: MetricsCallbacks;
+	trace?: TraceCallbacks;
+};
+
+export type RunsPendingToolsOptions = {
 	customerId?: string;
 	signal?: AbortSignal;
 	headers?: Record<string, string>;
@@ -302,5 +315,49 @@ export class RunsClient {
 			context: { method: "POST", path },
 		});
 		return out;
+	}
+
+	async pendingTools(
+		runId: RunId,
+		options: RunsPendingToolsOptions = {},
+	): Promise<RunsPendingToolsResponse> {
+		const metrics = mergeMetrics(this.metrics, options.metrics);
+		const trace = mergeTrace(this.trace, options.trace);
+		const authHeaders = await this.auth.authForResponses();
+
+		const path = runPendingToolsPath(runId);
+		const out = await this.http.json<
+			Omit<RunsPendingToolsResponse, "run_id" | "pending"> & {
+				run_id: string;
+				pending: Array<
+					Omit<RunsPendingToolsResponse["pending"][number], "node_id" | "tool_calls"> & {
+						node_id: string;
+						tool_calls: Array<{ tool_call_id: string; name: string; arguments: string }>;
+					}
+				>;
+			}
+		>(path, {
+			method: "GET",
+			headers: options.headers,
+			signal: options.signal,
+			apiKey: authHeaders.apiKey,
+			accessToken: authHeaders.accessToken,
+			timeoutMs: options.timeoutMs,
+			connectTimeoutMs: options.connectTimeoutMs,
+			retry: options.retry,
+			metrics,
+			trace,
+			context: { method: "GET", path },
+		});
+
+		return {
+			...out,
+			run_id: parseRunId(out.run_id),
+			pending: out.pending.map((p) => ({
+				...p,
+				node_id: parseNodeId(p.node_id),
+				tool_calls: p.tool_calls,
+			})),
+		};
 	}
 }

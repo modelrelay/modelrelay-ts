@@ -20,6 +20,10 @@ export function runToolResultsPath(runId: RunId): string {
 	return `${RUNS_PATH}/${encodeURIComponent(runId)}/tool-results`;
 }
 
+export function runPendingToolsPath(runId: RunId): string {
+	return `${RUNS_PATH}/${encodeURIComponent(runId)}/pending-tools`;
+}
+
 export type RunsToolResultsRequest = {
 	node_id: NodeId;
 	results: Array<{ tool_call_id: string; output: string }>;
@@ -28,6 +32,16 @@ export type RunsToolResultsRequest = {
 export type RunsToolResultsResponse = {
 	accepted: number;
 	status: RunStatusV0;
+};
+
+export type RunsPendingToolsResponse = {
+	run_id: RunId;
+	pending: Array<{
+		node_id: NodeId;
+		step: number;
+		request_id: string;
+		tool_calls: Array<{ tool_call_id: string; name: string; arguments: string }>;
+	}>;
 };
 
 export type RunsCreateRequest = {
