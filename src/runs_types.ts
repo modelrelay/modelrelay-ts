@@ -92,11 +92,30 @@ export type RunEventTypeV0 =
 	| "node_started"
 	| "node_succeeded"
 	| "node_failed"
+	| "node_output_delta"
 	| "node_output";
 
 export type NodeErrorV0 = {
 	code?: string;
 	message: string;
+};
+
+/**
+ * Stream event kind from an LLM provider.
+ */
+export type StreamEventKind =
+	| "message_start"
+	| "message_delta"
+	| "message_stop"
+	| "tool_use_start"
+	| "tool_use_delta"
+	| "tool_use_stop";
+
+export type NodeOutputDeltaV0 = {
+	kind: StreamEventKind;
+	text_delta?: string;
+	response_id?: string;
+	model?: string;
 };
 
 export type RunEventBaseV0 = {
@@ -151,6 +170,12 @@ export type RunEventNodeFailedV0 = RunEventBaseV0 & {
 	error: NodeErrorV0;
 };
 
+export type RunEventNodeOutputDeltaV0 = RunEventBaseV0 & {
+	type: "node_output_delta";
+	node_id: NodeId;
+	delta: NodeOutputDeltaV0;
+};
+
 export type RunEventNodeOutputV0 = RunEventBaseV0 & {
 	type: "node_output";
 	node_id: NodeId;
@@ -167,6 +192,7 @@ export type RunEventV0 =
 	| RunEventNodeStartedV0
 	| RunEventNodeSucceededV0
 	| RunEventNodeFailedV0
+	| RunEventNodeOutputDeltaV0
 	| RunEventNodeOutputV0;
 
 const nodeErrorSchema = z
@@ -181,6 +207,15 @@ const payloadInfoSchema = z
 		bytes: z.number().int().nonnegative(),
 		sha256: z.string().min(1),
 		included: z.boolean(),
+	})
+	.strict();
+
+const nodeOutputDeltaSchema = z
+	.object({
+		kind: z.string().min(1),
+		text_delta: z.string().optional(),
+		response_id: z.string().optional(),
+		model: z.string().optional(),
 	})
 	.strict();
 
@@ -228,6 +263,14 @@ const runEventWireSchema = z
 			type: z.literal("node_failed"),
 			node_id: z.string().min(1),
 			error: nodeErrorSchema,
+		})
+		.strict(),
+	z
+		.object({
+			...baseSchema,
+			type: z.literal("node_output_delta"),
+			node_id: z.string().min(1),
+			delta: nodeOutputDeltaSchema,
 		})
 		.strict(),
 	z
@@ -317,6 +360,13 @@ export function parseRunEventV0(line: string): RunEventV0 | null {
 					type: "node_failed",
 					node_id: parseNodeId(res.data.node_id),
 					error: res.data.error,
+				};
+			case "node_output_delta":
+				return {
+					...base,
+					type: "node_output_delta",
+					node_id: parseNodeId(res.data.node_id),
+					delta: res.data.delta,
 				};
 			case "node_output":
 				return {
