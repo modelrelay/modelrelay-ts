@@ -6,6 +6,7 @@ import { asInternal } from "./responses_request";
 import type { NodeId, OutputName } from "./runs_ids";
 import type {
 	LLMResponsesBindingV0,
+	ToolExecutionModeV0,
 	WorkflowEdgeV0,
 	WorkflowNodeV0,
 	WorkflowOutputRefV0,
@@ -34,6 +35,7 @@ export function transformJSONMerge(
 type LLMResponsesNodeInputV0 = {
 	request: WireResponsesRequest;
 	stream?: boolean;
+	tool_execution?: { mode: ToolExecutionModeV0 };
 	bindings?: ReadonlyArray<LLMResponsesBindingV0>;
 };
 
@@ -93,11 +95,18 @@ export class WorkflowBuilderV0 {
 	llmResponses(
 		id: NodeId,
 		request: WireResponsesRequest | ResponsesRequest,
-		options: { stream?: boolean; bindings?: ReadonlyArray<LLMResponsesBindingV0> } = {},
+		options: {
+			stream?: boolean;
+			toolExecution?: ToolExecutionModeV0;
+			bindings?: ReadonlyArray<LLMResponsesBindingV0>;
+		} = {},
 	): WorkflowBuilderV0 {
 		const input: LLMResponsesNodeInputV0 = {
 			request: wireRequest(request),
 			...(options.stream === undefined ? {} : { stream: options.stream }),
+			...(options.toolExecution === undefined
+				? {}
+				: { tool_execution: { mode: options.toolExecution } }),
 			...(options.bindings === undefined ? {} : { bindings: options.bindings.slice() }),
 		};
 		return this.node({

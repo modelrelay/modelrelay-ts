@@ -6,11 +6,13 @@ import type {
 	InputItem,
 	ModelId,
 	OutputItem,
+	ProviderId,
 	Response,
 	StopReason,
 	Usage,
 } from "./types";
 import {
+	asProviderId,
 	createUsage,
 	normalizeModelId,
 	normalizeStopReason,
@@ -82,7 +84,10 @@ export function normalizeResponsesResponse(
 		stopReason: normalizeStopReason(payload.stop_reason),
 		model,
 		usage,
-		provider: typeof payload.provider === "string" ? payload.provider : undefined,
+		provider:
+			typeof payload.provider === "string"
+				? asProviderId(payload.provider)
+				: undefined,
 		citations: normalizeCitations(payload.citations),
 		requestId,
 	};
@@ -123,4 +128,3 @@ export type NormalizedStreamMetadata = {
 	stopReason?: StopReason;
 	usage?: Usage;
 };
-

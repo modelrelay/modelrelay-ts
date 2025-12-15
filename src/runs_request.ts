@@ -2,7 +2,7 @@ import type { NodeId, PlanHash, RunId } from "./runs_ids";
 import type { RunStatusV0, WorkflowSpecV0 } from "./runs_types";
 import type { ModelId, ProviderId } from "./types";
 
-export type NodeStatusV0 = "pending" | "running" | "succeeded" | "failed" | "canceled";
+export type NodeStatusV0 = "pending" | "running" | "waiting" | "succeeded" | "failed" | "canceled";
 
 export const RUNS_PATH = "/runs";
 export const WORKFLOW_V0_SCHEMA_PATH = "/schemas/workflow_v0.schema.json";
@@ -15,6 +15,20 @@ export function runByIdPath(runId: RunId): string {
 export function runEventsPath(runId: RunId): string {
 	return `${RUNS_PATH}/${encodeURIComponent(runId)}/events`;
 }
+
+export function runToolResultsPath(runId: RunId): string {
+	return `${RUNS_PATH}/${encodeURIComponent(runId)}/tool-results`;
+}
+
+export type RunsToolResultsRequest = {
+	node_id: NodeId;
+	results: Array<{ tool_call_id: string; output: string }>;
+};
+
+export type RunsToolResultsResponse = {
+	accepted: number;
+	status: RunStatusV0;
+};
 
 export type RunsCreateRequest = {
 	spec: WorkflowSpecV0;

@@ -38,6 +38,7 @@ export type WorkflowNodeV0 =
 			input: {
 				request: WireResponsesRequest;
 				stream?: boolean;
+				tool_execution?: ToolExecutionV0;
 				bindings?: ReadonlyArray<LLMResponsesBindingV0>;
 			};
 	  }
@@ -75,7 +76,11 @@ export type LLMResponsesBindingV0 = {
 	encoding?: LLMResponsesBindingEncodingV0;
 };
 
-export type RunStatusV0 = "running" | "succeeded" | "failed" | "canceled";
+export type ToolExecutionModeV0 = "server" | "client";
+
+export type ToolExecutionV0 = { mode: ToolExecutionModeV0 };
+
+export type RunStatusV0 = "running" | "waiting" | "succeeded" | "failed" | "canceled";
 
 export type PayloadInfoV0 = {
 	bytes: number;

@@ -3,15 +3,18 @@ import { parseErrorResponse, StreamProtocolError } from "./errors";
 import type { HTTPClient } from "./http";
 import type { MetricsCallbacks, RequestContext, TraceCallbacks } from "./types";
 import { mergeMetrics, mergeTrace } from "./types";
-	import {
-		RUNS_PATH,
-		RUN_EVENT_V0_SCHEMA_PATH,
-		WORKFLOW_V0_SCHEMA_PATH,
-		type RunsCreateRequest,
-		type RunsCreateResponse,
-		type RunsGetResponse,
+import {
+	RUNS_PATH,
+	RUN_EVENT_V0_SCHEMA_PATH,
+	WORKFLOW_V0_SCHEMA_PATH,
+	type RunsCreateRequest,
+	type RunsCreateResponse,
+	type RunsGetResponse,
+	type RunsToolResultsRequest,
+	type RunsToolResultsResponse,
 	runByIdPath,
 	runEventsPath,
+	runToolResultsPath,
 } from "./runs_request";
 import { RunsEventStream } from "./runs_stream";
 import type { RunEventV0, WorkflowSpecV0 } from "./runs_types";
@@ -48,6 +51,17 @@ export type RunsEventsOptions = {
 	wait?: boolean;
 	signal?: AbortSignal;
 	headers?: Record<string, string>;
+	connectTimeoutMs?: number;
+	retry?: import("./types").RetryConfig | false;
+	metrics?: MetricsCallbacks;
+	trace?: TraceCallbacks;
+};
+
+export type RunsToolResultsOptions = {
+	customerId?: string;
+	signal?: AbortSignal;
+	headers?: Record<string, string>;
+	timeoutMs?: number;
 	connectTimeoutMs?: number;
 	retry?: import("./types").RetryConfig | false;
 	metrics?: MetricsCallbacks;
@@ -260,6 +274,33 @@ export class RunsClient {
 		} finally {
 			await stream.cancel();
 		}
+		return out;
+	}
+
+	async submitToolResults(
+		runId: RunId,
+		req: RunsToolResultsRequest,
+		options: RunsToolResultsOptions = {},
+	): Promise<RunsToolResultsResponse> {
+		const metrics = mergeMetrics(this.metrics, options.metrics);
+		const trace = mergeTrace(this.trace, options.trace);
+		const authHeaders = await this.auth.authForResponses();
+
+		const path = runToolResultsPath(runId);
+		const out = await this.http.json<RunsToolResultsResponse>(path, {
+			method: "POST",
+			headers: options.headers,
+			body: req,
+			signal: options.signal,
+			apiKey: authHeaders.apiKey,
+			accessToken: authHeaders.accessToken,
+			timeoutMs: options.timeoutMs,
+			connectTimeoutMs: options.connectTimeoutMs,
+			retry: options.retry,
+			metrics,
+			trace,
+			context: { method: "POST", path },
+		});
 		return out;
 	}
 }
