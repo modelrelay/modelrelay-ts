@@ -5,6 +5,7 @@ import { mergeMetrics, mergeTrace } from "./types";
 import { parsePlanHash } from "./runs_ids";
 import type { WorkflowSpecV0 } from "./runs_types";
 import { WORKFLOWS_COMPILE_PATH } from "./workflows_request";
+import { APIError, ModelRelayError, WorkflowValidationError, type WorkflowValidationIssue } from "./errors";
 
 export type WorkflowsCompileOptions = {
 	/**
@@ -28,6 +29,22 @@ export type WorkflowsCompileResponseV0 = {
 	plan_hash: import("./runs_ids").PlanHash;
 };
 
+export type WorkflowsCompileV0Result =
+	| ({ ok: true } & WorkflowsCompileResponseV0)
+	| {
+			ok: false;
+			error_type: "validation_error";
+			issues: ReadonlyArray<WorkflowValidationIssue>;
+	  }
+	| {
+			ok: false;
+			error_type: "internal_error";
+			status: number;
+			message: string;
+			code?: string;
+			requestId?: string;
+	  };
+
 export class WorkflowsClient {
 	private readonly http: HTTPClient;
 	private readonly auth: AuthClient;
@@ -48,32 +65,60 @@ export class WorkflowsClient {
 	async compileV0(
 		spec: WorkflowSpecV0,
 		options: WorkflowsCompileOptions = {},
-	): Promise<WorkflowsCompileResponseV0> {
+	): Promise<WorkflowsCompileV0Result> {
 		const metrics = mergeMetrics(this.metrics, options.metrics);
 		const trace = mergeTrace(this.trace, options.trace);
 		const authHeaders = await this.auth.authForResponses(options.customerId);
 
-		const out = await this.http.json<{ plan_json: unknown; plan_hash: string }>(
-			WORKFLOWS_COMPILE_PATH,
-			{
-				method: "POST",
-				headers: options.headers,
-				body: spec,
-				signal: options.signal,
-				apiKey: authHeaders.apiKey,
-				accessToken: authHeaders.accessToken,
-				timeoutMs: options.timeoutMs,
-				connectTimeoutMs: options.connectTimeoutMs,
-				retry: options.retry,
-				metrics,
-				trace,
-				context: { method: "POST", path: WORKFLOWS_COMPILE_PATH },
-			},
-		);
+		try {
+			const out = await this.http.json<{ plan_json: unknown; plan_hash: string }>(
+				WORKFLOWS_COMPILE_PATH,
+				{
+					method: "POST",
+					headers: options.headers,
+					body: spec,
+					signal: options.signal,
+					apiKey: authHeaders.apiKey,
+					accessToken: authHeaders.accessToken,
+					timeoutMs: options.timeoutMs,
+					connectTimeoutMs: options.connectTimeoutMs,
+					retry: options.retry,
+					metrics,
+					trace,
+					context: { method: "POST", path: WORKFLOWS_COMPILE_PATH },
+				},
+			);
 
-		return {
-			...out,
-			plan_hash: parsePlanHash(out.plan_hash),
-		};
+			return {
+				ok: true,
+				plan_json: out.plan_json,
+				plan_hash: parsePlanHash(out.plan_hash),
+			};
+		} catch (err) {
+			if (err instanceof WorkflowValidationError) {
+				return { ok: false, error_type: "validation_error", issues: err.issues };
+			}
+			if (err instanceof APIError) {
+				return {
+					ok: false,
+					error_type: "internal_error",
+					status: err.status ?? 0,
+					message: err.message,
+					code: err.code,
+					requestId: err.requestId,
+				};
+			}
+			if (err instanceof ModelRelayError && err.category === "api") {
+				return {
+					ok: false,
+					error_type: "internal_error",
+					status: err.status ?? 0,
+					message: err.message,
+					code: err.code,
+					requestId: err.requestId,
+				};
+			}
+			throw err;
+		}
 	}
 }

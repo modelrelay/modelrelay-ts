@@ -11,7 +11,6 @@ import {
 	parseOutputName,
 	parseSecretKey,
 	workflowV0,
-	WorkflowValidationError,
 } from "../src";
 
 function conformanceWorkflowsV0Dir(): string | null {
@@ -222,8 +221,9 @@ conformanceSuite("workflow builder conformance", () => {
 	it("workflows.compileV0 returns canonical plan + plan_hash", async () => {
 		const fixtureSpec = readJSONFixture<any>("workflow_v0_parallel_agents.json");
 		const fixturePlan = readJSONFixture<any>("workflow_v0_parallel_agents.plan.json");
-		const planHash =
-			"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+		const planHash = readJSONFixture<{ plan_hash: string }>(
+			"workflow_v0_parallel_agents.plan_hash.json",
+		).plan_hash;
 
 		const { baseUrl, close } = await withTestServer((req, res) => {
 			if (req.method !== "POST" || req.url !== "/api/v1/workflows/compile") {
@@ -247,6 +247,10 @@ conformanceSuite("workflow builder conformance", () => {
 		try {
 			const mr = new ModelRelay({ key: parseSecretKey("mr_sk_test"), baseUrl });
 			const out = await mr.workflows.compileV0(fixtureSpec);
+			expect(out.ok).toBe(true);
+			if (!out.ok) {
+				throw new Error(`expected ok compile result, got ${out.error_type}`);
+			}
 			expect(out.plan_hash).toBe(planHash);
 			expect(out.plan_json).toEqual(fixturePlan);
 		} finally {
@@ -282,15 +286,16 @@ conformanceSuite("workflow builder conformance", () => {
 
 			try {
 				const mr = new ModelRelay({ key: parseSecretKey("mr_sk_test"), baseUrl });
-				await expect(mr.workflows.compileV0(spec)).rejects.toBeInstanceOf(
-					WorkflowValidationError,
-				);
-				try {
-					await mr.workflows.compileV0(spec);
-				} catch (err) {
-					if (!(err instanceof WorkflowValidationError)) throw err;
-					expect(err.issues).toEqual(issues.issues);
+				const out = await mr.workflows.compileV0(spec);
+				expect(out.ok).toBe(false);
+				if (out.ok) {
+					throw new Error("expected validation_error");
 				}
+				expect(out.error_type).toBe("validation_error");
+				if (out.error_type !== "validation_error") {
+					throw new Error(`expected validation_error, got ${out.error_type}`);
+				}
+				expect(out.issues).toEqual(issues.issues);
 			} finally {
 				await close();
 			}
