@@ -24,15 +24,15 @@ export class ModelRelay {
 
 	constructor(options: ModelRelayOptions) {
 		const cfg = options || {};
-		if (!cfg.key && !cfg.token) {
-			throw new ConfigError("Provide an API key or access token");
+		if (!("key" in cfg) && !("token" in cfg) && !("tokenProvider" in cfg)) {
+			throw new ConfigError("Provide an API key, access token, or token provider");
 		}
-		const apiKey = cfg.key ? parseApiKey(cfg.key) : undefined;
+		const apiKey = "key" in cfg && cfg.key ? parseApiKey(cfg.key) : undefined;
 		this.baseUrl = resolveBaseUrl(cfg.baseUrl);
 		const http = new HTTPClient({
 			baseUrl: this.baseUrl,
 			apiKey,
-			accessToken: cfg.token,
+			accessToken: "token" in cfg ? cfg.token : undefined,
 			fetchImpl: cfg.fetch,
 			clientHeader: cfg.clientHeader || DEFAULT_CLIENT_HEADER,
 			connectTimeoutMs: cfg.connectTimeoutMs,
@@ -44,7 +44,9 @@ export class ModelRelay {
 		});
 		const auth = new AuthClient(http, {
 			apiKey,
-			accessToken: cfg.token,
+			accessToken: "token" in cfg ? cfg.token : undefined,
+			customer: cfg.customer,
+			tokenProvider: "tokenProvider" in cfg ? cfg.tokenProvider : undefined,
 		});
 		this.auth = auth;
 		this.responses = new ResponsesClient(http, auth, {
@@ -80,6 +82,25 @@ export {
 };
 
 export type { AuthHeaders } from "./auth";
+
+export {
+	CustomerTokenProvider,
+	FrontendTokenProvider,
+	OIDCExchangeTokenProvider,
+} from "./token_providers";
+
+export {
+	startOAuthDeviceAuthorization,
+	pollOAuthDeviceToken,
+	runOAuthDeviceFlowForIDToken,
+} from "./device_flow";
+
+export type {
+	OAuthDeviceAuthorization,
+	OAuthDeviceAuthorizationRequest,
+	OAuthDeviceToken,
+	OAuthDeviceTokenPollRequest,
+} from "./device_flow";
 
 export * from "./runs";
 export * from "./workflow_builder";

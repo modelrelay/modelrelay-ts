@@ -3,10 +3,14 @@ import { isPublishableKey, parseApiKey } from "./api_keys";
 import type { HTTPClient } from "./http";
 import type {
 	APIFrontendToken,
+	CustomerToken,
+	CustomerTokenRequest,
 	FrontendCustomer,
 	FrontendToken,
 	FrontendTokenAutoProvisionRequest,
 	FrontendTokenRequest,
+	OIDCExchangeRequest,
+	TokenProvider,
 } from "./types";
 import type { ApiKey, PublishableKey } from "./types";
 
@@ -14,6 +18,7 @@ interface AuthConfig {
 	apiKey?: ApiKey;
 	accessToken?: string;
 	customer?: FrontendCustomer;
+	tokenProvider?: TokenProvider;
 }
 
 export interface AuthHeaders {
@@ -41,6 +46,7 @@ export class AuthClient {
 	private readonly apiKeyIsPublishable: boolean;
 	private readonly accessToken?: string;
 	private readonly customer?: FrontendCustomer;
+	private readonly tokenProvider?: TokenProvider;
 	private cachedFrontend: Map<string, FrontendToken> = new Map();
 
 	constructor(http: HTTPClient, cfg: AuthConfig) {
@@ -49,6 +55,7 @@ export class AuthClient {
 		this.apiKeyIsPublishable = this.apiKey ? isPublishableKey(this.apiKey) : false;
 		this.accessToken = cfg.accessToken;
 		this.customer = cfg.customer;
+		this.tokenProvider = cfg.tokenProvider;
 	}
 
 	/**
@@ -152,6 +159,13 @@ export class AuthClient {
 		if (this.accessToken) {
 			return createAccessTokenAuth(this.accessToken);
 		}
+		if (this.tokenProvider) {
+			const token = (await this.tokenProvider.getToken())?.trim();
+			if (!token) {
+				throw new ConfigError("tokenProvider returned an empty token");
+			}
+			return createAccessTokenAuth(token);
+		}
 		if (!this.apiKey) {
 			throw new ConfigError("API key or token is required");
 		}
@@ -186,6 +200,110 @@ export class AuthClient {
 			return createAccessTokenAuth(token.token);
 		}
 		return createApiKeyAuth(this.apiKey);
+	}
+
+	/**
+	 * Mint a customer-scoped bearer token (requires a secret key).
+	 */
+	async customerToken(request: CustomerTokenRequest): Promise<CustomerToken> {
+		const projectId = request.projectId?.trim();
+		if (!projectId) {
+			throw new ConfigError("projectId is required");
+		}
+		const customerId = request.customerId?.trim();
+		const customerExternalId = request.customerExternalId?.trim();
+		if ((!!customerId && !!customerExternalId) || (!customerId && !customerExternalId)) {
+			throw new ConfigError("Provide exactly one of customerId or customerExternalId");
+		}
+		if (request.ttlSeconds !== undefined && request.ttlSeconds <= 0) {
+			throw new ConfigError("ttlSeconds must be positive when provided");
+		}
+		if (!this.apiKey || this.apiKeyIsPublishable) {
+			throw new ConfigError("Secret API key is required to mint customer tokens");
+		}
+
+		const payload: Record<string, unknown> = {
+			project_id: projectId,
+		};
+		if (customerId) {
+			payload.customer_id = customerId;
+		}
+		if (customerExternalId) {
+			payload.customer_external_id = customerExternalId;
+		}
+		if (typeof request.ttlSeconds === "number") {
+			payload.ttl_seconds = request.ttlSeconds;
+		}
+
+		const apiResp = await this.http.json<{
+			token: string;
+			expires_at: string;
+			expires_in: number;
+			token_type: "Bearer";
+			project_id: string;
+			customer_id: string;
+			customer_external_id: string;
+			tier_code: string;
+		}>("/auth/customer-token", {
+			method: "POST",
+			body: payload,
+			apiKey: this.apiKey,
+		});
+
+		return {
+			token: apiResp.token,
+			expiresAt: new Date(apiResp.expires_at),
+			expiresIn: apiResp.expires_in,
+			tokenType: apiResp.token_type,
+			projectId: apiResp.project_id,
+			customerId: apiResp.customer_id,
+			customerExternalId: apiResp.customer_external_id,
+			tierCode: apiResp.tier_code,
+		};
+	}
+
+	/**
+	 * Verify an OIDC id_token and exchange it for a customer bearer token.
+	 */
+	async oidcExchange(request: OIDCExchangeRequest): Promise<CustomerToken> {
+		const idToken = request.idToken?.trim();
+		if (!idToken) {
+			throw new ConfigError("idToken is required");
+		}
+		if (!this.apiKey) {
+			throw new ConfigError("API key is required for OIDC exchange");
+		}
+		const payload: Record<string, unknown> = { id_token: idToken };
+		const projectId = request.projectId?.trim();
+		if (projectId) {
+			payload.project_id = projectId;
+		}
+
+		const apiResp = await this.http.json<{
+			token: string;
+			expires_at: string;
+			expires_in: number;
+			token_type: "Bearer";
+			project_id: string;
+			customer_id: string;
+			customer_external_id: string;
+			tier_code: string;
+		}>("/auth/oidc/exchange", {
+			method: "POST",
+			body: payload,
+			apiKey: this.apiKey,
+		});
+
+		return {
+			token: apiResp.token,
+			expiresAt: new Date(apiResp.expires_at),
+			expiresIn: apiResp.expires_in,
+			tokenType: apiResp.token_type,
+			projectId: apiResp.project_id,
+			customerId: apiResp.customer_id,
+			customerExternalId: apiResp.customer_external_id,
+			tierCode: apiResp.tier_code,
+		};
 	}
 
 	/**

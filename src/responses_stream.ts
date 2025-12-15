@@ -10,6 +10,7 @@ import type {
 	InputItem,
 	MetricsCallbacks,
 	OutputItem,
+	ProviderId,
 	RequestContext,
 	Response,
 	ResponseEvent,
@@ -192,7 +193,7 @@ export class ResponsesStream implements AsyncIterable<ResponseEvent> {
 			// provider is present on start envelope in ModelRelay
 			const raw = isRecord(evt.data) ? evt.data : {};
 			const p = raw.provider;
-			if (typeof p === "string" && p.trim()) provider = p;
+			if (typeof p === "string" && p.trim()) provider = p as ProviderId;
 		}
 
 		if (!responseId) {

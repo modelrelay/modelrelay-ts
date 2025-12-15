@@ -4,6 +4,7 @@ import {
 	ModelRelay,
 	ResponsesStream,
 	StructuredJSONStream,
+	OIDCExchangeTokenProvider,
 	createUserMessage,
 	parsePublishableKey,
 	parseSecretKey,
@@ -418,6 +419,87 @@ describe("ModelRelay TypeScript SDK", () => {
 		expect(first).toBe(second);
 		expect(first.token).toBe("front-token");
 		expect(first.tokenType).toBe("Bearer");
+	});
+
+	it("can call /responses using a token provider (no manual auth headers)", async () => {
+		const tokenProvider = {
+			getToken: vi.fn(async () => "tp-123"),
+		};
+		const fetchMock = vi.fn(async (url, init) => {
+			const path = String(url);
+			if (path.endsWith("/responses")) {
+				const headers = new Headers(init?.headers as HeadersInit);
+				expect(headers.get("Authorization")).toBe("Bearer tp-123");
+				return new Response(
+					JSON.stringify({
+						id: "resp_tp",
+						output: [
+							{
+								type: "message",
+								role: "assistant",
+								content: [{ type: "text", text: "OK" }],
+							},
+						],
+						model: "gpt-4o",
+						stop_reason: "stop",
+						usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
+					}),
+					{ status: 200, headers: { "Content-Type": "application/json" } },
+				);
+			}
+			throw new Error(`unexpected URL: ${url}`);
+		});
+
+		const client = new ModelRelay({
+			tokenProvider,
+			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
+			fetch: fetchMock as any,
+		});
+
+		const text = await client.responses.text("gpt-4o", "sys", "user");
+		expect(text).toBe("OK");
+		expect(tokenProvider.getToken).toHaveBeenCalledTimes(1);
+	});
+
+	it("OIDCExchangeTokenProvider exchanges id_tokens and caches by expiry", async () => {
+		const idTokenProvider = vi.fn(async () => "idtok-1");
+		const fetchMock = vi.fn(async (url, init) => {
+			const path = String(url);
+			if (path.endsWith("/auth/oidc/exchange")) {
+				// biome-ignore lint/suspicious/noExplicitAny: init.body is untyped
+				const body = JSON.parse(String(init?.body as any));
+				expect(body.id_token).toBe("idtok-1");
+				return new Response(
+					JSON.stringify({
+						token: "cust-token-1",
+						expires_at: future,
+						expires_in: 3600,
+						token_type: "Bearer",
+						project_id: "proj_1",
+						customer_id: "cust_1",
+						customer_external_id: "ext_1",
+						tier_code: "free",
+					}),
+					{ status: 200, headers: { "Content-Type": "application/json" } },
+				);
+			}
+			throw new Error(`unexpected URL: ${url}`);
+		});
+
+		const provider = new OIDCExchangeTokenProvider({
+			apiKey: parseSecretKey("mr_sk_oidc"),
+			idTokenProvider,
+			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
+			fetch: fetchMock as any,
+		});
+
+		const first = await provider.getToken();
+		const second = await provider.getToken();
+
+		expect(first).toBe("cust-token-1");
+		expect(second).toBe("cust-token-1");
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+		expect(idTokenProvider).toHaveBeenCalledTimes(1);
 	});
 
 	it("does not reuse frontend tokens across different devices", async () => {

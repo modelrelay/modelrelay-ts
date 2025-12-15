@@ -27,12 +27,44 @@ export type StopReason =
 	| KnownStopReason
 	| { other: string };
 
-export type ProviderId = string;
-export type ModelId = string;
+/**
+ * Branded type for provider identifiers (e.g., "anthropic", "openai").
+ * The brand prevents accidental use of arbitrary strings where a provider ID is expected.
+ */
+export type ProviderId = string & { readonly __brand: "ProviderId" };
+
+/**
+ * Branded type for model identifiers (e.g., "claude-3-5-sonnet-20241022").
+ * The brand prevents accidental use of arbitrary strings where a model ID is expected.
+ */
+export type ModelId = string & { readonly __brand: "ModelId" };
+
+/**
+ * Cast a string to a ProviderId. Use for known provider identifiers.
+ */
+export function asProviderId(value: string): ProviderId {
+	return value as ProviderId;
+}
+
+/**
+ * Cast a string to a ModelId. Use for known model identifiers.
+ */
+export function asModelId(value: string): ModelId {
+	return value as ModelId;
+}
 
 export type PublishableKey = string & { readonly __brand: "PublishableKey" };
 export type SecretKey = string & { readonly __brand: "SecretKey" };
 export type ApiKey = PublishableKey | SecretKey;
+
+/**
+ * TokenProvider supplies short-lived bearer tokens for ModelRelay data-plane calls.
+ *
+ * Providers are responsible for caching and refreshing tokens when needed.
+ */
+export interface TokenProvider {
+	getToken(): Promise<string>;
+}
 
 /**
  * Common configuration options for the ModelRelay client.
@@ -108,6 +140,20 @@ export interface ModelRelayTokenOptions extends ModelRelayBaseOptions {
 }
 
 /**
+ * Configuration options requiring a TokenProvider.
+ */
+export interface ModelRelayTokenProviderOptions extends ModelRelayBaseOptions {
+	/**
+	 * Token provider used to fetch bearer tokens for `/responses`, `/runs`, and `/workflows/compile`.
+	 */
+	tokenProvider: TokenProvider;
+	/**
+	 * Optional API key. Useful for non-data-plane endpoints (e.g., /customers, /tiers).
+	 */
+	key?: ApiKey;
+}
+
+/**
  * ModelRelay client configuration.
  *
  * You must provide at least one of `key` or `token` for authentication.
@@ -129,8 +175,17 @@ export interface ModelRelayTokenOptions extends ModelRelayBaseOptions {
  * import { ModelRelay, parsePublishableKey } from "@modelrelay/sdk";
  * const client = new ModelRelay({ key: parsePublishableKey("mr_pk_..."), customer: { provider: "oidc", subject: "user123" } });
  * ```
+ *
+ * @example With token provider (OIDC exchange, backend-minted tokens, etc.)
+ * ```typescript
+ * import { ModelRelay } from "@modelrelay/sdk";
+ * const client = new ModelRelay({ tokenProvider });
+ * ```
  */
-export type ModelRelayOptions = ModelRelayKeyOptions | ModelRelayTokenOptions;
+export type ModelRelayOptions =
+	| ModelRelayKeyOptions
+	| ModelRelayTokenOptions
+	| ModelRelayTokenProviderOptions;
 
 /**
  * @deprecated Use ModelRelayOptions instead. This type allows empty configuration
@@ -273,6 +328,36 @@ export interface FrontendToken {
 	identitySubject?: string;
 }
 
+// =============================================================================
+// Customer bearer tokens (data-plane)
+// =============================================================================
+
+export interface CustomerTokenRequest {
+	projectId: string;
+	customerId?: string;
+	customerExternalId?: string;
+	ttlSeconds?: number;
+}
+
+export interface CustomerToken {
+	token: string;
+	expiresAt: Date;
+	expiresIn: number;
+	tokenType: TokenType;
+	projectId: string;
+	customerId: string;
+	customerExternalId: string;
+	tierCode: string;
+}
+
+// =============================================================================
+// OIDC exchange
+// =============================================================================
+
+export interface OIDCExchangeRequest {
+	idToken: string;
+	projectId?: string;
+}
 
 export interface Usage {
 	inputTokens: number;
@@ -597,7 +682,7 @@ export function normalizeModelId(value: unknown): ModelId | undefined {
 	if (value === undefined || value === null) return undefined;
 	const str = String(value).trim();
 	if (!str) return undefined;
-	return str;
+	return str as ModelId;
 }
 
 export function modelToString(value: ModelId): string {
