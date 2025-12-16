@@ -26,7 +26,9 @@ export function runPendingToolsPath(runId: RunId): string {
 
 export type RunsToolResultsRequest = {
 	node_id: NodeId;
-	results: Array<{ tool_call_id: string; output: string }>;
+	step: number;
+	request_id: string;
+	results: Array<{ tool_call_id: string; name: string; output: string }>;
 };
 
 export type RunsToolResultsResponse = {
