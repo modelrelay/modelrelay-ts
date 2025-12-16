@@ -1,6 +1,6 @@
 {
 	"name": "@modelrelay/sdk",
-	"version": "0.53.0",
+	"version": "0.54.0",
 	"description": "TypeScript SDK for the ModelRelay API",
 	"type": "module",
 	"main": "dist/index.cjs",
@@ -21,7 +21,8 @@
 		"build": "tsup src/index.ts --format esm,cjs --dts",
 		"dev": "tsup src/index.ts --format esm,cjs --dts --watch",
 		"lint": "tsc --noEmit --project tsconfig.lint.json",
-		"test": "vitest run"
+		"test": "vitest run",
+		"generate:types": "openapi-typescript ../../api/openapi/api.json -o src/generated/api.ts"
 	},
 	"keywords": [
 		"modelrelay",
@@ -32,6 +33,7 @@
 	"author": "Shane Vitarana",
 	"license": "Apache-2.0",
 	"devDependencies": {
+		"openapi-typescript": "^7.4.4",
 		"tsup": "^8.2.4",
 		"typescript": "^5.6.3",
 		"vitest": "^2.1.4",

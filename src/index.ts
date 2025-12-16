@@ -207,6 +207,11 @@ export type {
 	StructuredResult,
 } from "./structured";
 
+// Generated types from OpenAPI spec
+// Use: import { generated } from "@modelrelay/sdk"
+// Access: generated.components["schemas"]["ResponsesResponse"]
+export * as generated from "./generated";
+
 function resolveBaseUrl(override?: string): string {
 	const base = override || DEFAULT_BASE_URL;
 	return base.replace(/\/+$/, "");
