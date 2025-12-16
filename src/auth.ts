@@ -1,10 +1,13 @@
-import { ConfigError } from "./errors";
+import { APIError, ConfigError } from "./errors";
 import { isPublishableKey, parseApiKey } from "./api_keys";
 import type { HTTPClient } from "./http";
 import type {
 	APIFrontendToken,
 	CustomerToken,
 	CustomerTokenRequest,
+	DeviceStartRequest,
+	DeviceStartResponse,
+	DeviceTokenResult,
 	FrontendCustomer,
 	FrontendToken,
 	FrontendTokenAutoProvisionRequest,
@@ -317,6 +320,155 @@ export class AuthClient {
 			throw new ConfigError("API key or token is required");
 		}
 		return createApiKeyAuth(this.apiKey);
+	}
+
+	/**
+	 * Start a device authorization flow (RFC 8628).
+	 *
+	 * @param request - Optional request options
+	 * @param request.provider - Set to "github" to use GitHub's native device flow
+	 *
+	 * @example Wrapped flow (default)
+	 * ```typescript
+	 * const auth = await client.auth.deviceStart();
+	 * console.log(`Go to ${auth.verificationUri} and enter code: ${auth.userCode}`);
+	 * ```
+	 *
+	 * @example Native GitHub flow
+	 * ```typescript
+	 * const auth = await client.auth.deviceStart({ provider: "github" });
+	 * // verificationUri will be "https://github.com/login/device"
+	 * console.log(`Go to ${auth.verificationUri} and enter code: ${auth.userCode}`);
+	 * ```
+	 */
+	async deviceStart(request?: DeviceStartRequest): Promise<DeviceStartResponse> {
+		if (!this.apiKey) {
+			throw new ConfigError("API key is required to start device flow");
+		}
+
+		const params = new URLSearchParams();
+		if (request?.provider) {
+			params.set("provider", request.provider);
+		}
+		const queryString = params.toString();
+		const path = queryString ? `/auth/device/start?${queryString}` : "/auth/device/start";
+
+		const apiResp = await this.http.json<{
+			device_code: string;
+			user_code: string;
+			verification_uri: string;
+			verification_uri_complete?: string;
+			expires_in: number;
+			interval: number;
+		}>(path, {
+			method: "POST",
+			apiKey: this.apiKey,
+		});
+
+		return {
+			deviceCode: apiResp.device_code,
+			userCode: apiResp.user_code,
+			verificationUri: apiResp.verification_uri,
+			verificationUriComplete: apiResp.verification_uri_complete,
+			expiresAt: new Date(Date.now() + apiResp.expires_in * 1000),
+			interval: apiResp.interval,
+		};
+	}
+
+	/**
+	 * Poll the device token endpoint for authorization completion.
+	 *
+	 * Returns a discriminated union:
+	 * - `{ status: "approved", token }` - User authorized, token available
+	 * - `{ status: "pending", pending }` - User hasn't authorized yet, keep polling
+	 * - `{ status: "error", error }` - Authorization failed (expired, denied, etc.)
+	 *
+	 * @param deviceCode - The device code from deviceStart()
+	 *
+	 * @example
+	 * ```typescript
+	 * const auth = await client.auth.deviceStart({ provider: "github" });
+	 * console.log(`Go to ${auth.verificationUri} and enter: ${auth.userCode}`);
+	 *
+	 * let interval = auth.interval;
+	 * while (true) {
+	 *   await sleep(interval * 1000);
+	 *   const result = await client.auth.deviceToken(auth.deviceCode);
+	 *
+	 *   if (result.status === "approved") {
+	 *     console.log("Token:", result.token.token);
+	 *     break;
+	 *   } else if (result.status === "pending") {
+	 *     if (result.pending.interval) interval = result.pending.interval;
+	 *     continue;
+	 *   } else {
+	 *     throw new Error(`Authorization failed: ${result.error}`);
+	 *   }
+	 * }
+	 * ```
+	 */
+	async deviceToken(deviceCode: string): Promise<DeviceTokenResult> {
+		if (!this.apiKey) {
+			throw new ConfigError("API key is required to poll device token");
+		}
+		if (!deviceCode?.trim()) {
+			throw new ConfigError("deviceCode is required");
+		}
+
+		try {
+			const apiResp = await this.http.json<{
+				token: string;
+				expires_at: string;
+				expires_in: number;
+				token_type: "Bearer";
+				project_id: string;
+				customer_id: string;
+				customer_external_id: string;
+				tier_code: string;
+			}>("/auth/device/token", {
+				method: "POST",
+				body: { device_code: deviceCode },
+				apiKey: this.apiKey,
+			});
+
+			return {
+				status: "approved",
+				token: {
+					token: apiResp.token,
+					expiresAt: new Date(apiResp.expires_at),
+					expiresIn: apiResp.expires_in,
+					tokenType: apiResp.token_type,
+					projectId: apiResp.project_id,
+					customerId: apiResp.customer_id,
+					customerExternalId: apiResp.customer_external_id,
+					tierCode: apiResp.tier_code,
+				},
+			};
+		} catch (err) {
+			// Handle 400 responses with device flow error codes
+			if (err instanceof APIError && err.status === 400) {
+				const data = err.data as { error?: string; error_description?: string; interval?: number } | undefined;
+				const errorCode = data?.error || err.code || "unknown";
+
+				if (errorCode === "authorization_pending" || errorCode === "slow_down") {
+					return {
+						status: "pending",
+						pending: {
+							error: errorCode,
+							errorDescription: data?.error_description,
+							interval: data?.interval,
+						},
+					};
+				}
+
+				return {
+					status: "error",
+					error: errorCode,
+					errorDescription: data?.error_description || err.message,
+				};
+			}
+			throw err;
+		}
 	}
 }
 
