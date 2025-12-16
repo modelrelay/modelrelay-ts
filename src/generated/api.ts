@@ -527,24 +527,62 @@ export interface components {
             /** Format: date-time */
             updated_at?: string;
         };
+        /**
+         * @description Billing interval for a tier.
+         * @enum {string}
+         */
+        PriceInterval: "month" | "year";
         Tier: {
             /** Format: uuid */
             id?: string;
             /** Format: uuid */
             project_id?: string;
-            tier_code?: string;
+            tier_code?: components["schemas"]["TierCode"];
+            /** @description Human-readable tier name */
             display_name?: string;
-            /** @description Monthly spend limit in cents (e.g., 2000 = $20/month). Must be positive. */
+            /**
+             * Format: uint64
+             * @description Monthly spend limit in cents (e.g., 2000 = $20/month). Must be positive.
+             */
             spend_limit_cents?: number;
+            /**
+             * Format: uint64
+             * @description Input token price in cents per million (e.g., 300 = $3.00/1M tokens)
+             */
+            input_price_per_million_cents?: number;
+            /**
+             * Format: uint64
+             * @description Output token price in cents per million (e.g., 1500 = $15.00/1M tokens)
+             */
+            output_price_per_million_cents?: number;
+            /** @description Stripe price ID for this tier */
+            stripe_price_id?: string;
+            /**
+             * Format: uint64
+             * @description Subscription price amount in cents
+             */
+            price_amount?: number;
+            /** @description Currency code for the price (e.g., 'usd') */
+            price_currency?: string;
+            price_interval?: components["schemas"]["PriceInterval"];
+            /**
+             * Format: uint32
+             * @description Number of trial days for new subscriptions
+             */
+            trial_days?: number;
             /** Format: date-time */
             created_at?: string;
             /** Format: date-time */
             updated_at?: string;
         };
         TierCreate: {
-            tier_code: string;
+            tier_code: components["schemas"]["TierCode"];
+            /** @description Human-readable tier name */
             display_name: string;
-            /** @description Monthly spend limit in cents (e.g., 2000 = $20/month). Must be positive. */
+            /**
+             * Format: uint64
+             * @description Monthly spend limit in cents (e.g., 2000 = $20/month). Must be positive.
+             */
             spend_limit_cents: number;
         };
         Customer: {
@@ -554,11 +592,33 @@ export interface components {
             project_id?: string;
             /** Format: uuid */
             tier_id?: string;
+            tier_code?: components["schemas"]["TierCode"];
+            /** @description External customer identifier from your system */
             external_id?: string;
+            /**
+             * Format: email
+             * @description Customer email address
+             */
             email?: string;
             metadata?: {
                 [key: string]: unknown;
             };
+            /** @description Stripe customer ID */
+            stripe_customer_id?: string;
+            /** @description Stripe subscription ID */
+            stripe_subscription_id?: string;
+            /** @description Subscription status (active, past_due, canceled, etc.) */
+            subscription_status?: string;
+            /**
+             * Format: date-time
+             * @description Start of the current billing period
+             */
+            current_period_start?: string;
+            /**
+             * Format: date-time
+             * @description End of the current billing period
+             */
+            current_period_end?: string;
             /** Format: date-time */
             created_at?: string;
             /** Format: date-time */
@@ -567,7 +627,12 @@ export interface components {
         CustomerCreate: {
             /** Format: uuid */
             tier_id: string;
+            /** @description External customer identifier from your system */
             external_id: string;
+            /**
+             * Format: email
+             * @description Customer email address
+             */
             email?: string;
             metadata?: {
                 [key: string]: unknown;
@@ -634,10 +699,11 @@ export interface components {
             function?: string;
         };
         ResponsesRequest: {
-            provider?: string;
-            model?: string;
+            provider?: components["schemas"]["ProviderId"];
+            model?: components["schemas"]["ModelId"];
             input: components["schemas"]["InputItem"][];
             output_format?: components["schemas"]["OutputFormat"];
+            /** Format: uint32 */
             max_output_tokens?: number;
             temperature?: number;
             stop?: string[];
@@ -648,10 +714,8 @@ export interface components {
             /** @description Response identifier from the provider */
             id: string;
             output: components["schemas"]["OutputItem"][];
-            /** @description Model that generated the response */
-            model: string;
-            /** @description Provider that handled the request */
-            provider?: string;
+            model: components["schemas"]["ModelId"];
+            provider?: components["schemas"]["ProviderId"];
             /** @description Why generation stopped (stop, max_tokens, tool_use, etc.) */
             stop_reason?: string;
             usage: components["schemas"]["Usage"];
@@ -669,8 +733,8 @@ export interface components {
             message?: string;
             status?: number;
             request_id?: string;
-            provider?: string;
-            model?: string;
+            provider?: components["schemas"]["ProviderId"];
+            model?: components["schemas"]["ModelId"];
             stop_reason?: string;
             usage?: components["schemas"]["Usage"];
         };
@@ -712,23 +776,21 @@ export interface components {
             options?: components["schemas"]["RunsCreateOptionsV0"];
         };
         /** @enum {string} */
-        RunStatusV0: "running" | "succeeded" | "failed" | "canceled";
+        RunStatusV0: "running" | "waiting" | "succeeded" | "failed" | "canceled";
         RunsCreateResponse: {
-            /** Format: uuid */
-            run_id: string;
+            run_id: components["schemas"]["RunId"];
             status: components["schemas"]["RunStatusV0"];
-            /** @description SHA-256 hash of the canonical compiled plan */
-            plan_hash: string;
+            plan_hash: components["schemas"]["PlanHash"];
         };
         /** @enum {string} */
-        NodeStatusV0: "pending" | "running" | "succeeded" | "failed" | "canceled";
+        NodeStatusV0: "pending" | "running" | "waiting" | "succeeded" | "failed" | "canceled";
         NodeErrorV0: {
             code?: string;
             message: string;
         };
         NodeResultV0: {
-            id: string;
-            type: string;
+            id: components["schemas"]["NodeId"];
+            type: components["schemas"]["NodeTypeV0"];
             status: components["schemas"]["NodeStatusV0"];
             /** Format: date-time */
             started_at?: string;
@@ -740,37 +802,48 @@ export interface components {
             error?: components["schemas"]["NodeErrorV0"];
         };
         RunCostLineItemV0: {
-            provider_id: string;
-            model: string;
-            /** Format: int64 */
+            provider_id: components["schemas"]["ProviderId"];
+            model: components["schemas"]["ModelId"];
+            /** Format: uint64 */
             requests: number;
-            /** Format: int64 */
+            /** Format: uint64 */
             input_tokens: number;
-            /** Format: int64 */
+            /** Format: uint64 */
             output_tokens: number;
-            /** Format: int64 */
+            /** Format: uint64 */
             usd_cents: number;
         };
         RunCostSummaryV0: {
-            /** Format: int64 */
+            /** Format: uint64 */
             total_usd_cents: number;
-            line_items: components["schemas"]["RunCostLineItemV0"][];
+            line_items?: components["schemas"]["RunCostLineItemV0"][];
         };
         RunsGetResponse: {
-            /** Format: uuid */
-            run_id: string;
+            run_id: components["schemas"]["RunId"];
             status: components["schemas"]["RunStatusV0"];
-            /** @description SHA-256 hash of the compiled plan (hex). */
-            plan_hash: string;
+            plan_hash: components["schemas"]["PlanHash"];
             cost_summary: components["schemas"]["RunCostSummaryV0"];
             nodes?: components["schemas"]["NodeResultV0"][];
             outputs?: {
                 [key: string]: unknown;
             };
         };
+        /** @description Token usage statistics. All fields default to 0 if not present. */
         Usage: {
+            /**
+             * Format: uint64
+             * @default 0
+             */
             input_tokens: number;
+            /**
+             * Format: uint64
+             * @default 0
+             */
             output_tokens: number;
+            /**
+             * Format: uint64
+             * @default 0
+             */
             total_tokens: number;
         };
         ToolCall: {
@@ -795,13 +868,11 @@ export interface components {
              * @description Token expiration timestamp
              */
             expires_at: string;
-            /** @description Seconds until token expires */
-            expires_in: number;
             /**
-             * @description Always "Bearer"
-             * @enum {string}
+             * Format: uint32
+             * @description Seconds until token expires
              */
-            token_type: "Bearer";
+            expires_in: number;
             /**
              * Format: uuid
              * @description Project the token is scoped to
@@ -814,8 +885,7 @@ export interface components {
             customer_id: string;
             /** @description External customer identifier */
             customer_external_id: string;
-            /** @description Customer's tier code */
-            tier_code: string;
+            tier_code: components["schemas"]["TierCode"];
         };
         DeviceStartResponse: {
             /** @description Device code used for polling /auth/device/token */
@@ -826,9 +896,15 @@ export interface components {
             verification_uri: string;
             /** @description Convenience URL that pre-fills the user_code (optional) */
             verification_uri_complete?: string;
-            /** @description Seconds until the device code expires */
+            /**
+             * Format: uint32
+             * @description Seconds until the device code expires
+             */
             expires_in: number;
-            /** @description Minimum polling interval in seconds */
+            /**
+             * Format: uint32
+             * @description Minimum polling interval in seconds
+             */
             interval: number;
         };
         DeviceTokenError: {
@@ -836,13 +912,60 @@ export interface components {
             error: string;
             /** @description Optional human-readable error message */
             error_description?: string;
-            /** @description Updated recommended polling interval in seconds (when error is slow_down) */
+            /**
+             * Format: uint32
+             * @description Updated recommended polling interval in seconds (when error is slow_down)
+             */
             interval?: number;
         };
         APIError: {
             error: string;
             code: string;
             message: string;
+        };
+        /** @description Subscription status for a customer. */
+        SubscriptionStatus: {
+            /** @description Whether the subscription is currently active */
+            active: boolean;
+            /** @description Stripe subscription ID */
+            subscription_id?: string;
+            /** @description Subscription status (active, past_due, canceled, etc.) */
+            status?: string;
+            /**
+             * Format: date-time
+             * @description Start of the current billing period
+             */
+            current_period_start?: string;
+            /**
+             * Format: date-time
+             * @description End of the current billing period
+             */
+            current_period_end?: string;
+        };
+        /** @description Response containing pending tool calls for a workflow run. */
+        RunsPendingToolsResponse: {
+            run_id: components["schemas"]["RunId"];
+            pending?: components["schemas"]["RunsPendingToolsNodeV0"][];
+        };
+        /** @description A node with pending tool calls. */
+        RunsPendingToolsNodeV0: {
+            node_id: components["schemas"]["NodeId"];
+            /**
+             * Format: int64
+             * @description The step number within the node execution
+             */
+            step: number;
+            request_id: components["schemas"]["RequestId"];
+            tool_calls?: components["schemas"]["RunsPendingToolCallV0"][];
+        };
+        /** @description A pending tool call waiting for a result. */
+        RunsPendingToolCallV0: {
+            /** @description Unique identifier for this tool call */
+            tool_call_id: string;
+            /** @description Name of the tool to be called */
+            name: string;
+            /** @description JSON-encoded arguments for the tool call */
+            arguments: string;
         };
         /**
          * @description Events sent during streaming responses (application/x-ndjson).
@@ -856,8 +979,7 @@ export interface components {
             event: "message_start" | "message_delta" | "message_stop" | "tool_use_start" | "tool_use_delta" | "tool_use_stop" | "ping" | "keepalive";
             /** @description Response identifier (message_start) */
             response_id?: string;
-            /** @description Model name (message_start) */
-            model?: string;
+            model?: components["schemas"]["ModelId"];
             /** @description Text content fragment (message_delta) */
             text_delta?: string;
             /** @description Why generation stopped (message_stop) */
@@ -869,6 +991,7 @@ export interface components {
         };
         /** @description Incremental tool call data during streaming */
         ToolCallDelta: {
+            /** Format: uint32 */
             index?: number;
             id?: string;
             type?: string;
@@ -878,6 +1001,36 @@ export interface components {
                 arguments?: string;
             };
         };
+        /** @description Workflow node identifier. Must start with a lowercase letter and contain only lowercase letters, numbers, and underscores. */
+        NodeId: string;
+        /** @description LLM model identifier (e.g., claude-sonnet-4-20250514, gpt-4o). */
+        ModelId: string;
+        /**
+         * Format: uuid
+         * @description Unique identifier for a workflow run.
+         */
+        RunId: string;
+        /**
+         * Format: uuid
+         * @description Unique identifier for an LLM request within a workflow run.
+         */
+        RequestId: string;
+        /** @description SHA-256 hash of the compiled workflow plan (64 hex characters). */
+        PlanHash: string;
+        /** @description SHA-256 hash (64 hex characters). */
+        Sha256Hash: string;
+        /**
+         * @description LLM provider identifier.
+         * @enum {string}
+         */
+        ProviderId: "anthropic" | "openai" | "xai" | "google-ai-studio";
+        /**
+         * @description Type of workflow node.
+         * @enum {string}
+         */
+        NodeTypeV0: "llm.responses" | "join.all" | "transform.json";
+        /** @description Tier code identifier (e.g., free, pro, enterprise). */
+        TierCode: string;
     };
     responses: never;
     parameters: {
@@ -1079,7 +1232,10 @@ export interface operations {
                     customer_id?: string;
                     /** @description External customer identifier (provide exactly one of customer_id or customer_external_id) */
                     customer_external_id?: string;
-                    /** @description Requested token TTL in seconds (server may cap this) */
+                    /**
+                     * Format: uint32
+                     * @description Requested token TTL in seconds (server may cap this)
+                     */
                     ttl_seconds?: number;
                 };
             };
@@ -1270,7 +1426,12 @@ export interface operations {
                 "application/json": {
                     /** Format: email */
                     email: string;
-                    provider: string;
+                    /**
+                     * @description Identity provider (must match project's enabled providers)
+                     * @enum {string}
+                     */
+                    provider: "github" | "google" | "oidc";
+                    /** @description OAuth/OIDC subject claim from the identity provider */
                     subject: string;
                 };
             };
