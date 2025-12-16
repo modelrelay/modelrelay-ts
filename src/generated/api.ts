@@ -741,6 +741,7 @@ export interface components {
         ResponsesBatchRequest: {
             requests: components["schemas"]["ResponsesRequest"][];
             options?: {
+                /** Format: uint32 */
                 max_parallelism?: number;
                 abort_on_error?: boolean;
             };
@@ -751,6 +752,7 @@ export interface components {
             code?: string;
         };
         ResponsesBatchResult: {
+            /** Format: uint32 */
             index: number;
             ok: boolean;
             response?: components["schemas"]["ResponsesResponse"];
@@ -951,7 +953,7 @@ export interface components {
         RunsPendingToolsNodeV0: {
             node_id: components["schemas"]["NodeId"];
             /**
-             * Format: int64
+             * Format: uint64
              * @description The step number within the node execution
              */
             step: number;
