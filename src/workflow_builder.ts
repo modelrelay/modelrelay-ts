@@ -6,6 +6,7 @@ import { asInternal } from "./responses_request";
 import type { NodeId, OutputName } from "./runs_ids";
 import type {
 	LLMResponsesBindingV0,
+	LLMResponsesToolLimitsV0,
 	ToolExecutionModeV0,
 	WorkflowEdgeV0,
 	WorkflowNodeV0,
@@ -36,6 +37,7 @@ type LLMResponsesNodeInputV0 = {
 	request: WireResponsesRequest;
 	stream?: boolean;
 	tool_execution?: { mode: ToolExecutionModeV0 };
+	tool_limits?: LLMResponsesToolLimitsV0;
 	bindings?: ReadonlyArray<LLMResponsesBindingV0>;
 };
 
@@ -98,6 +100,7 @@ export class WorkflowBuilderV0 {
 		options: {
 			stream?: boolean;
 			toolExecution?: ToolExecutionModeV0;
+			toolLimits?: LLMResponsesToolLimitsV0;
 			bindings?: ReadonlyArray<LLMResponsesBindingV0>;
 		} = {},
 	): WorkflowBuilderV0 {
@@ -107,6 +110,7 @@ export class WorkflowBuilderV0 {
 			...(options.toolExecution === undefined
 				? {}
 				: { tool_execution: { mode: options.toolExecution } }),
+			...(options.toolLimits === undefined ? {} : { tool_limits: { ...options.toolLimits } }),
 			...(options.bindings === undefined ? {} : { bindings: options.bindings.slice() }),
 		};
 		return this.node({

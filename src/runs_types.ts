@@ -39,6 +39,7 @@ export type WorkflowNodeV0 =
 				request: WireResponsesRequest;
 				stream?: boolean;
 				tool_execution?: ToolExecutionV0;
+				tool_limits?: LLMResponsesToolLimitsV0;
 				bindings?: ReadonlyArray<LLMResponsesBindingV0>;
 			};
 	  }
@@ -79,6 +80,12 @@ export type LLMResponsesBindingV0 = {
 export type ToolExecutionModeV0 = "server" | "client";
 
 export type ToolExecutionV0 = { mode: ToolExecutionModeV0 };
+
+export type LLMResponsesToolLimitsV0 = {
+	max_llm_calls?: number;
+	max_tool_calls_per_step?: number;
+	wait_ttl_ms?: number;
+};
 
 export type RunStatusV0 = "running" | "waiting" | "succeeded" | "failed" | "canceled";
 
