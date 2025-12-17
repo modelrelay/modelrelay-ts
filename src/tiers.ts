@@ -2,6 +2,7 @@ import { ConfigError } from "./errors";
 import { isSecretKey, parseApiKey } from "./api_keys";
 import type { HTTPClient } from "./http";
 import type { ApiKey, ModelId, TierCode } from "./types";
+import type { components } from "./generated/api";
 
 /**
  * Billing interval for a tier.
@@ -15,7 +16,12 @@ export interface TierModel {
 	id: string;
 	tier_id: string;
 	model_id: ModelId;
-	model_display_name?: string;
+	model_display_name: string;
+	description: string;
+	capabilities: components["schemas"]["ModelCapability"][];
+	context_window: number;
+	max_output_tokens: number;
+	deprecated: boolean;
 	input_price_per_million_cents: number;
 	output_price_per_million_cents: number;
 	is_default: boolean;
@@ -45,7 +51,7 @@ export interface Tier {
 /**
  * Return the tier's default model ID, if configured.
  */
-export function defaultTierModelId(tier: Tier): string | undefined {
+export function defaultTierModelId(tier: Tier): ModelId | undefined {
 	const def = tier.models.find((m) => m.is_default);
 	if (def) return def.model_id;
 	if (tier.models.length === 1) return tier.models[0].model_id;

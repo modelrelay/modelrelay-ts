@@ -4,6 +4,7 @@ import { RunsClient } from "./runs";
 import { WorkflowsClient } from "./workflows_client";
 import { CustomersClient } from "./customers";
 import { TiersClient } from "./tiers";
+import { ModelsClient } from "./models";
 import { ConfigError } from "./errors";
 import { HTTPClient } from "./http";
 import { parseApiKey } from "./api_keys";
@@ -20,6 +21,7 @@ export class ModelRelay {
 	readonly auth: AuthClient;
 	readonly customers: CustomersClient;
 	readonly tiers: TiersClient;
+	readonly models: ModelsClient;
 	readonly baseUrl: string;
 
 	constructor(options: ModelRelayOptions) {
@@ -65,6 +67,7 @@ export class ModelRelay {
 		});
 		this.customers = new CustomersClient(http, { apiKey, accessToken, tokenProvider });
 		this.tiers = new TiersClient(http, { apiKey });
+		this.models = new ModelsClient(http);
 	}
 }
 
@@ -78,6 +81,7 @@ export {
 	ConfigError,
 	CustomersClient,
 	TiersClient,
+	ModelsClient,
 	DEFAULT_BASE_URL,
 	createApiKeyAuth,
 	createAccessTokenAuth,
@@ -137,7 +141,10 @@ export type {
 	TierCheckoutSession,
 } from "./tiers";
 
+export type { CatalogModel, ModelCapability, ProviderId } from "./models";
+
 export * from "./types";
+
 export * from "./errors";
 
 // Tool utilities - explicit exports for better discoverability

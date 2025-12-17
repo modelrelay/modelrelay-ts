@@ -258,6 +258,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List active models
+         * @description Returns all active models with rich metadata for building model selectors.
+         */
+        get: operations["listModels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/billing/webhooks": {
         parameters: {
             query?: never;
@@ -595,28 +615,44 @@ export interface components {
         PriceInterval: "month" | "year";
         TierModel: {
             /** Format: uuid */
-            id?: string;
+            id: string;
             /** Format: uuid */
-            tier_id?: string;
-            model_id?: components["schemas"]["ModelId"];
+            tier_id: string;
+            model_id: components["schemas"]["ModelId"];
             /** @description Human-friendly model name resolved from pricing (e.g., 'GPT-4o Mini') */
-            model_display_name?: string;
+            model_display_name: string;
+            /** @description Human-friendly description of what the model is good at */
+            description: string;
+            /** @description Workflow-critical capability flags for the model */
+            capabilities: components["schemas"]["ModelCapability"][];
+            /**
+             * Format: int32
+             * @description Maximum supported context window in tokens (if known)
+             */
+            context_window: number;
+            /**
+             * Format: int32
+             * @description Maximum supported output tokens (if known)
+             */
+            max_output_tokens: number;
+            /** @description Whether the model is deprecated */
+            deprecated: boolean;
             /**
              * Format: uint64
              * @description Input token price in cents per million (e.g., 300 = $3.00/1M tokens)
              */
-            input_price_per_million_cents?: number;
+            input_price_per_million_cents: number;
             /**
              * Format: uint64
              * @description Output token price in cents per million (e.g., 1500 = $15.00/1M tokens)
              */
-            output_price_per_million_cents?: number;
+            output_price_per_million_cents: number;
             /** @description Whether this is the default model for the tier */
-            is_default?: boolean;
+            is_default: boolean;
             /** Format: date-time */
-            created_at?: string;
+            created_at: string;
             /** Format: date-time */
-            updated_at?: string;
+            updated_at: string;
         };
         TierModelCreate: {
             model_id: components["schemas"]["ModelId"];
@@ -1133,6 +1169,33 @@ export interface components {
         NodeId: string;
         /** @description LLM model identifier (e.g., claude-sonnet-4-20250514, gpt-4o). */
         ModelId: string;
+        /**
+         * @description Workflow-critical model capability identifier.
+         * @enum {string}
+         */
+        ModelCapability: "tools" | "vision" | "web_search" | "computer_use" | "code_execution";
+        Model: {
+            model_id: components["schemas"]["ModelId"];
+            provider: components["schemas"]["ProviderId"];
+            display_name: string;
+            description: string;
+            capabilities: components["schemas"]["ModelCapability"][];
+            /** Format: int32 */
+            context_window: number;
+            /** Format: int32 */
+            max_output_tokens: number;
+            /** @description Training cutoff in YYYY-MM format */
+            training_cutoff: string;
+            deprecated: boolean;
+            deprecation_message: string;
+            /** Format: uint64 */
+            input_cost_per_million_cents: number;
+            /** Format: uint64 */
+            output_cost_per_million_cents: number;
+        };
+        ModelsResponse: {
+            models: components["schemas"]["Model"][];
+        };
         /**
          * Format: uuid
          * @description Unique identifier for a workflow run.
@@ -1685,6 +1748,31 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    listModels: {
+        parameters: {
+            query?: {
+                /** @description Filter results to a specific provider */
+                provider?: components["schemas"]["ProviderId"];
+                /** @description Filter results to models that support a capability */
+                capability?: components["schemas"]["ModelCapability"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Models list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelsResponse"];
+                };
             };
         };
     };
