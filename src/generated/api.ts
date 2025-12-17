@@ -911,6 +911,8 @@ export interface components {
         ResponsesBatchError: {
             status: number;
             message: string;
+            /** @description Raw error details from the provider */
+            detail?: string;
             code?: string;
         };
         ResponsesBatchResult: {
@@ -951,6 +953,8 @@ export interface components {
         NodeErrorV0: {
             code?: string;
             message: string;
+            /** @description Raw error details from the provider */
+            detail?: string;
         };
         NodeResultV0: {
             id: components["schemas"]["NodeId"];
