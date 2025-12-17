@@ -433,6 +433,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/plugins/load": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Load a plugin from GitHub (server-side)
+         * @description Fetches PLUGIN.md, commands/*.md, and agents/*.md from a GitHub URL and returns the normalized plugin representation. Auth matches /runs (API key or customer bearer token). Session owner tokens from /auth/login are not accepted.
+         */
+        post: operations["pluginsLoad"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/plugins/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run a plugin command via workflows
+         * @description Loads a plugin from GitHub, converts it to workflow.v0 via an LLM, and starts a run via /runs. Client-side tool execution uses the existing /runs/{run_id}/pending-tools and /runs/{run_id}/tool-results endpoints.
+         */
+        post: operations["pluginsRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/runs": {
         parameters: {
             query?: never;
@@ -1112,6 +1152,75 @@ export interface components {
          * @enum {string}
          */
         ProviderId: "anthropic" | "openai" | "xai" | "google-ai-studio";
+        PluginsLoadRequest: {
+            /** @description GitHub URL for the plugin root (or a file within the plugin). */
+            source_url: string;
+        };
+        PluginsRunRequest: {
+            /** @description GitHub URL for the plugin root (or a file within the plugin). */
+            source_url: string;
+            /** @description Plugin command name (from commands/*.md). */
+            command: string;
+            /** @description User task/prompt for the plugin. */
+            user_task: string;
+            /** @description Execution model override for workflow llm.responses nodes. Optional for customer-attributed requests. */
+            model?: components["schemas"]["ModelId"];
+            /** @description Model used for plugin→workflow conversion. Defaults server-side when omitted. */
+            converter_model?: components["schemas"]["ModelId"];
+            /** @description Optional idempotency key for run creation. */
+            idempotency_key?: string;
+        };
+        PluginManifestV0: {
+            name?: string;
+            description?: string;
+            version?: string;
+            commands?: string[];
+            agents?: string[];
+        };
+        PluginGitHubRefV0: {
+            owner?: string;
+            repo?: string;
+            ref?: string;
+            path?: string;
+        };
+        PluginCommandV0: {
+            name: string;
+            prompt: string;
+            agent_refs?: string[];
+        };
+        PluginAgentV0: {
+            name: string;
+            system_prompt: string;
+        };
+        PluginsLoadResponseV0: {
+            /** @description Stable plugin identifier (owner/repo/path). */
+            id: string;
+            /** @description Canonical plugin URL (github.com/owner/repo@ref/path). */
+            url: string;
+            manifest: components["schemas"]["PluginManifestV0"];
+            commands: {
+                [key: string]: components["schemas"]["PluginCommandV0"];
+            };
+            agents: {
+                [key: string]: components["schemas"]["PluginAgentV0"];
+            };
+            raw_files: {
+                [key: string]: string;
+            };
+            ref: components["schemas"]["PluginGitHubRefV0"];
+            /** Format: date-time */
+            loaded_at: string;
+        };
+        PluginsRunResponseV0: {
+            plugin_id: string;
+            plugin_url: string;
+            run_id: components["schemas"]["RunId"];
+            status: components["schemas"]["RunStatusV0"];
+            plan_hash: components["schemas"]["PlanHash"];
+            conversion_model?: components["schemas"]["ModelId"];
+            conversion_response_id?: string;
+            conversion_usage?: components["schemas"]["Usage"];
+        };
         /**
          * @description Type of workflow node.
          * @enum {string}
@@ -1971,6 +2080,54 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ResponsesBatchResponse"];
+                };
+            };
+        };
+    };
+    pluginsLoad: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PluginsLoadRequest"];
+            };
+        };
+        responses: {
+            /** @description Plugin loaded */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PluginsLoadResponseV0"];
+                };
+            };
+        };
+    };
+    pluginsRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PluginsRunRequest"];
+            };
+        };
+        responses: {
+            /** @description Run created (or idempotent replay) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PluginsRunResponseV0"];
                 };
             };
         };
