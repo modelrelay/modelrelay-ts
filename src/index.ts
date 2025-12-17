@@ -28,11 +28,13 @@ export class ModelRelay {
 			throw new ConfigError("Provide an API key, access token, or token provider");
 		}
 		const apiKey = "key" in cfg && cfg.key ? parseApiKey(cfg.key) : undefined;
+		const accessToken = "token" in cfg ? cfg.token : undefined;
+		const tokenProvider = "tokenProvider" in cfg ? cfg.tokenProvider : undefined;
 		this.baseUrl = resolveBaseUrl(cfg.baseUrl);
 		const http = new HTTPClient({
 			baseUrl: this.baseUrl,
 			apiKey,
-			accessToken: "token" in cfg ? cfg.token : undefined,
+			accessToken,
 			fetchImpl: cfg.fetch,
 			clientHeader: cfg.clientHeader || DEFAULT_CLIENT_HEADER,
 			connectTimeoutMs: cfg.connectTimeoutMs,
@@ -44,9 +46,9 @@ export class ModelRelay {
 		});
 		const auth = new AuthClient(http, {
 			apiKey,
-			accessToken: "token" in cfg ? cfg.token : undefined,
+			accessToken,
 			customer: cfg.customer,
-			tokenProvider: "tokenProvider" in cfg ? cfg.tokenProvider : undefined,
+			tokenProvider,
 		});
 		this.auth = auth;
 		this.responses = new ResponsesClient(http, auth, {
@@ -61,7 +63,7 @@ export class ModelRelay {
 			metrics: cfg.metrics,
 			trace: cfg.trace,
 		});
-		this.customers = new CustomersClient(http, { apiKey });
+		this.customers = new CustomersClient(http, { apiKey, accessToken, tokenProvider });
 		this.tiers = new TiersClient(http, { apiKey });
 	}
 }

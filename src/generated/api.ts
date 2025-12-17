@@ -237,6 +237,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/customers/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the authenticated customer
+         * @description Returns the current customer associated with the provided customer-scoped bearer token.
+         *     Includes the customer's tier and allowed models.
+         */
+        get: operations["getCustomerMe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/billing/webhooks": {
         parameters: {
             query?: never;
@@ -537,8 +558,9 @@ export interface components {
             id?: string;
             /** Format: uuid */
             tier_id?: string;
-            /** @description Model ID (e.g., 'gpt-4o', 'claude-sonnet-4-20250514') */
-            model_id?: string;
+            model_id?: components["schemas"]["ModelId"];
+            /** @description Human-friendly model name resolved from pricing (e.g., 'GPT-4o Mini') */
+            model_display_name?: string;
             /**
              * Format: uint64
              * @description Input token price in cents per million (e.g., 300 = $3.00/1M tokens)
@@ -557,7 +579,7 @@ export interface components {
             updated_at?: string;
         };
         TierModelCreate: {
-            model_id: string;
+            model_id: components["schemas"]["ModelId"];
             /** Format: uint64 */
             input_price_per_million_cents: number;
             /** Format: uint64 */
@@ -681,6 +703,12 @@ export interface components {
             created_at?: string;
             /** Format: date-time */
             updated_at?: string;
+        };
+        CustomerMe: components["schemas"]["Customer"] & {
+            tier: components["schemas"]["Tier"];
+        };
+        CustomerMeResponse: {
+            customer: components["schemas"]["CustomerMe"];
         };
         CustomerCreate: {
             /** Format: uuid */
@@ -1517,6 +1545,33 @@ export interface operations {
             };
             /** @description Identity already linked to a different customer */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getCustomerMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Customer details */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerMeResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

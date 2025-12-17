@@ -38,6 +38,14 @@ export type ProviderId = string & { readonly __brand: "ProviderId" };
  * The brand prevents accidental use of arbitrary strings where a model ID is expected.
  */
 export type ModelId = string & { readonly __brand: "ModelId" };
+/** @deprecated Use `ModelId` instead. */
+export type ModelID = ModelId;
+
+/**
+ * Branded type for tier codes (e.g., "free", "pro", "enterprise").
+ * The brand prevents accidental use of arbitrary strings where a tier code is expected.
+ */
+export type TierCode = string & { readonly __brand: "TierCode" };
 
 /**
  * Cast a string to a ProviderId. Use for known provider identifiers.
@@ -51,6 +59,13 @@ export function asProviderId(value: string): ProviderId {
  */
 export function asModelId(value: string): ModelId {
 	return value as ModelId;
+}
+
+/**
+ * Cast a string to a TierCode. Use for known tier codes.
+ */
+export function asTierCode(value: string): TierCode {
+	return value as TierCode;
 }
 
 export type PublishableKey = string & { readonly __brand: "PublishableKey" };

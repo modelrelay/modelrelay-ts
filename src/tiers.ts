@@ -1,7 +1,7 @@
 import { ConfigError } from "./errors";
 import { isSecretKey, parseApiKey } from "./api_keys";
 import type { HTTPClient } from "./http";
-import type { ApiKey } from "./types";
+import type { ApiKey, ModelId, TierCode } from "./types";
 
 /**
  * Billing interval for a tier.
@@ -9,12 +9,13 @@ import type { ApiKey } from "./types";
 export type PriceInterval = "month" | "year";
 
 /**
- * Tier represents a pricing tier in a ModelRelay project.
+ * TierModel represents a model with pricing in a tier.
  */
 export interface TierModel {
 	id: string;
 	tier_id: string;
-	model_id: string;
+	model_id: ModelId;
+	model_display_name?: string;
 	input_price_per_million_cents: number;
 	output_price_per_million_cents: number;
 	is_default: boolean;
@@ -22,10 +23,13 @@ export interface TierModel {
 	updated_at: string;
 }
 
+/**
+ * Tier represents a pricing tier in a ModelRelay project.
+ */
 export interface Tier {
 	id: string;
 	project_id: string;
-	tier_code: string;
+	tier_code: TierCode;
 	display_name: string;
 	spend_limit_cents: number;
 	models: TierModel[];

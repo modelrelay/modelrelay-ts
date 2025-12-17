@@ -1,7 +1,8 @@
 import { ConfigError } from "./errors";
 import { isSecretKey, parseApiKey } from "./api_keys";
 import type { HTTPClient } from "./http";
-import type { ApiKey } from "./types";
+import type { ApiKey, TierCode, TokenProvider } from "./types";
+import type { components } from "./generated/api";
 
 // Simple email validation regex - validates basic email format
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -22,7 +23,7 @@ export interface Customer {
 	id: string;
 	project_id: string;
 	tier_id: string;
-	tier_code?: string;
+	tier_code?: TierCode;
 	external_id: string;
 	email: string;
 	metadata?: CustomerMetadata;
@@ -102,6 +103,8 @@ interface CustomerResponse {
 
 interface CustomersClientConfig {
 	apiKey?: ApiKey;
+	accessToken?: string;
+	tokenProvider?: TokenProvider;
 }
 
 /**
@@ -112,11 +115,15 @@ export class CustomersClient {
 	private readonly http: HTTPClient;
 	private readonly apiKey?: ApiKey;
 	private readonly hasSecretKey: boolean;
+	private readonly accessToken?: string;
+	private readonly tokenProvider?: TokenProvider;
 
 	constructor(http: HTTPClient, cfg: CustomersClientConfig) {
 		this.http = http;
 		this.apiKey = cfg.apiKey ? parseApiKey(cfg.apiKey) : undefined;
 		this.hasSecretKey = this.apiKey ? isSecretKey(this.apiKey) : false;
+		this.accessToken = cfg.accessToken;
+		this.tokenProvider = cfg.tokenProvider;
 	}
 
 	private ensureSecretKey(): void {
@@ -133,6 +140,39 @@ export class CustomersClient {
 				"API key (mr_pk_* or mr_sk_*) required for claim operation",
 			);
 		}
+	}
+
+	private async customerAccessToken(): Promise<string> {
+		if (this.accessToken?.trim()) {
+			return this.accessToken.trim();
+		}
+		if (this.tokenProvider) {
+			const token = (await this.tokenProvider.getToken())?.trim();
+			if (!token) {
+				throw new ConfigError("tokenProvider returned an empty token");
+			}
+			return token;
+		}
+		throw new ConfigError("Access token or tokenProvider required for customers.me()");
+	}
+
+	/**
+	 * Get the authenticated customer from a customer-scoped bearer token.
+	 *
+	 * This endpoint requires a customer bearer token. API keys are not accepted.
+	 */
+	async me(): Promise<components["schemas"]["CustomerMe"]> {
+		const token = await this.customerAccessToken();
+		const response = await this.http.json<
+			components["schemas"]["CustomerMeResponse"]
+		>("/customers/me", {
+			method: "GET",
+			accessToken: token,
+		});
+		if (!response.customer) {
+			throw new ConfigError("missing customer in response");
+		}
+		return response.customer;
 	}
 
 	/**
