@@ -11,21 +11,41 @@ export type PriceInterval = "month" | "year";
 /**
  * Tier represents a pricing tier in a ModelRelay project.
  */
+export interface TierModel {
+	id: string;
+	tier_id: string;
+	model_id: string;
+	input_price_per_million_cents: number;
+	output_price_per_million_cents: number;
+	is_default: boolean;
+	created_at: string;
+	updated_at: string;
+}
+
 export interface Tier {
 	id: string;
 	project_id: string;
 	tier_code: string;
 	display_name: string;
 	spend_limit_cents: number;
-	input_price_per_million_cents: number;
-	output_price_per_million_cents: number;
+	models: TierModel[];
 	stripe_price_id?: string;
-	price_amount?: number;
+	price_amount_cents?: number;
 	price_currency?: string;
 	price_interval?: PriceInterval;
 	trial_days?: number;
 	created_at: string;
 	updated_at: string;
+}
+
+/**
+ * Return the tier's default model ID, if configured.
+ */
+export function defaultTierModelId(tier: Tier): string | undefined {
+	const def = tier.models.find((m) => m.is_default);
+	if (def) return def.model_id;
+	if (tier.models.length === 1) return tier.models[0].model_id;
+	return undefined;
 }
 
 /**

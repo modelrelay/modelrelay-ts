@@ -532,19 +532,13 @@ export interface components {
          * @enum {string}
          */
         PriceInterval: "month" | "year";
-        Tier: {
+        TierModel: {
             /** Format: uuid */
             id?: string;
             /** Format: uuid */
-            project_id?: string;
-            tier_code?: components["schemas"]["TierCode"];
-            /** @description Human-readable tier name */
-            display_name?: string;
-            /**
-             * Format: uint64
-             * @description Monthly spend limit in cents (e.g., 2000 = $20/month). Must be positive.
-             */
-            spend_limit_cents?: number;
+            tier_id?: string;
+            /** @description Model ID (e.g., 'gpt-4o', 'claude-sonnet-4-20250514') */
+            model_id?: string;
             /**
              * Format: uint64
              * @description Input token price in cents per million (e.g., 300 = $3.00/1M tokens)
@@ -555,13 +549,43 @@ export interface components {
              * @description Output token price in cents per million (e.g., 1500 = $15.00/1M tokens)
              */
             output_price_per_million_cents?: number;
+            /** @description Whether this is the default model for the tier */
+            is_default?: boolean;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        TierModelCreate: {
+            model_id: string;
+            /** Format: uint64 */
+            input_price_per_million_cents: number;
+            /** Format: uint64 */
+            output_price_per_million_cents: number;
+            /** @default false */
+            is_default: boolean;
+        };
+        Tier: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            project_id?: string;
+            tier_code?: components["schemas"]["TierCode"];
+            /** @description Human-readable tier name */
+            display_name?: string;
+            /**
+             * Format: uint64
+             * @description Monthly spend limit in cents (e.g., 2000 = $20/month). Must be non-negative.
+             */
+            spend_limit_cents?: number;
+            models?: components["schemas"]["TierModel"][];
             /** @description Stripe price ID for this tier */
             stripe_price_id?: string;
             /**
              * Format: uint64
              * @description Subscription price amount in cents
              */
-            price_amount?: number;
+            price_amount_cents?: number;
             /** @description Currency code for the price (e.g., 'usd') */
             price_currency?: string;
             price_interval?: components["schemas"]["PriceInterval"];
@@ -581,9 +605,43 @@ export interface components {
             display_name: string;
             /**
              * Format: uint64
-             * @description Monthly spend limit in cents (e.g., 2000 = $20/month). Must be positive.
+             * @description Monthly spend limit in cents (e.g., 2000 = $20/month). Must be non-negative.
              */
             spend_limit_cents: number;
+            models: components["schemas"]["TierModelCreate"][];
+            /**
+             * Format: uint64
+             * @description Subscription price amount in cents (paid tiers)
+             */
+            price_amount_cents?: number;
+            price_interval?: components["schemas"]["PriceInterval"];
+            /**
+             * Format: uint32
+             * @description Number of trial days for new subscriptions (paid tiers)
+             */
+            trial_days?: number;
+        };
+        TierUpdate: {
+            tier_code: components["schemas"]["TierCode"];
+            /** @description Human-readable tier name */
+            display_name: string;
+            /**
+             * Format: uint64
+             * @description Monthly spend limit in cents (e.g., 2000 = $20/month). Must be non-negative.
+             */
+            spend_limit_cents: number;
+            models?: components["schemas"]["TierModelCreate"][];
+            /**
+             * Format: uint64
+             * @description Subscription price amount in cents (paid tiers)
+             */
+            price_amount_cents?: number;
+            price_interval?: components["schemas"]["PriceInterval"];
+            /**
+             * Format: uint32
+             * @description Number of trial days for new subscriptions (paid tiers)
+             */
+            trial_days?: number;
         };
         Customer: {
             /** Format: uuid */
@@ -1682,7 +1740,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["TierCreate"];
+                "application/json": components["schemas"]["TierUpdate"];
             };
         };
         responses: {
