@@ -176,6 +176,28 @@ export class CustomersClient {
 	}
 
 	/**
+	 * Get the authenticated customer's current usage summary.
+	 *
+	 * Returns the current billing period's spend limit, current spend,
+	 * remaining budget, and whether the customer can make more requests.
+	 *
+	 * This endpoint requires a customer bearer token. API keys are not accepted.
+	 */
+	async meUsage(): Promise<components["schemas"]["CustomerMeUsage"]> {
+		const token = await this.customerAccessToken();
+		const response = await this.http.json<
+			components["schemas"]["CustomerMeUsageResponse"]
+		>("/customers/me/usage", {
+			method: "GET",
+			accessToken: token,
+		});
+		if (!response.usage) {
+			throw new ConfigError("missing usage in response");
+		}
+		return response.usage;
+	}
+
+	/**
 	 * List all customers in the project.
 	 */
 	async list(): Promise<Customer[]> {

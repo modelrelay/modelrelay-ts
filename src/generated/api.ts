@@ -258,6 +258,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/customers/me/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the authenticated customer's usage
+         * @description Returns the current billing period usage summary for the customer.
+         *     Includes spend limit, current spend, remaining budget, and usage state.
+         */
+        get: operations["getCustomerMeUsage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/models": {
         parameters: {
             query?: never;
@@ -785,6 +806,47 @@ export interface components {
         };
         CustomerMeResponse: {
             customer: components["schemas"]["CustomerMe"];
+        };
+        /** @description Usage summary for the current billing period. */
+        CustomerMeUsage: {
+            /**
+             * Format: date-time
+             * @description Start of the current billing window
+             */
+            window_start: string;
+            /**
+             * Format: date-time
+             * @description End of the current billing window
+             */
+            window_end: string;
+            /**
+             * Format: int64
+             * @description Monthly spend limit from tier in cents (0 = unlimited)
+             */
+            spend_limit_cents: number;
+            /**
+             * Format: int64
+             * @description Amount spent in current billing window in cents
+             */
+            current_spend_cents: number;
+            /**
+             * Format: int64
+             * @description Remaining spend budget in cents (0 for unlimited tiers)
+             */
+            remaining_cents: number;
+            /**
+             * Format: float
+             * @description Percentage of spend limit used (0-100, null for unlimited tiers)
+             */
+            percentage_used?: number;
+            /**
+             * @description Whether the customer can make more requests
+             * @enum {string}
+             */
+            state: "allowed" | "exhausted";
+        };
+        CustomerMeUsageResponse: {
+            usage: components["schemas"]["CustomerMeUsage"];
         };
         CustomerCreate: {
             /** Format: uuid */
@@ -1744,6 +1806,33 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CustomerMeResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getCustomerMeUsage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Usage summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerMeUsageResponse"];
                 };
             };
             /** @description Unauthorized */
