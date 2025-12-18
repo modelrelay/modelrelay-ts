@@ -258,6 +258,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/customers/me/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the authenticated customer's usage
+         * @description Returns customer-visible usage metrics for the current billing window.
+         *     Does not include any developer-private pricing, budgets, or cost accounting.
+         */
+        get: operations["getCustomerMeUsage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/customers/me/subscription": {
         parameters: {
             query?: never;
@@ -766,6 +787,38 @@ export interface components {
         };
         CustomerMeResponse: {
             customer: components["schemas"]["CustomerMe"];
+        };
+        CustomerUsagePoint: {
+            /**
+             * Format: date-time
+             * @description UTC day bucket
+             */
+            day: string;
+            /** Format: int64 */
+            requests: number;
+            /** Format: int64 */
+            tokens: number;
+        };
+        /** @description Customer-visible usage metrics for the current billing window. */
+        CustomerMeUsage: {
+            /**
+             * Format: date-time
+             * @description Start of the current billing window
+             */
+            window_start: string;
+            /**
+             * Format: date-time
+             * @description End of the current billing window
+             */
+            window_end: string;
+            /** Format: int64 */
+            requests: number;
+            /** Format: int64 */
+            tokens: number;
+            daily: components["schemas"]["CustomerUsagePoint"][];
+        };
+        CustomerMeUsageResponse: {
+            usage: components["schemas"]["CustomerMeUsage"];
         };
         /** @description Customer-visible subscription details for the current tier. */
         CustomerMeSubscription: {
@@ -1714,6 +1767,54 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getCustomerMeUsage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Usage summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerMeUsageResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Customer not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Failed to calculate usage */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Service unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
