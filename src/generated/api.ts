@@ -907,7 +907,7 @@ export interface components {
             role?: components["schemas"]["MessageRole"];
             content?: components["schemas"]["ContentPart"][];
             tool_calls?: components["schemas"]["ToolCall"][];
-            tool_call_id?: string;
+            tool_call_id?: components["schemas"]["ToolCallId"];
         };
         OutputItem: {
             /** @enum {string} */
@@ -933,7 +933,7 @@ export interface components {
             /** @enum {string} */
             type: "function" | "web" | "x_search" | "code_execution";
             function?: {
-                name?: string;
+                name?: components["schemas"]["ToolName"];
                 description?: string;
                 parameters?: {
                     [key: string]: unknown;
@@ -952,7 +952,7 @@ export interface components {
         ToolChoice: {
             /** @enum {string} */
             type: "auto" | "required" | "none";
-            function?: string;
+            function?: components["schemas"]["ToolName"];
         };
         ResponsesRequest: {
             provider?: components["schemas"]["ProviderId"];
@@ -1108,12 +1108,16 @@ export interface components {
              */
             total_tokens: number;
         };
+        /** @description Unique identifier for a tool call. Treated as an opaque string and must be preserved exactly. */
+        ToolCallId: string;
+        /** @description Tool identifier. For tools.v0 client tools, use dot-separated lowercase segments (e.g. fs.search). */
+        ToolName: string;
         ToolCall: {
-            id: string;
+            id: components["schemas"]["ToolCallId"];
             /** @enum {string} */
             type: "function" | "web" | "x_search" | "code_execution";
             function?: {
-                name?: string;
+                name?: components["schemas"]["ToolName"];
                 /** @description JSON string of function arguments */
                 arguments?: string;
             };
@@ -1223,9 +1227,9 @@ export interface components {
         /** @description A pending tool call waiting for a result. */
         RunsPendingToolCallV0: {
             /** @description Unique identifier for this tool call */
-            tool_call_id: string;
+            tool_call_id: components["schemas"]["ToolCallId"];
             /** @description Name of the tool to be called */
-            name: string;
+            name: components["schemas"]["ToolName"];
             /** @description JSON-encoded arguments for the tool call */
             arguments: string;
         };
@@ -1255,10 +1259,10 @@ export interface components {
         ToolCallDelta: {
             /** Format: uint32 */
             index?: number;
-            id?: string;
+            id?: components["schemas"]["ToolCallId"];
             type?: string;
             function?: {
-                name?: string;
+                name?: components["schemas"]["ToolName"];
                 /** @description Partial JSON string */
                 arguments?: string;
             };
