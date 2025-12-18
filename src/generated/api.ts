@@ -258,7 +258,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/customers/me/usage": {
+    "/customers/me/subscription": {
         parameters: {
             query?: never;
             header?: never;
@@ -266,11 +266,11 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get the authenticated customer's usage
-         * @description Returns the current billing period usage summary for the customer.
-         *     Includes spend limit, current spend, remaining budget, and usage state.
+         * Get the authenticated customer's subscription
+         * @description Returns customer-visible subscription details for the authenticated customer bearer token.
+         *     Includes tier name and subscription price; does not include developer-private usage cost accounting.
          */
-        get: operations["getCustomerMeUsage"];
+        get: operations["getCustomerMeSubscription"];
         put?: never;
         post?: never;
         delete?: never;
@@ -767,46 +767,37 @@ export interface components {
         CustomerMeResponse: {
             customer: components["schemas"]["CustomerMe"];
         };
-        /** @description Usage summary for the current billing period. */
-        CustomerMeUsage: {
-            /**
-             * Format: date-time
-             * @description Start of the current billing window
-             */
-            window_start: string;
-            /**
-             * Format: date-time
-             * @description End of the current billing window
-             */
-            window_end: string;
+        /** @description Customer-visible subscription details for the current tier. */
+        CustomerMeSubscription: {
+            tier_code: components["schemas"]["TierCode"];
+            /** @description Human-readable tier name */
+            tier_display_name: string;
             /**
              * Format: int64
-             * @description Monthly spend limit from tier in cents (0 = unlimited)
+             * @description Subscription price amount in cents (omitted for free tiers)
              */
-            spend_limit_cents: number;
+            price_amount_cents?: number;
+            /** @description Currency code for the price (e.g., 'usd') */
+            price_currency?: string;
+            price_interval?: components["schemas"]["PriceInterval"];
             /**
-             * Format: int64
-             * @description Amount spent in current billing window in cents
-             */
-            current_spend_cents: number;
-            /**
-             * Format: int64
-             * @description Remaining spend budget in cents (0 for unlimited tiers)
-             */
-            remaining_cents: number;
-            /**
-             * Format: float
-             * @description Percentage of spend limit used (0-100, null for unlimited tiers)
-             */
-            percentage_used?: number;
-            /**
-             * @description Whether the customer can make more requests
+             * @description Subscription status (omitted when unknown)
              * @enum {string}
              */
-            state: "allowed" | "exhausted";
+            subscription_status?: "active" | "trialing" | "canceled" | "past_due" | "unpaid" | "incomplete";
+            /**
+             * Format: date-time
+             * @description Start of the current billing period
+             */
+            current_period_start?: string;
+            /**
+             * Format: date-time
+             * @description End of the current billing period
+             */
+            current_period_end?: string;
         };
-        CustomerMeUsageResponse: {
-            usage: components["schemas"]["CustomerMeUsage"];
+        CustomerMeSubscriptionResponse: {
+            subscription: components["schemas"]["CustomerMeSubscription"];
         };
         CustomerCreate: {
             /** Format: uuid */
@@ -1730,7 +1721,7 @@ export interface operations {
             };
         };
     };
-    getCustomerMeUsage: {
+    getCustomerMeSubscription: {
         parameters: {
             query?: never;
             header?: never;
@@ -1739,13 +1730,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Usage summary */
+            /** @description Subscription details */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CustomerMeUsageResponse"];
+                    "application/json": components["schemas"]["CustomerMeSubscriptionResponse"];
                 };
             };
             /** @description Unauthorized */
@@ -1762,7 +1753,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Failed to calculate usage */
+            /** @description Internal server error */
             500: {
                 headers: {
                     [name: string]: unknown;
