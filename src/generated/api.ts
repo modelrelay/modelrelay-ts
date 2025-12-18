@@ -268,7 +268,8 @@ export interface paths {
         /**
          * Get the authenticated customer's usage
          * @description Returns customer-visible usage metrics for the current billing window.
-         *     Does not include any developer-private pricing, budgets, or cost accounting.
+         *     Includes request/token counts and (for paid tiers) remaining subscription credits.
+         *     Does not include any developer-private budgets (e.g., internal tier spend caps).
          */
         get: operations["getCustomerMeUsage"];
         put?: never;
@@ -798,6 +799,11 @@ export interface components {
             requests: number;
             /** Format: int64 */
             tokens: number;
+            /**
+             * Format: int64
+             * @description Credits used in this day bucket (only for paid tiers)
+             */
+            credits_used_cents?: number;
         };
         /** @description Customer-visible usage metrics for the current billing window. */
         CustomerMeUsage: {
@@ -815,6 +821,28 @@ export interface components {
             requests: number;
             /** Format: int64 */
             tokens: number;
+            /**
+             * Format: int64
+             * @description Credits granted for this billing window (only for paid tiers)
+             */
+            credits_granted_cents?: number;
+            /**
+             * Format: int64
+             * @description Credits used so far in this billing window (only for paid tiers)
+             */
+            credits_used_cents?: number;
+            /**
+             * Format: int64
+             * @description Credits remaining in this billing window (only for paid tiers)
+             */
+            credits_remaining_cents?: number;
+            /**
+             * Format: float
+             * @description Percentage of granted credits used (only for paid tiers)
+             */
+            percentage_used?: number;
+            /** @description Whether remaining credits are low (only for paid tiers) */
+            low?: boolean;
             daily: components["schemas"]["CustomerUsagePoint"][];
         };
         CustomerMeUsageResponse: {
