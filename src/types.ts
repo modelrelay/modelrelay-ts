@@ -38,8 +38,6 @@ export type ProviderId = string & { readonly __brand: "ProviderId" };
  * The brand prevents accidental use of arbitrary strings where a model ID is expected.
  */
 export type ModelId = string & { readonly __brand: "ModelId" };
-/** @deprecated Use `ModelId` instead. */
-export type ModelID = ModelId;
 
 /**
  * Branded type for tier codes (e.g., "free", "pro", "enterprise").
@@ -206,54 +204,6 @@ export type ModelRelayOptions =
  * @deprecated Use ModelRelayOptions instead. This type allows empty configuration
  * which will fail at runtime.
  */
-export interface ModelRelayOptionsLegacy {
-	/**
-	 * API key (secret or publishable). Publishable keys are required for frontend token exchange.
-	 */
-	key?: ApiKey;
-	/**
-	 * Bearer token to call the API directly (server or frontend token).
-	 */
-	token?: string;
-	/**
-	 * Optional base URL override. Defaults to production API.
-	 */
-	baseUrl?: string;
-	fetch?: typeof fetch;
-	/**
-	 * Default customer metadata used when exchanging publishable keys for frontend tokens.
-	 */
-	customer?: FrontendCustomer;
-	/**
-	 * Optional client header override for telemetry.
-	 */
-	clientHeader?: string;
-	/**
-	 * Default connect timeout in milliseconds (applies to each attempt).
-	 */
-	connectTimeoutMs?: number;
-	/**
-	 * Default request timeout in milliseconds (non-streaming). Set to 0 to disable.
-	 */
-	timeoutMs?: number;
-	/**
-	 * Retry configuration applied to all requests (can be overridden per call). Set to `false` to disable retries.
-	 */
-	retry?: RetryConfig | false;
-	/**
-	 * Default HTTP headers applied to every request.
-	 */
-	defaultHeaders?: Record<string, string>;
-	/**
-	 * Optional metrics callbacks for latency/usage.
-	 */
-	metrics?: MetricsCallbacks;
-	/**
-	 * Optional trace/log hooks for request + stream lifecycle.
-	 */
-	trace?: TraceCallbacks;
-}
-
 export interface FrontendCustomer {
 	provider: string;
 	subject: string;
