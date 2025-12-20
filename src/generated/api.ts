@@ -462,6 +462,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{id}/webhooks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+            };
+            cookie?: never;
+        };
+        /** List project webhooks */
+        get: operations["listProjectWebhooks"];
+        put?: never;
+        /** Create a project webhook */
+        post: operations["createProjectWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{id}/webhooks/{webhook_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                webhook_id: components["parameters"]["WebhookID"];
+            };
+            cookie?: never;
+        };
+        /** Get a project webhook */
+        get: operations["getProjectWebhook"];
+        /** Update a project webhook */
+        put: operations["updateProjectWebhook"];
+        post?: never;
+        /** Delete a project webhook */
+        delete: operations["deleteProjectWebhook"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{id}/webhooks/{webhook_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                webhook_id: components["parameters"]["WebhookID"];
+            };
+            cookie?: never;
+        };
+        /** List webhook delivery events */
+        get: operations["listProjectWebhookEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/responses": {
         parameters: {
             query?: never;
@@ -1341,6 +1403,60 @@ export interface components {
             name: string;
             system_prompt: string;
         };
+        WebhookConfig: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            project_id?: string;
+            /** Format: uri */
+            endpoint_url?: string;
+            signing_secret?: string;
+            enabled?: boolean;
+            events?: ("customer.created" | "customer.updated" | "customer.deleted" | "usage.threshold_exceeded" | "request.completed" | "billing.subscription_changed")[];
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        WebhookConfigInput: {
+            /** Format: uri */
+            endpoint_url: string;
+            enabled?: boolean;
+            events: ("customer.created" | "customer.updated" | "customer.deleted" | "usage.threshold_exceeded" | "request.completed" | "billing.subscription_changed")[];
+        };
+        WebhookConfigUpdate: {
+            /** Format: uri */
+            endpoint_url: string;
+            enabled?: boolean;
+            events: ("customer.created" | "customer.updated" | "customer.deleted" | "usage.threshold_exceeded" | "request.completed" | "billing.subscription_changed")[];
+            rotate_secret?: boolean;
+        };
+        OutboundWebhookEvent: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            webhook_config_id?: string;
+            event_type?: string;
+            event_id?: string;
+            payload?: Record<string, never>;
+            status?: string;
+            /** Format: int32 */
+            attempt_count?: number;
+            /** Format: date-time */
+            next_attempt_at?: string;
+            /** Format: date-time */
+            last_attempt_at?: string;
+            /** Format: int32 */
+            response_status?: number;
+            response_body?: string;
+            /** Format: int32 */
+            latency_ms?: number;
+            error?: string;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
         /**
          * @description Type of workflow node.
          * @enum {string}
@@ -1352,6 +1468,7 @@ export interface components {
     responses: never;
     parameters: {
         ProjectID: string;
+        WebhookID: string;
     };
     requestBodies: never;
     headers: never;
@@ -2274,6 +2391,160 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    listProjectWebhooks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Webhook list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        webhooks?: components["schemas"]["WebhookConfig"][];
+                    };
+                };
+            };
+        };
+    };
+    createProjectWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebhookConfigInput"];
+            };
+        };
+        responses: {
+            /** @description Webhook created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        webhook?: components["schemas"]["WebhookConfig"];
+                    };
+                };
+            };
+        };
+    };
+    getProjectWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                webhook_id: components["parameters"]["WebhookID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Webhook details */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        webhook?: components["schemas"]["WebhookConfig"];
+                    };
+                };
+            };
+        };
+    };
+    updateProjectWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                webhook_id: components["parameters"]["WebhookID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebhookConfigUpdate"];
+            };
+        };
+        responses: {
+            /** @description Webhook updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        webhook?: components["schemas"]["WebhookConfig"];
+                    };
+                };
+            };
+        };
+    };
+    deleteProjectWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                webhook_id: components["parameters"]["WebhookID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Webhook deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listProjectWebhookEvents: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                webhook_id: components["parameters"]["WebhookID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Webhook events */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        events?: components["schemas"]["OutboundWebhookEvent"][];
+                    };
+                };
             };
         };
     };
