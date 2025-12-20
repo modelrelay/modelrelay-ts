@@ -759,6 +759,7 @@ export interface components {
              * @description Customer email address
              */
             email?: string;
+            /** @description Arbitrary customer metadata (max 10KB). Keys are limited to 40 characters. Values must be JSON scalars, arrays, or objects. Nesting depth limited to 5 levels. */
             metadata?: {
                 [key: string]: unknown;
             };
@@ -890,6 +891,7 @@ export interface components {
              * @description Customer email address
              */
             email?: string;
+            /** @description Arbitrary customer metadata (max 10KB). Keys are limited to 40 characters. Values must be JSON scalars, arrays, or objects. Nesting depth limited to 5 levels. */
             metadata?: {
                 [key: string]: unknown;
             };
