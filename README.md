@@ -113,7 +113,7 @@ const req = customer.responses
 const stream = await customer.responses.streamJSON<z.infer<typeof schema>>(req);
 for await (const event of stream) {
   if (event.type === "completion") {
-    console.log(event.value);
+    console.log(event.payload);
   }
 }
 ```

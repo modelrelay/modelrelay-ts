@@ -15,8 +15,8 @@ import { isRecord, normalizeUsage } from "./responses_normalize";
  *
  * Unified NDJSON format:
  * - `{"type":"start","request_id":"...","provider":"...","model":"..."}`
- * - `{"type":"update","payload":{"content":"..."},"complete_fields":[]}`
- * - `{"type":"completion","payload":{"content":"..."},"usage":{...},"stop_reason":"..."}`
+ * - `{"type":"update","delta":"...","complete_fields":[]}`
+ * - `{"type":"completion","content":"...","usage":{...},"stop_reason":"..."}`
  * - `{"type":"error","code":"...","message":"...","status":...}`
  */
 export function mapNDJSONResponseEvent(
@@ -95,8 +95,11 @@ export function mapNDJSONResponseEvent(
 	const stopReason = normalizeStopReason(parsed.stop_reason);
 
 	let textDelta: string | undefined;
-	if (isRecord(parsed.payload) && typeof parsed.payload.content === "string") {
-		textDelta = parsed.payload.content;
+	if (recordType === "update" && typeof parsed.delta === "string") {
+		textDelta = parsed.delta;
+	}
+	if (recordType === "completion" && typeof parsed.content === "string") {
+		textDelta = parsed.content;
 	}
 
 	const toolCallDelta = extractToolCallDelta(parsed, type);
@@ -226,4 +229,3 @@ function normalizeToolCalls(toolCalls: unknown[]): ToolCall[] {
 		};
 	});
 }
-

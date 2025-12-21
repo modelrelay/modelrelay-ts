@@ -47,6 +47,8 @@ import {
 } from "./responses_normalize";
 import { ResponsesStream, StructuredJSONStream } from "./responses_stream";
 
+const RESPONSES_STREAM_ACCEPT = 'application/x-ndjson; profile="responses-stream/v2"';
+
 export class ResponsesClient {
 	private readonly http: HTTPClient;
 	private readonly auth: AuthClient;
@@ -141,27 +143,20 @@ export class ResponsesClient {
 		const stream = await this.stream(req, options);
 		return {
 			async *[Symbol.asyncIterator](): AsyncIterator<string> {
-				let accumulated = "";
+				let sawDelta = false;
 				try {
 					for await (const evt of stream) {
 						if (
-							(evt.type === "message_delta" || evt.type === "message_stop") &&
+							evt.type === "message_delta" &&
 							evt.textDelta
 						) {
-							const next = evt.textDelta;
-							let delta = "";
-							if (next.startsWith(accumulated)) {
-								delta = next.slice(accumulated.length);
-								accumulated = next;
-							} else if (accumulated.startsWith(next)) {
-								accumulated = next;
-							} else {
-								delta = next;
-								accumulated += next;
-							}
-							if (delta) {
-								yield delta;
-							}
+							sawDelta = true;
+							yield evt.textDelta;
+						}
+						if (evt.type === "message_stop" && evt.textDelta && !sawDelta) {
+							// Providers that don't stream may only include content at completion.
+							sawDelta = true;
+							yield evt.textDelta;
 						}
 					}
 				} finally {
@@ -207,27 +202,19 @@ export class ResponsesClient {
 		const stream = await this.stream(req, args.options ?? options);
 		return {
 			async *[Symbol.asyncIterator](): AsyncIterator<string> {
-				let accumulated = "";
+				let sawDelta = false;
 				try {
 					for await (const evt of stream) {
 						if (
-							(evt.type === "message_delta" || evt.type === "message_stop") &&
+							evt.type === "message_delta" &&
 							evt.textDelta
 						) {
-							const next = evt.textDelta;
-							let delta = "";
-							if (next.startsWith(accumulated)) {
-								delta = next.slice(accumulated.length);
-								accumulated = next;
-							} else if (accumulated.startsWith(next)) {
-								accumulated = next;
-							} else {
-								delta = next;
-								accumulated += next;
-							}
-							if (delta) {
-								yield delta;
-							}
+							sawDelta = true;
+							yield evt.textDelta;
+						}
+						if (evt.type === "message_stop" && evt.textDelta && !sawDelta) {
+							sawDelta = true;
+							yield evt.textDelta;
 						}
 					}
 				} finally {
@@ -343,7 +330,7 @@ export class ResponsesClient {
 			headers,
 			apiKey: authHeaders.apiKey,
 			accessToken: authHeaders.accessToken,
-			accept: "application/x-ndjson",
+			accept: RESPONSES_STREAM_ACCEPT,
 			raw: true,
 			signal: merged.signal,
 			timeoutMs: merged.timeoutMs ?? 0,
@@ -437,7 +424,7 @@ export class ResponsesClient {
 			headers,
 			apiKey: authHeaders.apiKey,
 			accessToken: authHeaders.accessToken,
-			accept: "application/x-ndjson",
+			accept: RESPONSES_STREAM_ACCEPT,
 			raw: true,
 			signal: merged.signal,
 			timeoutMs: merged.timeoutMs ?? 0,

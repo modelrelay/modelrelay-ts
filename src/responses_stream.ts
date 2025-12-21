@@ -20,6 +20,7 @@ import type {
 } from "./types";
 import { consumeNDJSONBuffer, mapNDJSONResponseEvent } from "./responses_ndjson";
 import { isRecord, normalizeCitations } from "./responses_normalize";
+import { applyPatch, type Operation } from "fast-json-patch";
 
 export type StreamTimeoutsMs = {
 	ttftMs?: number;
@@ -184,6 +185,10 @@ export class ResponsesStream implements AsyncIterable<ResponseEvent> {
 			if (evt.type === "message_stop") {
 				stopReason = evt.stopReason;
 				usage = evt.usage;
+				if (evt.textDelta) {
+					// Completion may include full content for non-streaming providers.
+					text = evt.textDelta;
+				}
 				const raw = isRecord(evt.data) ? evt.data : {};
 				citations = normalizeCitations(raw.citations) ?? citations;
 			}
@@ -282,6 +287,7 @@ export class StructuredJSONStream<T>
 	private closed = false;
 	private sawTerminal = false;
 	private firstContentSeen = false;
+	private currentPayload: unknown = {};
 
 	constructor(
 		response: globalThis.Response,
@@ -450,9 +456,38 @@ export class StructuredJSONStream<T>
 		const completeFieldsArray = Array.isArray(parsed.complete_fields)
 			? parsed.complete_fields.filter((f) => typeof f === "string")
 			: [];
+
+		let payload: T;
+		if (rawType === "update") {
+			const patch = Array.isArray(parsed.patch) ? (parsed.patch as Operation[]) : null;
+			if (!patch) {
+				throw new TransportError("structured stream update missing patch", {
+					kind: "request",
+				});
+			}
+			try {
+				const applied = applyPatch(this.currentPayload as object, patch, false, true);
+				this.currentPayload = applied.newDocument;
+				payload = this.currentPayload as T;
+			} catch (err) {
+				throw new TransportError("failed to apply structured patch", {
+					kind: "request",
+					cause: err,
+				});
+			}
+		} else {
+			if (parsed.payload === undefined) {
+				throw new TransportError("structured stream completion missing payload", {
+					kind: "request",
+				});
+			}
+			this.currentPayload = parsed.payload as T;
+			payload = this.currentPayload as T;
+		}
+
 		return {
 			type: rawType,
-			payload: parsed.payload as T,
+			payload,
 			requestId: this.requestId,
 			completeFields: new Set<string>(completeFieldsArray),
 		};

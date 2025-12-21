@@ -163,10 +163,10 @@ describe("ModelRelay TypeScript SDK", () => {
 				return buildNDJSONResponse(
 					[
 						JSON.stringify({ type: "start", request_id: "resp-1", model: "gpt-4o" }),
-						JSON.stringify({ type: "update", payload: { content: "Hello" } }),
+						JSON.stringify({ type: "update", delta: "Hello" }),
+						JSON.stringify({ type: "update", delta: " world" }),
 						JSON.stringify({
 							type: "completion",
-							payload: { content: "Hello world" },
 							stop_reason: "end_turn",
 							usage: { input_tokens: 1, output_tokens: 2, total_tokens: 3 },
 						}),
@@ -200,7 +200,7 @@ describe("ModelRelay TypeScript SDK", () => {
 						JSON.stringify({ type: "start", request_id: "resp-1", model: "gpt-4o" }),
 						JSON.stringify({
 							type: "completion",
-							payload: { content: "Done" },
+							content: "Done",
 							stop_reason: "end_turn",
 							usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
 						}),
@@ -272,7 +272,7 @@ describe("ModelRelay TypeScript SDK", () => {
 							delayMs: 60,
 							line: JSON.stringify({
 								type: "completion",
-								payload: { content: "Done" },
+								content: "Done",
 								stop_reason: "end_turn",
 								usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
 							}),
@@ -320,7 +320,7 @@ describe("ModelRelay TypeScript SDK", () => {
 							delayMs: 60,
 							line: JSON.stringify({
 								type: "completion",
-								payload: { content: "Done" },
+								content: "Done",
 								stop_reason: "end_turn",
 								usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
 							}),
@@ -582,10 +582,9 @@ describe("ModelRelay TypeScript SDK", () => {
 				return buildNDJSONResponse(
 					[
 						JSON.stringify({ type: "start", request_id: "resp-1", model: "gpt-4o" }),
-						JSON.stringify({ type: "update", payload: { content: "Hello" } }),
+						JSON.stringify({ type: "update", delta: "Hello" }),
 						JSON.stringify({
 							type: "completion",
-							payload: { content: "Hello" },
 							stop_reason: "end_turn",
 							usage: { input_tokens: 1, output_tokens: 2, total_tokens: 3 },
 						}),
@@ -632,7 +631,9 @@ describe("ModelRelay TypeScript SDK", () => {
 			const path = String(url);
 			if (path.endsWith("/responses")) {
 				const headers = new Headers(init?.headers as HeadersInit);
-				expect(headers.get("Accept")).toBe("application/x-ndjson");
+				expect(headers.get("Accept")).toBe(
+					'application/x-ndjson; profile="responses-stream/v2"',
+				);
 				// biome-ignore lint/suspicious/noExplicitAny: init.body is untyped
 				const body = JSON.parse(String(init?.body as any));
 				expect(body.output_format).toBeDefined();
@@ -640,7 +641,7 @@ describe("ModelRelay TypeScript SDK", () => {
 					JSON.stringify({ type: "start", request_id: "items-1" }),
 					JSON.stringify({
 						type: "update",
-						payload: { items: [{ id: "one" }] },
+						patch: [{ op: "add", path: "/items", value: [{ id: "one" }] }],
 					}),
 					JSON.stringify({
 						type: "completion",
@@ -802,10 +803,15 @@ describe("ModelRelay TypeScript SDK", () => {
 			const path = String(url);
 			if (path.endsWith("/responses")) {
 				const headers = new Headers(init?.headers as HeadersInit);
-				expect(headers.get("Accept")).toBe("application/x-ndjson");
+				expect(headers.get("Accept")).toBe(
+					'application/x-ndjson; profile="responses-stream/v2"',
+				);
 				const lines = [
 					JSON.stringify({ type: "progress", payload: { ignored: true } }),
-					JSON.stringify({ type: "update", payload: { items: [{ id: "one" }] } }),
+					JSON.stringify({
+						type: "update",
+						patch: [{ op: "add", path: "/items", value: [{ id: "one" }] }],
+					}),
 					JSON.stringify({
 						type: "completion",
 						payload: { items: [{ id: "one" }, { id: "two" }] },
@@ -1192,9 +1198,9 @@ describe("ModelRelay TypeScript SDK", () => {
 					JSON.stringify({ type: "keepalive" }),
 					JSON.stringify({ type: "start", request_id: "resp-keepalive" }),
 					JSON.stringify({ type: "keepalive" }),
-					JSON.stringify({ type: "update", payload: { content: "hi" } }),
+					JSON.stringify({ type: "update", delta: "hi" }),
 					JSON.stringify({ type: "keepalive" }),
-					JSON.stringify({ type: "completion", payload: { content: "hi" } }),
+					JSON.stringify({ type: "completion" }),
 				]);
 			}
 			throw new Error(`unexpected URL: ${url}`);
@@ -1231,10 +1237,9 @@ describe("ModelRelay TypeScript SDK", () => {
 			if (path.endsWith("/responses")) {
 				return buildNDJSONResponse([
 					JSON.stringify({ type: "start", request_id: "resp-metrics" }),
-					JSON.stringify({ type: "update", payload: { content: "hi" } }),
+					JSON.stringify({ type: "update", delta: "hi" }),
 					JSON.stringify({
 						type: "completion",
-						payload: { content: "hi" },
 						usage: { input_tokens: 1, output_tokens: 2, total_tokens: 3 },
 					}),
 				]);

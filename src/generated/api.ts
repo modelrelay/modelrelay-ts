@@ -1042,9 +1042,25 @@ export interface components {
             /** @description Sources from web search results */
             citations?: components["schemas"]["Citation"][];
         };
+        JSONPatchOperation: {
+            /** @enum {string} */
+            op: "add" | "remove" | "replace" | "move" | "copy" | "test";
+            path: string;
+            from?: string;
+            value?: {
+                [key: string]: unknown;
+            };
+        };
         ResponsesStreamEnvelope: {
             /** @enum {string} */
             type: "start" | "update" | "completion" | "error" | "keepalive" | "tool_use_start" | "tool_use_delta" | "tool_use_stop";
+            /** @enum {string} */
+            stream_mode?: "text-delta" | "structured-patch";
+            /** @enum {string} */
+            stream_version?: "v2";
+            delta?: string;
+            content?: string;
+            patch?: components["schemas"]["JSONPatchOperation"][];
             payload?: {
                 [key: string]: unknown;
             };
