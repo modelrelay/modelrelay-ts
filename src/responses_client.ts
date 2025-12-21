@@ -96,14 +96,33 @@ export class ResponsesClient {
 		customerId: string,
 		system: string,
 		user: string,
+		options?: ResponsesRequestOptions,
+	): Promise<string>;
+	async textForCustomer(args: {
+		customerId: string;
+		system: string;
+		user: string;
+		options?: ResponsesRequestOptions;
+	}): Promise<string>;
+	async textForCustomer(
+		customerIdOrArgs: string | { customerId: string; system: string; user: string; options?: ResponsesRequestOptions },
+		system?: string,
+		user?: string,
 		options: ResponsesRequestOptions = {},
 	): Promise<string> {
+		const args =
+			typeof customerIdOrArgs === "string"
+				? { customerId: customerIdOrArgs, system, user, options }
+				: customerIdOrArgs;
+		if (args.system === undefined || args.user === undefined) {
+			throw new ConfigError("system and user are required");
+		}
 		const req = this.new()
-			.customerId(customerId)
-			.system(system)
-			.user(user)
+			.customerId(args.customerId)
+			.system(args.system)
+			.user(args.user)
 			.build();
-		const resp = await this.create(req, options);
+		const resp = await this.create(req, args.options ?? options);
 		return extractAssistantText(resp.output);
 	}
 
@@ -159,14 +178,33 @@ export class ResponsesClient {
 		customerId: string,
 		system: string,
 		user: string,
+		options?: ResponsesRequestOptions,
+	): Promise<AsyncIterable<string>>;
+	async streamTextDeltasForCustomer(args: {
+		customerId: string;
+		system: string;
+		user: string;
+		options?: ResponsesRequestOptions;
+	}): Promise<AsyncIterable<string>>;
+	async streamTextDeltasForCustomer(
+		customerIdOrArgs: string | { customerId: string; system: string; user: string; options?: ResponsesRequestOptions },
+		system?: string,
+		user?: string,
 		options: ResponsesRequestOptions = {},
 	): Promise<AsyncIterable<string>> {
+		const args =
+			typeof customerIdOrArgs === "string"
+				? { customerId: customerIdOrArgs, system, user, options }
+				: customerIdOrArgs;
+		if (args.system === undefined || args.user === undefined) {
+			throw new ConfigError("system and user are required");
+		}
 		const req = this.new()
-			.customerId(customerId)
-			.system(system)
-			.user(user)
+			.customerId(args.customerId)
+			.system(args.system)
+			.user(args.user)
 			.build();
-		const stream = await this.stream(req, options);
+		const stream = await this.stream(req, args.options ?? options);
 		return {
 			async *[Symbol.asyncIterator](): AsyncIterator<string> {
 				let accumulated = "";

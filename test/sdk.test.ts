@@ -35,6 +35,13 @@ describe("ModelRelay TypeScript SDK", () => {
 		expect(JSON.stringify(data ?? {})).not.toContain(rawSecret);
 	});
 
+	it("creates clients from api key helpers", () => {
+		expect(() => ModelRelay.fromSecretKey("mr_sk_helper")).not.toThrow();
+		expect(() => ModelRelay.fromPublishableKey("mr_pk_helper")).not.toThrow();
+		expect(() => ModelRelay.fromApiKey("mr_sk_helper")).not.toThrow();
+		expect(() => ModelRelay.fromApiKey("mr_pk_helper")).not.toThrow();
+	});
+
 	it("provides a chat-like text helper", async () => {
 		const fetchMock = vi.fn(async (url, init) => {
 			const path = String(url);
@@ -64,8 +71,7 @@ describe("ModelRelay TypeScript SDK", () => {
 			throw new Error(`unexpected URL: ${url}`);
 		});
 
-		const client = new ModelRelay({
-			key: parseSecretKey("mr_sk_text_helper"),
+		const client = ModelRelay.fromSecretKey("mr_sk_text_helper", {
 			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
 			fetch: fetchMock as any,
 		});
@@ -138,8 +144,16 @@ describe("ModelRelay TypeScript SDK", () => {
 			fetch: fetchMock as any,
 		});
 
-		const text = await client.responses.textForCustomer("cust-123", "sys", "user");
+		const text = await client.responses.textForCustomer({
+			customerId: "cust-123",
+			system: "sys",
+			user: "user",
+		});
 		expect(text).toBe("ok");
+
+		const customer = client.forCustomer("cust-123");
+		const textViaScoped = await customer.responses.text("sys", "user");
+		expect(textViaScoped).toBe("ok");
 	});
 
 	it("streams chat-like text deltas", async () => {

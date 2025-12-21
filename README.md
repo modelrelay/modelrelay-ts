@@ -56,9 +56,9 @@ const mr = new ModelRelay({ tokenProvider });
 ## Streaming Responses
 
 ```ts
-import { ModelRelay, parseSecretKey } from "@modelrelay/sdk";
+import { ModelRelay } from "@modelrelay/sdk";
 
-const mr = new ModelRelay({ key: parseSecretKey("mr_sk_...") });
+const mr = ModelRelay.fromSecretKey("mr_sk_...");
 
 const req = mr.responses
   .new()
@@ -73,6 +73,59 @@ for await (const event of stream) {
     process.stdout.write(event.textDelta);
   }
 }
+```
+
+## Customer-Scoped Convenience
+
+```ts
+import { ModelRelay } from "@modelrelay/sdk";
+
+const mr = ModelRelay.fromSecretKey("mr_sk_...");
+const customer = mr.forCustomer("cust_abc123");
+
+const text = await customer.responses.text(
+  "You are a helpful assistant.",
+  "Summarize Q4 results",
+);
+```
+
+You can also stream structured JSON for a specific customer:
+
+```ts
+import { z } from "zod";
+import { ModelRelay, outputFormatFromZod } from "@modelrelay/sdk";
+
+const mr = ModelRelay.fromSecretKey("mr_sk_...");
+const customer = mr.forCustomer("cust_abc123");
+
+const schema = z.object({
+  summary: z.string(),
+  highlights: z.array(z.string()),
+});
+
+const req = customer.responses
+  .new()
+  .outputFormat(outputFormatFromZod(schema))
+  .system("You are a helpful assistant.")
+  .user("Summarize Q4 results")
+  .build();
+
+const stream = await customer.responses.streamJSON<z.infer<typeof schema>>(req);
+for await (const event of stream) {
+  if (event.type === "completion") {
+    console.log(event.value);
+  }
+}
+```
+
+You can also pass a single object to `textForCustomer`:
+
+```ts
+const text = await mr.responses.textForCustomer({
+  customerId: "cust_abc123",
+  system: "You are a helpful assistant.",
+  user: "Summarize Q4 results",
+});
 ```
 
 ## Workflow Runs (workflow.v0)

@@ -174,8 +174,8 @@ export interface ModelRelayTokenProviderOptions extends ModelRelayBaseOptions {
  *
  * @example With API key (server-side)
  * ```typescript
- * import { ModelRelay, parseSecretKey } from "@modelrelay/sdk";
- * const client = new ModelRelay({ key: parseSecretKey("mr_sk_...") });
+ * import { ModelRelay } from "@modelrelay/sdk";
+ * const client = ModelRelay.fromSecretKey("mr_sk_...");
  * ```
  *
  * @example With access token (frontend or after token exchange)

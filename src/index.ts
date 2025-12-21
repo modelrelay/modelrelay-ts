@@ -7,11 +7,13 @@ import { TiersClient } from "./tiers";
 import { ModelsClient } from "./models";
 import { ConfigError } from "./errors";
 import { HTTPClient } from "./http";
-import { parseApiKey } from "./api_keys";
+import { parseApiKey, parsePublishableKey, parseSecretKey } from "./api_keys";
+import { CustomerResponsesClient, CustomerScopedModelRelay } from "./customer_scoped";
 import {
 	DEFAULT_BASE_URL,
 	DEFAULT_CLIENT_HEADER,
 	type ModelRelayOptions,
+	type ModelRelayKeyOptions,
 } from "./types";
 
 export class ModelRelay {
@@ -23,6 +25,27 @@ export class ModelRelay {
 	readonly tiers: TiersClient;
 	readonly models: ModelsClient;
 	readonly baseUrl: string;
+
+	static fromSecretKey(
+		secretKey: string,
+		options: Omit<ModelRelayKeyOptions, "key"> = {},
+	): ModelRelay {
+		return new ModelRelay({ ...options, key: parseSecretKey(secretKey) });
+	}
+
+	static fromPublishableKey(
+		publishableKey: string,
+		options: Omit<ModelRelayKeyOptions, "key"> = {},
+	): ModelRelay {
+		return new ModelRelay({ ...options, key: parsePublishableKey(publishableKey) });
+	}
+
+	static fromApiKey(
+		apiKey: string,
+		options: Omit<ModelRelayKeyOptions, "key"> = {},
+	): ModelRelay {
+		return new ModelRelay({ ...options, key: parseApiKey(apiKey) });
+	}
 
 	constructor(options: ModelRelayOptions) {
 		const cfg = options || {};
@@ -69,6 +92,10 @@ export class ModelRelay {
 		this.tiers = new TiersClient(http, { apiKey });
 		this.models = new ModelsClient(http);
 	}
+
+	forCustomer(customerId: string): CustomerScopedModelRelay {
+		return new CustomerScopedModelRelay(this.responses, customerId, this.baseUrl);
+	}
 }
 
 export {
@@ -85,6 +112,8 @@ export {
 	DEFAULT_BASE_URL,
 	createApiKeyAuth,
 	createAccessTokenAuth,
+	CustomerScopedModelRelay,
+	CustomerResponsesClient,
 };
 
 export type { AuthHeaders } from "./auth";
