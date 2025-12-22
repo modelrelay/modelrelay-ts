@@ -1355,7 +1355,7 @@ export interface components {
          * @description Workflow-critical model capability identifier.
          * @enum {string}
          */
-        ModelCapability: "tools" | "vision" | "web_search" | "computer_use" | "code_execution";
+        ModelCapability: "tools" | "vision" | "web_search" | "web_fetch" | "computer_use" | "code_execution";
         Model: {
             model_id: components["schemas"]["ModelId"];
             provider: components["schemas"]["ProviderId"];
