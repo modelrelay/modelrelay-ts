@@ -341,6 +341,44 @@ const session = await mr.customers.createCheckoutSession(customer.id, {
 const status = await mr.customers.getSubscription(customer.id);
 ```
 
+## Error Handling
+
+Errors are typed so callers can branch cleanly:
+
+```ts
+import {
+  ModelRelay,
+  APIError,
+  TransportError,
+  StreamTimeoutError,
+  ConfigError,
+} from "@modelrelay/sdk";
+
+try {
+  const response = await mr.responses.text(
+    "claude-sonnet-4-20250514",
+    "You are helpful.",
+    "Hello!"
+  );
+} catch (error) {
+  if (error instanceof APIError) {
+    console.log("Status:", error.status);
+    console.log("Code:", error.code);
+    console.log("Message:", error.message);
+
+    if (error.isRateLimit()) {
+      // Back off and retry
+    } else if (error.isUnauthorized()) {
+      // Re-authenticate
+    }
+  } else if (error instanceof TransportError) {
+    console.log("Network error:", error.message);
+  } else if (error instanceof StreamTimeoutError) {
+    console.log("Stream timeout:", error.streamKind); // "ttft" | "idle" | "total"
+  }
+}
+```
+
 ## Configuration
 
 ```ts
@@ -351,3 +389,14 @@ const mr = new ModelRelay({
   retry: { maxAttempts: 3 },
 });
 ```
+
+## Documentation
+
+For detailed guides and API reference, visit [docs.modelrelay.ai](https://docs.modelrelay.ai):
+
+- [First Request](https://docs.modelrelay.ai/getting-started/first-request) — Make your first API call
+- [Streaming](https://docs.modelrelay.ai/guides/streaming) — Real-time response streaming
+- [Structured Output](https://docs.modelrelay.ai/guides/structured-output) — Get typed JSON responses
+- [Tool Use](https://docs.modelrelay.ai/guides/tools) — Let models call functions
+- [Error Handling](https://docs.modelrelay.ai/guides/error-handling) — Handle errors gracefully
+- [Workflows](https://docs.modelrelay.ai/guides/workflows) — Multi-step AI pipelines
