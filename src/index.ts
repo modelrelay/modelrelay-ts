@@ -157,10 +157,10 @@ export type {
 	CustomerCreateRequest,
 	CustomerUpsertRequest,
 	CustomerClaimRequest,
-	CustomerMetadata,
+	CustomerSubscribeRequest,
 	CheckoutSession,
-	CheckoutSessionRequest,
-	SubscriptionStatus,
+	Subscription,
+	CustomerWithSubscription,
 } from "./customers";
 
 export type {

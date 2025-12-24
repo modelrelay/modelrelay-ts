@@ -23,11 +23,22 @@ function isValidEmail(email: string): boolean {
 export interface Customer {
 	id: string;
 	project_id: string;
-	tier_id: string;
-	tier_code?: TierCode;
 	external_id: string;
 	email: string;
 	metadata?: CustomerMetadata;
+	created_at: string;
+	updated_at: string;
+}
+
+/**
+ * Subscription represents billing state for a customer.
+ */
+export interface Subscription {
+	id: string;
+	project_id: string;
+	customer_id: string;
+	tier_id: string;
+	tier_code?: TierCode;
 	stripe_customer_id?: string;
 	stripe_subscription_id?: string;
 	subscription_status?: SubscriptionStatusKind;
@@ -38,10 +49,17 @@ export interface Customer {
 }
 
 /**
+ * CustomerWithSubscription bundles customer identity with optional subscription state.
+ */
+export interface CustomerWithSubscription {
+	customer: Customer;
+	subscription?: Subscription;
+}
+
+/**
  * Request to create a customer.
  */
 export interface CustomerCreateRequest {
-	tier_id: string;
 	external_id: string;
 	email: string;
 	metadata?: CustomerMetadata;
@@ -51,14 +69,13 @@ export interface CustomerCreateRequest {
  * Request to upsert a customer by external_id.
  */
 export interface CustomerUpsertRequest {
-	tier_id: string;
 	external_id: string;
 	email: string;
 	metadata?: CustomerMetadata;
 }
 
 /**
- * Request to link an end-user identity to a customer by email.
+ * Request to link a customer identity to a customer by email.
  * Used when a customer subscribes via Stripe Checkout (email only) and later authenticates to the app.
  */
 export interface CustomerClaimRequest {
@@ -68,9 +85,10 @@ export interface CustomerClaimRequest {
 }
 
 /**
- * Request to create a checkout session.
+ * Request to create a checkout session for a customer subscription.
  */
-export interface CheckoutSessionRequest {
+export interface CustomerSubscribeRequest {
+	tier_id: string;
 	success_url: string;
 	cancel_url: string;
 }
@@ -83,23 +101,16 @@ export interface CheckoutSession {
 	url: string;
 }
 
-/**
- * Subscription status response.
- */
-export interface SubscriptionStatus {
-	active: boolean;
-	subscription_id?: string;
-	status?: SubscriptionStatusKind;
-	current_period_start?: string;
-	current_period_end?: string;
-}
-
 interface CustomerListResponse {
-	customers: Customer[];
+	customers: CustomerWithSubscription[];
 }
 
 interface CustomerResponse {
-	customer: Customer;
+	customer: CustomerWithSubscription;
+}
+
+interface CustomerSubscriptionResponse {
+	subscription: Subscription;
 }
 
 interface CustomersClientConfig {
@@ -181,7 +192,9 @@ export class CustomersClient {
 	 *
 	 * This endpoint requires a customer bearer token. API keys are not accepted.
 	 */
-	async meSubscription(): Promise<components["schemas"]["CustomerMeSubscription"]> {
+	async meSubscription(): Promise<
+		components["schemas"]["CustomerMeSubscription"]
+	> {
 		const token = await this.customerAccessToken();
 		const response = await this.http.json<
 			components["schemas"]["CustomerMeSubscriptionResponse"]
@@ -217,7 +230,7 @@ export class CustomersClient {
 	/**
 	 * List all customers in the project.
 	 */
-	async list(): Promise<Customer[]> {
+	async list(): Promise<CustomerWithSubscription[]> {
 		this.ensureSecretKey();
 		const response = await this.http.json<CustomerListResponse>("/customers", {
 			method: "GET",
@@ -229,11 +242,8 @@ export class CustomersClient {
 	/**
 	 * Create a new customer in the project.
 	 */
-	async create(request: CustomerCreateRequest): Promise<Customer> {
+	async create(request: CustomerCreateRequest): Promise<CustomerWithSubscription> {
 		this.ensureSecretKey();
-		if (!request.tier_id?.trim()) {
-			throw new ConfigError("tier_id is required");
-		}
 		if (!request.external_id?.trim()) {
 			throw new ConfigError("external_id is required");
 		}
@@ -254,7 +264,7 @@ export class CustomersClient {
 	/**
 	 * Get a customer by ID.
 	 */
-	async get(customerId: string): Promise<Customer> {
+	async get(customerId: string): Promise<CustomerWithSubscription> {
 		this.ensureSecretKey();
 		if (!customerId?.trim()) {
 			throw new ConfigError("customerId is required");
@@ -274,11 +284,8 @@ export class CustomersClient {
 	 * If a customer with the given external_id exists, it is updated.
 	 * Otherwise, a new customer is created.
 	 */
-	async upsert(request: CustomerUpsertRequest): Promise<Customer> {
+	async upsert(request: CustomerUpsertRequest): Promise<CustomerWithSubscription> {
 		this.ensureSecretKey();
-		if (!request.tier_id?.trim()) {
-			throw new ConfigError("tier_id is required");
-		}
 		if (!request.external_id?.trim()) {
 			throw new ConfigError("external_id is required");
 		}
@@ -297,7 +304,7 @@ export class CustomersClient {
 	}
 
 	/**
-	 * Link an end-user identity (provider + subject) to a customer found by email.
+	 * Link a customer identity (provider + subject) to a customer found by email.
 	 * Used when a customer subscribes via Stripe Checkout (email only) and later authenticates to the app.
 	 *
 	 * This is a user self-service operation that works with publishable keys,
@@ -308,7 +315,7 @@ export class CustomersClient {
 	 * @throws {APIError} with status 404 if customer not found by email
 	 * @throws {APIError} with status 409 if the identity is already linked to a different customer
 	 */
-	async claim(request: CustomerClaimRequest): Promise<Customer> {
+	async claim(request: CustomerClaimRequest): Promise<void> {
 		this.ensureApiKey();
 		if (!request.email?.trim()) {
 			throw new ConfigError("email is required");
@@ -322,12 +329,11 @@ export class CustomersClient {
 		if (!request.subject?.trim()) {
 			throw new ConfigError("subject is required");
 		}
-		const response = await this.http.json<CustomerResponse>("/customers/claim", {
+		await this.http.request("/customers/claim", {
 			method: "POST",
 			body: request,
 			apiKey: this.apiKey,
 		});
-		return response.customer;
 	}
 
 	/**
@@ -345,21 +351,24 @@ export class CustomersClient {
 	}
 
 	/**
-	 * Create a Stripe checkout session for a customer.
+	 * Create a Stripe checkout session for a customer subscription.
 	 */
-	async createCheckoutSession(
+	async subscribe(
 		customerId: string,
-		request: CheckoutSessionRequest,
+		request: CustomerSubscribeRequest,
 	): Promise<CheckoutSession> {
 		this.ensureSecretKey();
 		if (!customerId?.trim()) {
 			throw new ConfigError("customerId is required");
 		}
+		if (!request.tier_id?.trim()) {
+			throw new ConfigError("tier_id is required");
+		}
 		if (!request.success_url?.trim() || !request.cancel_url?.trim()) {
 			throw new ConfigError("success_url and cancel_url are required");
 		}
 		return await this.http.json<CheckoutSession>(
-			`/customers/${customerId}/checkout`,
+			`/customers/${customerId}/subscribe`,
 			{
 				method: "POST",
 				body: request,
@@ -369,19 +378,34 @@ export class CustomersClient {
 	}
 
 	/**
-	 * Get the subscription status for a customer.
+	 * Get the subscription details for a customer.
 	 */
-	async getSubscription(customerId: string): Promise<SubscriptionStatus> {
+	async getSubscription(customerId: string): Promise<Subscription> {
 		this.ensureSecretKey();
 		if (!customerId?.trim()) {
 			throw new ConfigError("customerId is required");
 		}
-		return await this.http.json<SubscriptionStatus>(
+		const response = await this.http.json<CustomerSubscriptionResponse>(
 			`/customers/${customerId}/subscription`,
 			{
 				method: "GET",
 				apiKey: this.apiKey,
 			},
 		);
+		return response.subscription;
+	}
+
+	/**
+	 * Cancel a customer's subscription at period end.
+	 */
+	async unsubscribe(customerId: string): Promise<void> {
+		this.ensureSecretKey();
+		if (!customerId?.trim()) {
+			throw new ConfigError("customerId is required");
+		}
+		await this.http.request(`/customers/${customerId}/subscription`, {
+			method: "DELETE",
+			apiKey: this.apiKey,
+		});
 	}
 }

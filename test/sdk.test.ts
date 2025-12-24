@@ -114,7 +114,7 @@ describe("ModelRelay TypeScript SDK", () => {
 			const path = String(url);
 			if (path.endsWith("/responses")) {
 				const headers = new Headers(init?.headers as HeadersInit);
-				expect(headers.get("X-ModelRelay-Customer-Id")).toBe("cust-123");
+				expect(headers.get("X-ModelRelay-Customer-Id")).toBe("customer-123");
 				// biome-ignore lint/suspicious/noExplicitAny: init.body is untyped
 				const body = JSON.parse(String(init?.body as any));
 				expect(body.model).toBeUndefined();
@@ -145,13 +145,13 @@ describe("ModelRelay TypeScript SDK", () => {
 		});
 
 		const text = await client.responses.textForCustomer({
-			customerId: "cust-123",
+			customerId: "customer-123",
 			system: "sys",
 			user: "user",
 		});
 		expect(text).toBe("ok");
 
-		const customer = client.forCustomer("cust-123");
+		const customer = client.forCustomer("customer-123");
 		const textViaScoped = await customer.responses.text("sys", "user");
 		expect(textViaScoped).toBe("ok");
 	});
@@ -485,12 +485,12 @@ describe("ModelRelay TypeScript SDK", () => {
 				expect(body.id_token).toBe("idtok-1");
 				return new Response(
 					JSON.stringify({
-						token: "cust-token-1",
+						token: "customer-token-1",
 						expires_at: future,
 						expires_in: 3600,
 						token_type: "Bearer",
 						project_id: "proj_1",
-						customer_id: "cust_1",
+						customer_id: "customer_1",
 						customer_external_id: "ext_1",
 						tier_code: "free",
 					}),
@@ -510,8 +510,8 @@ describe("ModelRelay TypeScript SDK", () => {
 		const first = await provider.getToken();
 		const second = await provider.getToken();
 
-		expect(first).toBe("cust-token-1");
-		expect(second).toBe("cust-token-1");
+		expect(first).toBe("customer-token-1");
+		expect(second).toBe("customer-token-1");
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 		expect(idTokenProvider).toHaveBeenCalledTimes(1);
 	});

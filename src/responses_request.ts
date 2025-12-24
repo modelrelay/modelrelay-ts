@@ -43,7 +43,7 @@ export type ResponsesRequestOptions = {
 	requestId?: string;
 	/**
 	 * Optional customer id header for customer-attributed requests.
-	 * When set, the customer's tier determines the model and `model` can be omitted.
+	 * When set, the customer's subscription tier determines the model and `model` can be omitted.
 	 */
 	customerId?: string;
 	/**

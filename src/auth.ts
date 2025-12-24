@@ -209,25 +209,19 @@ export class AuthClient {
 	 * Mint a customer-scoped bearer token (requires a secret key).
 	 */
 	async customerToken(request: CustomerTokenRequest): Promise<CustomerToken> {
-		const projectId = request.projectId?.trim();
-		if (!projectId) {
-			throw new ConfigError("projectId is required");
-		}
 		const customerId = request.customerId?.trim();
 		const customerExternalId = request.customerExternalId?.trim();
 		if ((!!customerId && !!customerExternalId) || (!customerId && !customerExternalId)) {
 			throw new ConfigError("Provide exactly one of customerId or customerExternalId");
 		}
-		if (request.ttlSeconds !== undefined && request.ttlSeconds <= 0) {
-			throw new ConfigError("ttlSeconds must be positive when provided");
+		if (request.ttlSeconds !== undefined && request.ttlSeconds < 0) {
+			throw new ConfigError("ttlSeconds must be non-negative when provided");
 		}
 		if (!this.apiKey || this.apiKeyIsPublishable) {
 			throw new ConfigError("Secret API key is required to mint customer tokens");
 		}
 
-		const payload: Record<string, unknown> = {
-			project_id: projectId,
-		};
+		const payload: Record<string, unknown> = {};
 		if (customerId) {
 			payload.customer_id = customerId;
 		}

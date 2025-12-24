@@ -3,6 +3,7 @@ import { parseErrorResponse, StreamProtocolError } from "./errors";
 import type { HTTPClient } from "./http";
 import type { MetricsCallbacks, RequestContext, TraceCallbacks } from "./types";
 import { mergeMetrics, mergeTrace } from "./types";
+import { CUSTOMER_ID_HEADER } from "./responses_request";
 import {
 	RUNS_PATH,
 	RUN_EVENT_V0_SCHEMA_PATH,
@@ -98,6 +99,13 @@ export class RunsClient {
 		this.trace = cfg.trace;
 	}
 
+	private applyCustomerHeader(headers: Record<string, string>, customerId?: string): void {
+		const trimmed = customerId?.trim();
+		if (trimmed) {
+			headers[CUSTOMER_ID_HEADER] = trimmed;
+		}
+	}
+
 	async create(
 		spec: WorkflowSpecV0,
 		options: RunsCreateOptions = {},
@@ -107,6 +115,7 @@ export class RunsClient {
 		const authHeaders = await this.auth.authForResponses();
 
 		const headers: Record<string, string> = { ...(options.headers || {}) };
+		this.applyCustomerHeader(headers, options.customerId);
 		const payload: RunsCreateRequest = { spec };
 		if (options.idempotencyKey?.trim()) {
 			payload.options = { idempotency_key: options.idempotencyKey.trim() };
@@ -188,6 +197,8 @@ export class RunsClient {
 		const trace = mergeTrace(this.trace, options.trace);
 		const authHeaders = await this.auth.authForResponses();
 		const path = runByIdPath(runId);
+		const headers: Record<string, string> = { ...(options.headers || {}) };
+		this.applyCustomerHeader(headers, options.customerId);
 		const out = await this.http.json<
 			Omit<RunsGetResponse, "run_id" | "plan_hash" | "nodes"> & {
 				run_id: string;
@@ -198,7 +209,7 @@ export class RunsClient {
 			}
 		>(path, {
 			method: "GET",
-			headers: options.headers,
+			headers,
 			signal: options.signal,
 			apiKey: authHeaders.apiKey,
 			accessToken: authHeaders.accessToken,
@@ -236,6 +247,7 @@ export class RunsClient {
 		const path = params.toString() ? `${basePath}?${params}` : basePath;
 
 		const headers: Record<string, string> = { ...(options.headers || {}) };
+		this.applyCustomerHeader(headers, options.customerId);
 
 		const resp = await this.http.request(path, {
 			method: "GET",
@@ -300,9 +312,11 @@ export class RunsClient {
 		const authHeaders = await this.auth.authForResponses();
 
 		const path = runToolResultsPath(runId);
+		const headers: Record<string, string> = { ...(options.headers || {}) };
+		this.applyCustomerHeader(headers, options.customerId);
 		const out = await this.http.json<RunsToolResultsResponse>(path, {
 			method: "POST",
-			headers: options.headers,
+			headers,
 			body: req,
 			signal: options.signal,
 			apiKey: authHeaders.apiKey,
@@ -326,6 +340,8 @@ export class RunsClient {
 		const authHeaders = await this.auth.authForResponses();
 
 		const path = runPendingToolsPath(runId);
+		const headers: Record<string, string> = { ...(options.headers || {}) };
+		this.applyCustomerHeader(headers, options.customerId);
 		const out = await this.http.json<
 			Omit<RunsPendingToolsResponse, "run_id" | "pending"> & {
 				run_id: string;
@@ -338,7 +354,7 @@ export class RunsClient {
 			}
 		>(path, {
 			method: "GET",
-			headers: options.headers,
+			headers,
 			signal: options.signal,
 			apiKey: authHeaders.apiKey,
 			accessToken: authHeaders.accessToken,

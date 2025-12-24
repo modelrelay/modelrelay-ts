@@ -320,7 +320,6 @@ export interface FrontendToken {
 // =============================================================================
 
 export interface CustomerTokenRequest {
-	projectId: string;
 	customerId?: string;
 	customerExternalId?: string;
 	ttlSeconds?: number;

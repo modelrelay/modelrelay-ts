@@ -226,12 +226,90 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Link an end-user identity to a customer by email
+         * Link a customer identity to a customer by email
          * @description Used when a customer subscribes via Stripe Checkout (email only) and later authenticates to the app.
          *     Links (provider, subject) to the existing customer record found by email.
          */
         post: operations["claimCustomer"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/customers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List customers */
+        get: operations["listCustomers"];
+        /** Upsert a customer by external_id */
+        put: operations["upsertCustomer"];
+        /** Create a customer */
+        post: operations["createProjectCustomer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/customers/{customer_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        /** Get a customer */
+        get: operations["getCustomer"];
+        put?: never;
+        post?: never;
+        /** Delete a customer */
+        delete: operations["deleteProjectCustomer"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/customers/{customer_id}/subscribe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a customer subscription checkout session */
+        post: operations["subscribeCustomer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/customers/{customer_id}/subscription": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        /** Get a customer's subscription */
+        get: operations["getCustomerSubscription"];
+        put?: never;
+        post?: never;
+        /** Cancel a customer's subscription */
+        delete: operations["cancelCustomerSubscription"];
         options?: never;
         head?: never;
         patch?: never;
@@ -247,7 +325,7 @@ export interface paths {
         /**
          * Get the authenticated customer
          * @description Returns the current customer associated with the provided customer-scoped bearer token.
-         *     Includes the customer's tier and allowed models.
+         *     Includes the customer's subscription and tier when available.
          */
         get: operations["getCustomerMe"];
         put?: never;
@@ -432,8 +510,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Update a customer */
-        put: operations["updateCustomer"];
+        put?: never;
         post?: never;
         /** Delete a customer */
         delete: operations["deleteCustomer"];
@@ -802,9 +879,6 @@ export interface components {
             id?: string;
             /** Format: uuid */
             project_id?: string;
-            /** Format: uuid */
-            tier_id?: string;
-            tier_code?: components["schemas"]["TierCode"];
             /** @description External customer identifier from your system */
             external_id?: string;
             /**
@@ -813,6 +887,21 @@ export interface components {
              */
             email?: string;
             metadata?: components["schemas"]["CustomerMetadata"];
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        Subscription: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            project_id?: string;
+            /** Format: uuid */
+            customer_id?: string;
+            /** Format: uuid */
+            tier_id?: string;
+            tier_code?: components["schemas"]["TierCode"];
             /** @description Stripe customer ID */
             stripe_customer_id?: string;
             /** @description Stripe subscription ID */
@@ -833,8 +922,14 @@ export interface components {
             /** Format: date-time */
             updated_at?: string;
         };
-        CustomerMe: components["schemas"]["Customer"] & {
-            tier: components["schemas"]["Tier"];
+        CustomerWithSubscription: {
+            customer: components["schemas"]["Customer"];
+            subscription?: components["schemas"]["Subscription"];
+        };
+        CustomerMe: {
+            customer: components["schemas"]["Customer"];
+            subscription?: components["schemas"]["Subscription"];
+            tier?: components["schemas"]["Tier"];
         };
         CustomerMeResponse: {
             customer: components["schemas"]["CustomerMe"];
@@ -927,15 +1022,13 @@ export interface components {
             subscription: components["schemas"]["CustomerMeSubscription"];
         };
         CustomerCreate: {
-            /** Format: uuid */
-            tier_id: string;
             /** @description External customer identifier from your system */
             external_id: string;
             /**
              * Format: email
              * @description Customer email address
              */
-            email?: string;
+            email: string;
             metadata?: components["schemas"]["CustomerMetadata"];
         };
         /** @enum {string} */
@@ -1212,6 +1305,15 @@ export interface components {
             /** @description External customer identifier */
             customer_external_id: string;
             tier_code: components["schemas"]["TierCode"];
+        };
+        CheckoutSessionResponse: {
+            /** @description Stripe checkout session ID */
+            session_id: string;
+            /**
+             * Format: uri
+             * @description Checkout URL
+             */
+            url: string;
         };
         DeviceStartResponse: {
             /** @description Device code used for polling /auth/device/token */
@@ -1651,11 +1753,6 @@ export interface operations {
                 "application/json": {
                     /**
                      * Format: uuid
-                     * @description Project ID the customer belongs to
-                     */
-                    project_id: string;
-                    /**
-                     * Format: uuid
                      * @description Internal customer UUID (provide exactly one of customer_id or customer_external_id)
                      */
                     customer_id?: string;
@@ -1871,11 +1968,7 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": {
-                        customer?: components["schemas"]["Customer"];
-                    };
-                };
+                content?: never;
             };
             /** @description Customer not found */
             404: {
@@ -1886,6 +1979,233 @@ export interface operations {
             };
             /** @description Identity already linked to a different customer */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listCustomers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Customer list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        customers?: components["schemas"]["CustomerWithSubscription"][];
+                    };
+                };
+            };
+        };
+    };
+    upsertCustomer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerCreate"];
+            };
+        };
+        responses: {
+            /** @description Customer updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        customer?: components["schemas"]["CustomerWithSubscription"];
+                    };
+                };
+            };
+            /** @description Customer created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        customer?: components["schemas"]["CustomerWithSubscription"];
+                    };
+                };
+            };
+        };
+    };
+    createProjectCustomer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerCreate"];
+            };
+        };
+        responses: {
+            /** @description Customer created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        customer?: components["schemas"]["CustomerWithSubscription"];
+                    };
+                };
+            };
+        };
+    };
+    getCustomer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Customer */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        customer?: components["schemas"]["CustomerWithSubscription"];
+                    };
+                };
+            };
+            /** @description Customer not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deleteProjectCustomer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Customer deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Customer not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    subscribeCustomer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    tier_id: string;
+                    /** Format: uri */
+                    success_url: string;
+                    /** Format: uri */
+                    cancel_url: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Checkout session created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckoutSessionResponse"];
+                };
+            };
+        };
+    };
+    getCustomerSubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Subscription details */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        subscription?: components["schemas"]["Subscription"];
+                    };
+                };
+            };
+            /** @description Subscription not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    cancelCustomerSubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Subscription canceled */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2291,7 +2611,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        customers?: components["schemas"]["Customer"][];
+                        customers?: components["schemas"]["CustomerWithSubscription"][];
                     };
                 };
             };
@@ -2319,34 +2639,9 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        customer?: components["schemas"]["Customer"];
+                        customer?: components["schemas"]["CustomerWithSubscription"];
                     };
                 };
-            };
-        };
-    };
-    updateCustomer: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["ProjectID"];
-                customer_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CustomerCreate"];
-            };
-        };
-        responses: {
-            /** @description Customer updated */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };

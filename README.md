@@ -47,7 +47,7 @@ import { CustomerTokenProvider, ModelRelay } from "@modelrelay/sdk";
 
 const tokenProvider = new CustomerTokenProvider({
   secretKey: process.env.MODELRELAY_API_KEY!,
-  request: { projectId: "proj_...", customerId: "cust_..." },
+  request: { customerId: "customer_..." },
 });
 
 const mr = new ModelRelay({ tokenProvider });
@@ -81,7 +81,7 @@ for await (const event of stream) {
 import { ModelRelay } from "@modelrelay/sdk";
 
 const mr = ModelRelay.fromSecretKey("mr_sk_...");
-const customer = mr.forCustomer("cust_abc123");
+const customer = mr.forCustomer("customer_abc123");
 
 const text = await customer.responses.text(
   "You are a helpful assistant.",
@@ -96,7 +96,7 @@ import { z } from "zod";
 import { ModelRelay, outputFormatFromZod } from "@modelrelay/sdk";
 
 const mr = ModelRelay.fromSecretKey("mr_sk_...");
-const customer = mr.forCustomer("cust_abc123");
+const customer = mr.forCustomer("customer_abc123");
 
 const schema = z.object({
   summary: z.string(),
@@ -122,7 +122,7 @@ You can also pass a single object to `textForCustomer`:
 
 ```ts
 const text = await mr.responses.textForCustomer({
-  customerId: "cust_abc123",
+  customerId: "customer_abc123",
   system: "You are a helpful assistant.",
   user: "Summarize Q4 results",
 });
@@ -309,7 +309,7 @@ for await (const event of stream) {
 
 ## Customer-Attributed Requests
 
-For metered billing, use `customerId()` — the customer's tier determines the model and `model` can be omitted:
+For metered billing, use `customerId()` — the customer's subscription tier determines the model and `model` can be omitted:
 
 ```ts
 const req = mr.responses
@@ -326,19 +326,19 @@ const stream = await mr.responses.stream(req);
 ```ts
 // Create/update customer
 const customer = await mr.customers.upsert({
-  tier_id: "tier-uuid",
   external_id: "your-user-id",
   email: "user@example.com",
 });
 
 // Create checkout session for subscription billing
-const session = await mr.customers.createCheckoutSession(customer.id, {
+const session = await mr.customers.subscribe(customer.customer.id, {
+  tier_id: "tier-uuid",
   success_url: "https://myapp.com/success",
   cancel_url: "https://myapp.com/cancel",
 });
 
 // Check subscription status
-const status = await mr.customers.getSubscription(customer.id);
+const status = await mr.customers.getSubscription(customer.customer.id);
 ```
 
 ## Error Handling

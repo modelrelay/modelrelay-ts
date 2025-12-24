@@ -5,6 +5,7 @@ import { mergeMetrics, mergeTrace } from "./types";
 import { parsePlanHash } from "./runs_ids";
 import type { WorkflowSpecV0 } from "./runs_types";
 import { WORKFLOWS_COMPILE_PATH } from "./workflows_request";
+import { CUSTOMER_ID_HEADER } from "./responses_request";
 import { APIError, ModelRelayError, WorkflowValidationError, type WorkflowValidationIssue } from "./errors";
 
 export type WorkflowsCompileOptions = {
@@ -69,13 +70,18 @@ export class WorkflowsClient {
 		const metrics = mergeMetrics(this.metrics, options.metrics);
 		const trace = mergeTrace(this.trace, options.trace);
 		const authHeaders = await this.auth.authForResponses();
+		const headers: Record<string, string> = { ...(options.headers || {}) };
+		const customerId = options.customerId?.trim();
+		if (customerId) {
+			headers[CUSTOMER_ID_HEADER] = customerId;
+		}
 
 		try {
 			const out = await this.http.json<{ plan_json: unknown; plan_hash: string }>(
 				WORKFLOWS_COMPILE_PATH,
 				{
 					method: "POST",
-					headers: options.headers,
+					headers,
 					body: spec,
 					signal: options.signal,
 					apiKey: authHeaders.apiKey,
