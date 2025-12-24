@@ -321,26 +321,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/billing/webhooks": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Stripe webhook receiver
-         * @description Accepts subscription lifecycle events from Stripe.
-         */
-        post: operations["handleBillingWebhook"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/projects": {
         parameters: {
             query?: never;
@@ -2059,24 +2039,6 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ModelsResponse"];
                 };
-            };
-        };
-    };
-    handleBillingWebhook: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Event accepted */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };
