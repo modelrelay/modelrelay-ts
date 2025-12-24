@@ -66,6 +66,28 @@ export function asTierCode(value: string): TierCode {
 	return value as TierCode;
 }
 
+export const SubscriptionStatuses = {
+	Active: "active",
+	Trialing: "trialing",
+	PastDue: "past_due",
+	Canceled: "canceled",
+	Unpaid: "unpaid",
+	Incomplete: "incomplete",
+	IncompleteExpired: "incomplete_expired",
+	Paused: "paused",
+} as const;
+export type SubscriptionStatusKind =
+	(typeof SubscriptionStatuses)[keyof typeof SubscriptionStatuses];
+
+export type CustomerMetadataValue =
+	| string
+	| number
+	| boolean
+	| null
+	| CustomerMetadata
+	| CustomerMetadataValue[];
+export type CustomerMetadata = Record<string, CustomerMetadataValue>;
+
 export type PublishableKey = string & { readonly __brand: "PublishableKey" };
 export type SecretKey = string & { readonly __brand: "SecretKey" };
 export type ApiKey = PublishableKey | SecretKey;

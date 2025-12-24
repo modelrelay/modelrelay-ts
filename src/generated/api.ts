@@ -786,6 +786,17 @@ export interface components {
              */
             trial_days?: number;
         };
+        /** @description Typed customer metadata value (string, number, boolean, null, object, or array). */
+        CustomerMetadataValue: (string | number | boolean | components["schemas"]["CustomerMetadata"] | components["schemas"]["CustomerMetadataValue"][]) | null;
+        /** @description Arbitrary customer metadata (max 10KB). Keys are limited to 40 characters. Values must be JSON scalars, arrays, or objects. Nesting depth limited to 5 levels. */
+        CustomerMetadata: {
+            [key: string]: components["schemas"]["CustomerMetadataValue"];
+        };
+        /**
+         * @description Subscription status (active, past_due, canceled, etc.)
+         * @enum {string}
+         */
+        SubscriptionStatusKind: "active" | "trialing" | "past_due" | "canceled" | "unpaid" | "incomplete" | "incomplete_expired" | "paused";
         Customer: {
             /** Format: uuid */
             id?: string;
@@ -801,16 +812,12 @@ export interface components {
              * @description Customer email address
              */
             email?: string;
-            /** @description Arbitrary customer metadata (max 10KB). Keys are limited to 40 characters. Values must be JSON scalars, arrays, or objects. Nesting depth limited to 5 levels. */
-            metadata?: {
-                [key: string]: unknown;
-            };
+            metadata?: components["schemas"]["CustomerMetadata"];
             /** @description Stripe customer ID */
             stripe_customer_id?: string;
             /** @description Stripe subscription ID */
             stripe_subscription_id?: string;
-            /** @description Subscription status (active, past_due, canceled, etc.) */
-            subscription_status?: string;
+            subscription_status?: components["schemas"]["SubscriptionStatusKind"];
             /**
              * Format: date-time
              * @description Start of the current billing period
@@ -904,11 +911,7 @@ export interface components {
             /** @description Currency code for the price (e.g., 'usd') */
             price_currency?: string;
             price_interval?: components["schemas"]["PriceInterval"];
-            /**
-             * @description Subscription status (omitted when unknown)
-             * @enum {string}
-             */
-            subscription_status?: "active" | "trialing" | "canceled" | "past_due" | "unpaid" | "incomplete";
+            subscription_status?: components["schemas"]["SubscriptionStatusKind"];
             /**
              * Format: date-time
              * @description Start of the current billing period
@@ -933,10 +936,7 @@ export interface components {
              * @description Customer email address
              */
             email?: string;
-            /** @description Arbitrary customer metadata (max 10KB). Keys are limited to 40 characters. Values must be JSON scalars, arrays, or objects. Nesting depth limited to 5 levels. */
-            metadata?: {
-                [key: string]: unknown;
-            };
+            metadata?: components["schemas"]["CustomerMetadata"];
         };
         /** @enum {string} */
         MessageRole: "system" | "user" | "assistant" | "tool";
@@ -1255,8 +1255,7 @@ export interface components {
             active: boolean;
             /** @description Stripe subscription ID */
             subscription_id?: string;
-            /** @description Subscription status (active, past_due, canceled, etc.) */
-            status?: string;
+            status?: components["schemas"]["SubscriptionStatusKind"];
             /**
              * Format: date-time
              * @description Start of the current billing period

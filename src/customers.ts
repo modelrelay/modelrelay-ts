@@ -1,7 +1,13 @@
 import { ConfigError } from "./errors";
 import { isSecretKey, parseApiKey } from "./api_keys";
 import type { HTTPClient } from "./http";
-import type { ApiKey, TierCode, TokenProvider } from "./types";
+import type {
+	ApiKey,
+	CustomerMetadata,
+	SubscriptionStatusKind,
+	TierCode,
+	TokenProvider,
+} from "./types";
 import type { components } from "./generated/api";
 
 // Simple email validation regex - validates basic email format
@@ -10,11 +16,6 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function isValidEmail(email: string): boolean {
 	return EMAIL_REGEX.test(email);
 }
-
-/**
- * Customer metadata as an arbitrary key-value object.
- */
-export type CustomerMetadata = Record<string, unknown>;
 
 /**
  * Customer represents a customer in a ModelRelay project.
@@ -29,7 +30,7 @@ export interface Customer {
 	metadata?: CustomerMetadata;
 	stripe_customer_id?: string;
 	stripe_subscription_id?: string;
-	subscription_status?: string;
+	subscription_status?: SubscriptionStatusKind;
 	current_period_start?: string;
 	current_period_end?: string;
 	created_at: string;
@@ -88,7 +89,7 @@ export interface CheckoutSession {
 export interface SubscriptionStatus {
 	active: boolean;
 	subscription_id?: string;
-	status?: string;
+	status?: SubscriptionStatusKind;
 	current_period_start?: string;
 	current_period_end?: string;
 }
