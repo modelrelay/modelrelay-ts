@@ -16,6 +16,7 @@ import type {
 	TokenProvider,
 } from "./types";
 import type { ApiKey, PublishableKey } from "./types";
+import type { components } from "./generated/api";
 
 interface AuthConfig {
 	apiKey?: ApiKey;
@@ -28,6 +29,10 @@ export interface AuthHeaders {
 	apiKey?: ApiKey;
 	accessToken?: string;
 }
+
+type DeviceStartResponseAPI = components["schemas"]["DeviceStartResponse"];
+type DeviceTokenErrorAPI = components["schemas"]["DeviceTokenError"];
+type CustomerTokenResponseAPI = components["schemas"]["CustomerTokenResponse"];
 
 /**
  * Creates AuthHeaders with an API key.
@@ -347,14 +352,7 @@ export class AuthClient {
 		const queryString = params.toString();
 		const path = queryString ? `/auth/device/start?${queryString}` : "/auth/device/start";
 
-		const apiResp = await this.http.json<{
-			device_code: string;
-			user_code: string;
-			verification_uri: string;
-			verification_uri_complete?: string;
-			expires_in: number;
-			interval: number;
-		}>(path, {
+		const apiResp = await this.http.json<DeviceStartResponseAPI>(path, {
 			method: "POST",
 			apiKey: this.apiKey,
 		});
@@ -410,16 +408,7 @@ export class AuthClient {
 		}
 
 		try {
-			const apiResp = await this.http.json<{
-				token: string;
-				expires_at: string;
-				expires_in: number;
-				token_type: "Bearer";
-				project_id: string;
-				customer_id: string;
-				customer_external_id: string;
-				tier_code: string;
-			}>("/auth/device/token", {
+			const apiResp = await this.http.json<CustomerTokenResponseAPI>("/auth/device/token", {
 				method: "POST",
 				body: { device_code: deviceCode },
 				apiKey: this.apiKey,
@@ -431,7 +420,7 @@ export class AuthClient {
 					token: apiResp.token,
 					expiresAt: new Date(apiResp.expires_at),
 					expiresIn: apiResp.expires_in,
-					tokenType: apiResp.token_type,
+					tokenType: "Bearer",
 					projectId: apiResp.project_id,
 					customerId: apiResp.customer_id,
 					customerExternalId: apiResp.customer_external_id,
@@ -441,7 +430,7 @@ export class AuthClient {
 		} catch (err) {
 			// Handle 400 responses with device flow error codes
 			if (err instanceof APIError && err.status === 400) {
-				const data = err.data as { error?: string; error_description?: string; interval?: number } | undefined;
+				const data = err.data as DeviceTokenErrorAPI | undefined;
 				const errorCode = data?.error || err.code || "unknown";
 
 				if (errorCode === "authorization_pending" || errorCode === "slow_down") {
