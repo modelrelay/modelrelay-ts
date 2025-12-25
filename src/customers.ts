@@ -4,6 +4,7 @@ import type { HTTPClient } from "./http";
 import type {
 	ApiKey,
 	CustomerMetadata,
+	BillingProvider,
 	SubscriptionStatusKind,
 	TierCode,
 	TokenProvider,
@@ -39,8 +40,9 @@ export interface Subscription {
 	customer_id: string;
 	tier_id: string;
 	tier_code?: TierCode;
-	stripe_customer_id?: string;
-	stripe_subscription_id?: string;
+	billing_provider?: BillingProvider;
+	billing_customer_id?: string;
+	billing_subscription_id?: string;
 	subscription_status?: SubscriptionStatusKind;
 	current_period_start?: string;
 	current_period_end?: string;

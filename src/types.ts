@@ -79,6 +79,15 @@ export const SubscriptionStatuses = {
 export type SubscriptionStatusKind =
 	(typeof SubscriptionStatuses)[keyof typeof SubscriptionStatuses];
 
+export const BillingProviders = {
+	Stripe: "stripe",
+	Crypto: "crypto",
+	AppStore: "app_store",
+	External: "external",
+} as const;
+export type BillingProvider =
+	(typeof BillingProviders)[keyof typeof BillingProviders];
+
 export type CustomerMetadataValue =
 	| string
 	| number

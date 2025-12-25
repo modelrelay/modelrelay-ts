@@ -874,6 +874,11 @@ export interface components {
          * @enum {string}
          */
         SubscriptionStatusKind: "active" | "trialing" | "past_due" | "canceled" | "unpaid" | "incomplete" | "incomplete_expired" | "paused";
+        /**
+         * @description Billing provider backing the subscription.
+         * @enum {string}
+         */
+        BillingProvider: "stripe" | "crypto" | "app_store" | "external";
         Customer: {
             /** Format: uuid */
             id?: string;
@@ -902,10 +907,11 @@ export interface components {
             /** Format: uuid */
             tier_id?: string;
             tier_code?: components["schemas"]["TierCode"];
-            /** @description Stripe customer ID */
-            stripe_customer_id?: string;
-            /** @description Stripe subscription ID */
-            stripe_subscription_id?: string;
+            billing_provider?: components["schemas"]["BillingProvider"];
+            /** @description Billing customer ID from the provider */
+            billing_customer_id?: string;
+            /** @description Billing subscription ID from the provider */
+            billing_subscription_id?: string;
             subscription_status?: components["schemas"]["SubscriptionStatusKind"];
             /**
              * Format: date-time
