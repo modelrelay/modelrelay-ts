@@ -107,7 +107,7 @@ describe("LocalFSToolPack", () => {
 			expect(result.error).toContain("ENOENT");
 		});
 
-		it("truncates large files with marker", async () => {
+		it("returns error when file exceeds max_bytes", async () => {
 			const largeContent = "x".repeat(100_000);
 			await fs.writeFile(path.join(tempDir, "large.txt"), largeContent);
 
@@ -123,9 +123,8 @@ describe("LocalFSToolPack", () => {
 			);
 
 			const result = await registry.execute(call);
-			expect(result.error).toBeUndefined();
-			expect((result.result as string).length).toBeLessThan(2000);
-			expect(result.result).toContain("[truncated");
+			expect(result.error).toBeDefined();
+			expect(result.error).toContain("max_bytes");
 		});
 	});
 
@@ -219,7 +218,7 @@ describe("LocalFSToolPack", () => {
 			const content = result.result as string;
 			expect(content).toContain("a.txt");
 			expect(content).toContain("b.txt");
-			expect(content).toContain("subdir/");
+			expect(content).not.toContain("subdir/");
 		});
 
 		it("lists recursively", async () => {
@@ -274,8 +273,7 @@ describe("LocalFSToolPack", () => {
 			const result = await registry.execute(call);
 			const content = result.result as string;
 			const lines = content.trim().split("\n").filter(Boolean);
-			// Should have 3 files + truncation notice
-			expect(lines.length).toBeLessThanOrEqual(4);
+			expect(lines.length).toBeLessThanOrEqual(3);
 		});
 	});
 

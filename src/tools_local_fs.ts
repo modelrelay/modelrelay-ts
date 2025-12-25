@@ -275,12 +275,15 @@ export class LocalFSToolPack {
 		_args: unknown,
 		call: ToolCall,
 	): Promise<string> {
-		const args = this.parseArgs<FSReadFileArgs>(call, ["path"]);
+		const args = this.parseArgs<Record<string, unknown>>(call, ["path"]);
 		const func = call.function!;
 
+		const relPath = this.requireString(args, "path", call);
+		const requestedMax = this.optionalPositiveInt(args, "max_bytes", call);
+
 		let maxBytes = this.cfg.maxReadBytes;
-		if (args.max_bytes !== undefined) {
-			if (args.max_bytes > this.cfg.hardMaxReadBytes) {
+		if (requestedMax !== undefined) {
+			if (requestedMax > this.cfg.hardMaxReadBytes) {
 				throw new ToolArgumentError({
 					message: `max_bytes exceeds hard cap (${this.cfg.hardMaxReadBytes})`,
 					toolCallId: call.id,
@@ -288,67 +291,44 @@ export class LocalFSToolPack {
 					rawArguments: func.arguments,
 				});
 			}
-			if (args.max_bytes <= 0) {
-				throw new ToolArgumentError({
-					message: "max_bytes must be > 0",
-					toolCallId: call.id,
-					toolName: func.name,
-					rawArguments: func.arguments,
-				});
-			}
-			maxBytes = args.max_bytes;
+			maxBytes = requestedMax;
 		}
 
-		const absPath = await this.resolveAndValidatePath(args.path, call);
+		const absPath = await this.resolveAndValidatePath(relPath, call);
 
 		// Check if it's a file
 		const stat = await fs.stat(absPath);
 		if (stat.isDirectory()) {
-			throw new Error(`fs.read_file: path is a directory: ${args.path}`);
+			throw new Error(`fs.read_file: path is a directory: ${relPath}`);
 		}
 
-		// Read file (potentially partially for large files)
-		const shouldTruncate = stat.size > maxBytes;
-		let data: Buffer;
-
-		if (shouldTruncate) {
-			// Open and read only maxBytes
-			const fd = await fs.open(absPath, "r");
-			try {
-				data = Buffer.alloc(maxBytes);
-				await fd.read(data, 0, maxBytes, 0);
-			} finally {
-				await fd.close();
-			}
-		} else {
-			data = await fs.readFile(absPath);
+		if (stat.size > maxBytes) {
+			throw new Error(`fs.read_file: file exceeds max_bytes (${maxBytes})`);
 		}
+
+		const data = await fs.readFile(absPath);
 
 		// Validate UTF-8
 		if (!this.isValidUtf8(data)) {
-			throw new Error(`fs.read_file: file is not valid UTF-8: ${args.path}`);
+			throw new Error(`fs.read_file: file is not valid UTF-8: ${relPath}`);
 		}
 
-		let content = data.toString("utf-8");
-		if (shouldTruncate) {
-			content += `\n[truncated at ${maxBytes} bytes of ${stat.size}]`;
-		}
-
-		return content;
+		return data.toString("utf-8");
 	}
 
 	private async listFiles(
 		_args: unknown,
 		call: ToolCall,
 	): Promise<string> {
-		const args = this.parseArgs<FSListFilesArgs>(call, []);
+		const args = this.parseArgs<Record<string, unknown>>(call, []);
 		const func = call.function!;
 
-		const startPath = args.path?.trim() || ".";
+		const startPath = this.optionalString(args, "path", call)?.trim() || ".";
 
 		let maxEntries = this.cfg.maxListEntries;
-		if (args.max_entries !== undefined) {
-			if (args.max_entries > this.cfg.hardMaxListEntries) {
+		const requestedMax = this.optionalPositiveInt(args, "max_entries", call);
+		if (requestedMax !== undefined) {
+			if (requestedMax > this.cfg.hardMaxListEntries) {
 				throw new ToolArgumentError({
 					message: `max_entries exceeds hard cap (${this.cfg.hardMaxListEntries})`,
 					toolCallId: call.id,
@@ -356,15 +336,7 @@ export class LocalFSToolPack {
 					rawArguments: func.arguments,
 				});
 			}
-			if (args.max_entries <= 0) {
-				throw new ToolArgumentError({
-					message: "max_entries must be > 0",
-					toolCallId: call.id,
-					toolName: func.name,
-					rawArguments: func.arguments,
-				});
-			}
-			maxEntries = args.max_entries;
+			maxEntries = requestedMax;
 		}
 
 		const absPath = await this.resolveAndValidatePath(startPath, call);
@@ -394,9 +366,6 @@ export class LocalFSToolPack {
 				if (this.cfg.ignoreDirs.has(dirent.name)) {
 					return false; // Skip this directory
 				}
-				// Add directory marker
-				const relPath = path.relative(rootReal, filePath);
-				files.push(relPath.split(path.sep).join("/") + "/");
 				return true; // Continue into directory
 			}
 
@@ -417,14 +386,16 @@ export class LocalFSToolPack {
 		_args: unknown,
 		call: ToolCall,
 	): Promise<string> {
-		const args = this.parseArgs<FSSearchArgs>(call, ["query"]);
+		const args = this.parseArgs<Record<string, unknown>>(call, ["query"]);
 		const func = call.function!;
 
-		const startPath = args.path?.trim() || ".";
+		const query = this.requireString(args, "query", call);
+		const startPath = this.optionalString(args, "path", call)?.trim() || ".";
 
 		let maxMatches = this.cfg.maxSearchMatches;
-		if (args.max_matches !== undefined) {
-			if (args.max_matches > this.cfg.hardMaxSearchMatches) {
+		const requestedMax = this.optionalPositiveInt(args, "max_matches", call);
+		if (requestedMax !== undefined) {
+			if (requestedMax > this.cfg.hardMaxSearchMatches) {
 				throw new ToolArgumentError({
 					message: `max_matches exceeds hard cap (${this.cfg.hardMaxSearchMatches})`,
 					toolCallId: call.id,
@@ -432,15 +403,7 @@ export class LocalFSToolPack {
 					rawArguments: func.arguments,
 				});
 			}
-			if (args.max_matches <= 0) {
-				throw new ToolArgumentError({
-					message: "max_matches must be > 0",
-					toolCallId: call.id,
-					toolName: func.name,
-					rawArguments: func.arguments,
-				});
-			}
-			maxMatches = args.max_matches;
+			maxMatches = requestedMax;
 		}
 
 		const absPath = await this.resolveAndValidatePath(startPath, call);
@@ -450,12 +413,12 @@ export class LocalFSToolPack {
 		if (rgPath) {
 			return this.searchWithRipgrep(
 				rgPath,
-				args.query,
+				query,
 				absPath,
 				maxMatches,
 			);
 		}
-		return this.searchWithJS(args.query, absPath, maxMatches, call);
+		return this.searchWithJS(query, absPath, maxMatches, call);
 	}
 
 	// ========================================================================
@@ -798,6 +761,68 @@ export class LocalFSToolPack {
 		}
 
 		return args as T;
+	}
+
+	private toolArgumentError(call: ToolCall, message: string): never {
+		const func = call.function;
+		throw new ToolArgumentError({
+			message,
+			toolCallId: call.id,
+			toolName: func?.name ?? "",
+			rawArguments: func?.arguments ?? "",
+		});
+	}
+
+	private requireString(
+		args: Record<string, unknown>,
+		key: string,
+		call: ToolCall,
+	): string {
+		const value = args[key];
+		if (typeof value !== "string") {
+			this.toolArgumentError(call, `${key} must be a string`);
+		}
+		if (value.trim() === "") {
+			this.toolArgumentError(call, `${key} is required`);
+		}
+		return value;
+	}
+
+	private optionalString(
+		args: Record<string, unknown>,
+		key: string,
+		call: ToolCall,
+	): string | undefined {
+		const value = args[key];
+		if (value === undefined || value === null) {
+			return undefined;
+		}
+		if (typeof value !== "string") {
+			this.toolArgumentError(call, `${key} must be a string`);
+		}
+		const trimmed = value.trim();
+		if (trimmed === "") {
+			return undefined;
+		}
+		return value;
+	}
+
+	private optionalPositiveInt(
+		args: Record<string, unknown>,
+		key: string,
+		call: ToolCall,
+	): number | undefined {
+		const value = args[key];
+		if (value === undefined || value === null) {
+			return undefined;
+		}
+		if (typeof value !== "number" || !Number.isFinite(value) || !Number.isInteger(value)) {
+			this.toolArgumentError(call, `${key} must be an integer`);
+		}
+		if (value <= 0) {
+			this.toolArgumentError(call, `${key} must be > 0`);
+		}
+		return value;
 	}
 
 	private isValidUtf8(buffer: Buffer): boolean {

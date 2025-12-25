@@ -11,7 +11,7 @@ import type {
 	Response,
 } from "./types";
 import { ToolTypes, ToolChoiceTypes } from "./types";
-import { ConfigError } from "./errors";
+import { ConfigError, ToolArgumentError } from "./errors";
 
 // ============================================================================
 // Message Factory Functions
@@ -960,7 +960,8 @@ export class ToolRegistry {
 			};
 		} catch (err) {
 			// Check if this is a ToolArgsError (validation failure) - these are retryable
-			const isRetryable = err instanceof ToolArgsError;
+			const isRetryable =
+				err instanceof ToolArgsError || err instanceof ToolArgumentError;
 			const errorMessage =
 				err instanceof Error ? err.message : String(err);
 			return {
