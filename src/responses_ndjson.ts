@@ -104,6 +104,7 @@ export function mapNDJSONResponseEvent(
 
 	const toolCallDelta = extractToolCallDelta(parsed, type);
 	const toolCalls = extractToolCalls(parsed, type);
+	const toolResult = extractToolResult(parsed, type);
 
 	return {
 		type,
@@ -112,6 +113,7 @@ export function mapNDJSONResponseEvent(
 		textDelta,
 		toolCallDelta,
 		toolCalls,
+		toolResult,
 		responseId,
 		model,
 		stopReason,
@@ -199,6 +201,19 @@ function extractToolCalls(
 	}
 	if (payload.tool_call !== undefined) {
 		return normalizeToolCalls([payload.tool_call]);
+	}
+	return undefined;
+}
+
+function extractToolResult(
+	payload: Record<string, unknown>,
+	type: ResponseEventType,
+): unknown | undefined {
+	if (type !== "tool_use_stop") {
+		return undefined;
+	}
+	if ("tool_result" in payload) {
+		return payload.tool_result;
 	}
 	return undefined;
 }

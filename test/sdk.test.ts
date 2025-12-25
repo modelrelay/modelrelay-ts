@@ -1119,7 +1119,7 @@ describe("ModelRelay TypeScript SDK", () => {
 	});
 
 	it("streams tool use events in NDJSON format", async () => {
-		const events: Array<{ type: string; toolCallDelta?: unknown; toolCalls?: unknown }> = [];
+		const events: Array<{ type: string; toolCallDelta?: unknown; toolCalls?: unknown; toolResult?: unknown }> = [];
 
 		const fetchMock = vi.fn(async (url) => {
 			const path = String(url);
@@ -1141,6 +1141,7 @@ describe("ModelRelay TypeScript SDK", () => {
 					JSON.stringify({
 						type: "tool_use_stop",
 						tool_calls: [{ id: "call_1", type: "function", function: { name: "get_weather", arguments: '{"location":"NYC"}' } }],
+						tool_result: { ok: true },
 					}),
 					JSON.stringify({
 						type: "completion",
@@ -1170,6 +1171,7 @@ describe("ModelRelay TypeScript SDK", () => {
 				type: event.type,
 				toolCallDelta: event.toolCallDelta,
 				toolCalls: event.toolCalls,
+				toolResult: event.toolResult,
 			});
 		}
 
@@ -1181,6 +1183,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		expect(events[3]?.type).toBe("tool_use_delta");
 		expect(events[4]?.type).toBe("tool_use_stop");
 		expect(events[4]?.toolCalls).toBeDefined();
+		expect(events[4]?.toolResult).toBeDefined();
 		// biome-ignore lint/suspicious/noExplicitAny: toolCalls are untyped in this test
 		expect((events[4]?.toolCalls as any[])?.length).toBe(1);
 		expect(events[5]?.type).toBe("message_stop");

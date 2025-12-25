@@ -818,6 +818,8 @@ export interface ResponseEvent<T = unknown> {
 	toolCallDelta?: ToolCallDelta;
 	/** Completed tool calls when type is tool_use_stop or message_stop. */
 	toolCalls?: ToolCall[];
+	/** Tool result payload when type is tool_use_stop. */
+	toolResult?: unknown;
 	responseId?: string;
 	model?: ModelId;
 	stopReason?: StopReason;
