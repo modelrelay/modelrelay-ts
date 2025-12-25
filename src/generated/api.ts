@@ -615,6 +615,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/images/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate images from a text prompt
+         * @description Generate images using AI models. Returns URLs by default (requires storage configuration) or base64-encoded data when response_format is 'b64_json'.
+         */
+        post: operations["generateImage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/runs": {
         parameters: {
             query?: never;
@@ -1579,6 +1599,47 @@ export interface components {
         NodeTypeV0: "llm.responses" | "join.all" | "transform.json";
         /** @description Tier code identifier (e.g., free, pro, enterprise). */
         TierCode: string;
+        /** @description Request to generate images from a text prompt. */
+        ImageRequest: {
+            /** @description Image generation model ID (e.g., gemini-2.5-flash-image). Optional when using a customer token with a tier that defines a default model. */
+            model?: string;
+            /** @description Text description of the image to generate */
+            prompt: string;
+            response_format?: components["schemas"]["ImageResponseFormat"];
+        };
+        /**
+         * @description Output format for generated images.
+         * @default url
+         * @enum {string}
+         */
+        ImageResponseFormat: "url" | "b64_json";
+        /** @description Response containing generated images. */
+        ImageResponse: {
+            /** @description Unique identifier for this generation request */
+            id: string;
+            /** @description Model used for generation */
+            model: string;
+            /** @description Generated images */
+            data: components["schemas"]["ImageData"][];
+            usage: components["schemas"]["ImageUsage"];
+        };
+        /** @description A single generated image. */
+        ImageData: {
+            /** @description URL of the generated image (when response_format is 'url') */
+            url?: string;
+            /** @description Base64-encoded image data (when response_format is 'b64_json') */
+            b64_json?: string;
+            /** @description MIME type of the image (e.g., 'image/png', 'image/webp') */
+            mime_type?: string;
+        };
+        /** @description Usage statistics for image generation. */
+        ImageUsage: {
+            /**
+             * Format: int32
+             * @description Number of images generated
+             */
+            images: number;
+        };
     };
     responses: never;
     parameters: {
@@ -2882,6 +2943,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ResponsesBatchResponse"];
+                };
+            };
+        };
+    };
+    generateImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImageRequest"];
+            };
+        };
+        responses: {
+            /** @description Generated images */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImageResponse"];
                 };
             };
         };

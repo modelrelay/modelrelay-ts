@@ -842,6 +842,14 @@ export class BrowserToolPack {
 			type: "png",
 		});
 
+		// Check screenshot size limit
+		if (buffer.length > BrowserDefaults.MAX_SCREENSHOT_BYTES) {
+			throw new Error(
+				`Screenshot size (${buffer.length} bytes) exceeds maximum allowed ` +
+				`(${BrowserDefaults.MAX_SCREENSHOT_BYTES} bytes). Try capturing viewport only.`
+			);
+		}
+
 		// Return base64-encoded screenshot
 		const base64 = buffer.toString("base64");
 		return `data:image/png;base64,${base64}`;

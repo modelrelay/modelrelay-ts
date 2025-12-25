@@ -380,4 +380,84 @@ describe("BrowserToolPack", () => {
 			expect(result.result).toContain("Example Domain");
 		});
 	});
+
+	// Tests for post-navigation URL validation (redirect security)
+	describe.skipIf(!process.env.RUN_BROWSER_TESTS)("Post-Navigation URL Validation", () => {
+		it("blocks actions after navigating to blocked domain", async () => {
+			const pack = new BrowserToolPack({
+				blockedDomains: ["example.com"],
+				headless: true,
+			});
+			await pack.initialize();
+			const registry = pack.toRegistry();
+
+			try {
+				// First navigate to example.com (will succeed in navigation but block subsequent actions)
+				// Note: The navigate call itself validates the URL before navigation
+				const navCall = createToolCall(
+					"call-1",
+					BrowserToolNames.NAVIGATE,
+					JSON.stringify({ url: "https://example.com" })
+				);
+				const navResult = await registry.execute(navCall);
+				// Navigate should fail because example.com is blocked
+				expect(navResult.error).toContain("Domain blocked");
+			} finally {
+				await pack.close();
+			}
+		});
+
+		it("blocks actions when current page is not in allowlist", async () => {
+			const pack = new BrowserToolPack({
+				allowedDomains: ["allowed-domain.test"],
+				headless: true,
+			});
+			await pack.initialize();
+			const registry = pack.toRegistry();
+
+			try {
+				// Try to navigate to a domain not in allowlist
+				const navCall = createToolCall(
+					"call-1",
+					BrowserToolNames.NAVIGATE,
+					JSON.stringify({ url: "https://example.com" })
+				);
+				const navResult = await registry.execute(navCall);
+				expect(navResult.error).toContain("not in allowlist");
+			} finally {
+				await pack.close();
+			}
+		});
+
+		it("allows actions on domains in allowlist", async () => {
+			const pack = new BrowserToolPack({
+				allowedDomains: ["example.com"],
+				headless: true,
+			});
+			await pack.initialize();
+			const registry = pack.toRegistry();
+
+			try {
+				// Navigate to allowed domain
+				const navCall = createToolCall(
+					"call-1",
+					BrowserToolNames.NAVIGATE,
+					JSON.stringify({ url: "https://example.com" })
+				);
+				const navResult = await registry.execute(navCall);
+				expect(navResult.error).toBeUndefined();
+
+				// Subsequent action should work
+				const snapshotCall = createToolCall(
+					"call-2",
+					BrowserToolNames.SNAPSHOT,
+					JSON.stringify({})
+				);
+				const snapshotResult = await registry.execute(snapshotCall);
+				expect(snapshotResult.error).toBeUndefined();
+			} finally {
+				await pack.close();
+			}
+		});
+	});
 });

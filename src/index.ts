@@ -5,6 +5,7 @@ import { WorkflowsClient } from "./workflows_client";
 import { CustomersClient } from "./customers";
 import { TiersClient } from "./tiers";
 import { ModelsClient } from "./models";
+import { ImagesClient } from "./images";
 import { ConfigError } from "./errors";
 import { HTTPClient } from "./http";
 import { parseApiKey, parsePublishableKey, parseSecretKey } from "./api_keys";
@@ -20,6 +21,7 @@ export class ModelRelay {
 	readonly responses: ResponsesClient;
 	readonly runs: RunsClient;
 	readonly workflows: WorkflowsClient;
+	readonly images: ImagesClient;
 	readonly auth: AuthClient;
 	readonly customers: CustomersClient;
 	readonly tiers: TiersClient;
@@ -88,6 +90,7 @@ export class ModelRelay {
 			metrics: cfg.metrics,
 			trace: cfg.trace,
 		});
+		this.images = new ImagesClient(http, auth);
 		this.customers = new CustomersClient(http, { apiKey, accessToken, tokenProvider });
 		this.tiers = new TiersClient(http, { apiKey });
 		this.models = new ModelsClient(http);
@@ -105,6 +108,7 @@ export {
 	StructuredJSONStream,
 	RunsClient,
 	WorkflowsClient,
+	ImagesClient,
 	ConfigError,
 	CustomersClient,
 	TiersClient,
@@ -171,6 +175,14 @@ export type {
 } from "./tiers";
 
 export type { CatalogModel, ModelCapability, ProviderId } from "./models";
+
+export type {
+	ImageRequest,
+	ImageResponse,
+	ImageData,
+	ImageUsage,
+	ImageResponseFormat,
+} from "./images";
 
 export * from "./types";
 
