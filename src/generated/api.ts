@@ -950,6 +950,8 @@ export interface components {
             requests: number;
             /** Format: int64 */
             tokens: number;
+            /** Format: int64 */
+            images?: number;
             /**
              * Format: int64
              * @description Credits used in this day bucket (only for paid tiers)
@@ -972,6 +974,8 @@ export interface components {
             requests: number;
             /** Format: int64 */
             tokens: number;
+            /** Format: int64 */
+            images: number;
             /**
              * Format: int64
              * @description Credits granted for this billing window (only for paid tiers)

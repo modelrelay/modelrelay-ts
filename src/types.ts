@@ -460,6 +460,7 @@ export interface UsageSummary {
 	windowEnd?: Date | string;
 	limit?: number;
 	used?: number;
+	images?: number;
 	actionsLimit?: number;
 	actionsUsed?: number;
 	remaining?: number;
