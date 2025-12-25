@@ -6,6 +6,7 @@ import { CustomersClient } from "./customers";
 import { TiersClient } from "./tiers";
 import { ModelsClient } from "./models";
 import { ImagesClient } from "./images";
+import { SessionsClient } from "./sessions/client";
 import { ConfigError } from "./errors";
 import { HTTPClient } from "./http";
 import { parseApiKey, parsePublishableKey, parseSecretKey } from "./api_keys";
@@ -26,6 +27,7 @@ export class ModelRelay {
 	readonly customers: CustomersClient;
 	readonly tiers: TiersClient;
 	readonly models: ModelsClient;
+	readonly sessions: SessionsClient;
 	readonly baseUrl: string;
 
 	static fromSecretKey(
@@ -94,6 +96,7 @@ export class ModelRelay {
 		this.customers = new CustomersClient(http, { apiKey, accessToken, tokenProvider });
 		this.tiers = new TiersClient(http, { apiKey });
 		this.models = new ModelsClient(http);
+		this.sessions = new SessionsClient(this, http, auth);
 	}
 
 	forCustomer(customerId: string): CustomerScopedModelRelay {
@@ -109,6 +112,7 @@ export {
 	RunsClient,
 	WorkflowsClient,
 	ImagesClient,
+	SessionsClient,
 	ConfigError,
 	CustomersClient,
 	TiersClient,
@@ -289,6 +293,37 @@ export type {
 // Use: import { generated } from "@modelrelay/sdk"
 // Access: generated.components["schemas"]["ResponsesResponse"]
 export * as generated from "./generated";
+
+// Sessions - multi-turn conversation management
+export {
+	LocalSession,
+	createLocalSession,
+	MemorySessionStore,
+	createMemorySessionStore,
+	asSessionId,
+	generateSessionId,
+} from "./sessions";
+
+export type {
+	Session,
+	SessionId,
+	SessionType,
+	SessionMessage,
+	SessionArtifacts,
+	SessionRunOptions,
+	SessionRunResult,
+	SessionRunStatus,
+	SessionPendingToolCall,
+	SessionUsageSummary,
+	SessionStore,
+	SessionState,
+	LocalSessionOptions,
+	LocalSessionPersistence,
+	RemoteSessionOptions,
+	ListSessionsOptions,
+	ListSessionsResponse,
+	RemoteSessionInfo,
+} from "./sessions";
 
 function resolveBaseUrl(override?: string): string {
 	const base = override || DEFAULT_BASE_URL;

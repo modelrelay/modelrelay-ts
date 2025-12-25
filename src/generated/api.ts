@@ -706,6 +706,56 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List sessions
+         * @description Returns a paginated list of sessions for the project.
+         */
+        get: operations["listSessions"];
+        put?: never;
+        /**
+         * Create a new session
+         * @description Creates a new session for multi-turn conversation management. Sessions persist message history on the server for cross-device continuity.
+         */
+        post: operations["createSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Get session with messages
+         * @description Returns a session including its full message history.
+         */
+        get: operations["getSession"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a session
+         * @description Deletes a session and all its messages. Requires a secret API key (mr_sk_*).
+         */
+        delete: operations["deleteSession"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1639,6 +1689,96 @@ export interface components {
              * @description Number of images generated
              */
             images: number;
+        };
+        /** @description Request body for creating a session. */
+        SessionCreateRequest: {
+            /**
+             * Format: uuid
+             * @description Optional end user ID to associate with the session
+             */
+            end_user_id?: string;
+            /** @description Optional metadata for the session */
+            metadata?: {
+                [key: string]: unknown;
+            };
+        };
+        /** @description A session resource. */
+        SessionResponse: {
+            /**
+             * Format: uuid
+             * @description Session unique identifier
+             */
+            id: string;
+            /**
+             * Format: uuid
+             * @description Project the session belongs to
+             */
+            project_id: string;
+            /**
+             * Format: uuid
+             * @description End user associated with the session (if any)
+             */
+            end_user_id?: string;
+            /** @description Session metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /**
+             * Format: int64
+             * @description Number of messages in the session
+             */
+            message_count: number;
+            /**
+             * Format: date-time
+             * @description Session creation timestamp
+             */
+            created_at: string;
+            /**
+             * Format: date-time
+             * @description Session last update timestamp
+             */
+            updated_at: string;
+        };
+        /** @description A message within a session. */
+        SessionMessageResponse: {
+            /**
+             * Format: uuid
+             * @description Message unique identifier
+             */
+            id: string;
+            /**
+             * Format: int32
+             * @description Sequence number within the session
+             */
+            seq: number;
+            /** @description Message role (user, assistant, tool) */
+            role: string;
+            /** @description Message content parts */
+            content: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Format: uuid
+             * @description Run ID that generated this message (for assistant messages)
+             */
+            run_id?: string;
+            /**
+             * Format: date-time
+             * @description Message creation timestamp
+             */
+            created_at: string;
+        };
+        /** @description A session with its full message history. */
+        SessionWithMessagesResponse: components["schemas"]["SessionResponse"] & {
+            /** @description All messages in the session */
+            messages: components["schemas"]["SessionMessageResponse"][];
+        };
+        /** @description Paginated list of sessions. */
+        SessionListResponse: {
+            /** @description List of sessions */
+            sessions: components["schemas"]["SessionResponse"][];
+            /** @description Cursor for fetching the next page (if more results exist) */
+            next_cursor?: string;
         };
     };
     responses: never;
@@ -3060,6 +3200,141 @@ export interface operations {
                      */
                     "text/event-stream": string;
                 };
+            };
+        };
+    };
+    listSessions: {
+        parameters: {
+            query?: {
+                /** @description Maximum number of sessions to return */
+                limit?: number;
+                /** @description Number of sessions to skip */
+                offset?: number;
+                /** @description Filter sessions by end user ID */
+                end_user_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionListResponse"];
+                };
+            };
+            /** @description API key required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    createSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Session created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description API key required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session with messages */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionWithMessagesResponse"];
+                };
+            };
+            /** @description Session not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deleteSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Secret key required for deletion */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Session not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
