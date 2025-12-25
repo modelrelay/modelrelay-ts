@@ -1068,7 +1068,7 @@ export interface components {
         };
         Tool: {
             /** @enum {string} */
-            type: "function" | "web" | "x_search" | "code_execution";
+            type: "function" | "web" | "x_search" | "code_execution" | "image_generation";
             function?: {
                 name?: components["schemas"]["ToolName"];
                 description?: string;
@@ -1084,6 +1084,11 @@ export interface components {
             };
             code_execution?: {
                 [key: string]: unknown;
+            };
+            /** @description Configuration for server-side image generation tool */
+            image_generation?: {
+                /** @description Image generation model ID (e.g., gemini-2.5-flash-image) */
+                model: string;
             };
         };
         ToolChoice: {
@@ -1268,7 +1273,7 @@ export interface components {
         ToolCall: {
             id: components["schemas"]["ToolCallId"];
             /** @enum {string} */
-            type: "function" | "web" | "x_search" | "code_execution";
+            type: "function" | "web" | "x_search" | "code_execution" | "image_generation";
             function?: {
                 name?: components["schemas"]["ToolName"];
                 /** @description JSON string of function arguments */
