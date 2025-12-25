@@ -819,7 +819,7 @@ export class BrowserToolPack {
 			const scrollAmount =
 				amount === "half" ? height / 2 : height;
 			const delta = args.direction === "down" ? scrollAmount : -scrollAmount;
-			await this.page!.evaluate((d) => window.scrollBy(0, d), delta);
+			await this.page!.evaluate((d: number) => window.scrollBy(0, d), delta);
 		}
 
 		// Return updated tree after scroll

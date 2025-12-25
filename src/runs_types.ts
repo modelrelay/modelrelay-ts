@@ -1,4 +1,4 @@
-import { z } from "zod";
+import z from "zod";
 
 import { TransportError } from "./errors";
 import type { WireResponsesRequest } from "./responses_request";

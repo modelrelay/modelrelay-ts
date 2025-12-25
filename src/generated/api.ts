@@ -936,11 +936,9 @@ export interface components {
              */
             trial_days?: number;
         };
-        /** @description Typed customer metadata value (string, number, boolean, null, object, or array). */
-        CustomerMetadataValue: (string | number | boolean | components["schemas"]["CustomerMetadata"] | components["schemas"]["CustomerMetadataValue"][]) | null;
-        /** @description Arbitrary customer metadata (max 10KB). Keys are limited to 40 characters. Values must be JSON scalars, arrays, or objects. Nesting depth limited to 5 levels. */
+        /** @description Arbitrary customer metadata (max 10KB). Keys are limited to 40 characters. Values can be any JSON type. Nesting depth limited to 5 levels. */
         CustomerMetadata: {
-            [key: string]: components["schemas"]["CustomerMetadataValue"];
+            [key: string]: unknown;
         };
         /**
          * @description Subscription status (active, past_due, canceled, etc.)

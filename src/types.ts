@@ -88,14 +88,8 @@ export const BillingProviders = {
 export type BillingProvider =
 	(typeof BillingProviders)[keyof typeof BillingProviders];
 
-export type CustomerMetadataValue =
-	| string
-	| number
-	| boolean
-	| null
-	| CustomerMetadata
-	| CustomerMetadataValue[];
-export type CustomerMetadata = Record<string, CustomerMetadataValue>;
+/** Arbitrary customer metadata. Values can be any JSON type. */
+export type CustomerMetadata = Record<string, unknown>;
 
 export type PublishableKey = string & { readonly __brand: "PublishableKey" };
 export type SecretKey = string & { readonly __brand: "SecretKey" };
