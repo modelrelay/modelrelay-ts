@@ -1,6 +1,6 @@
 {
 	"name": "@modelrelay/sdk",
-	"version": "1.8.0",
+	"version": "1.9.0",
 	"description": "TypeScript SDK for the ModelRelay API",
 	"type": "module",
 	"main": "dist/index.cjs",
@@ -20,7 +20,7 @@
 		"dist"
 	],
 	"scripts": {
-		"build": "tsup src/index.ts --format esm,cjs --dts",
+		"build": "tsup src/index.ts --format esm,cjs --dts --external playwright",
 		"dev": "tsup src/index.ts --format esm,cjs --dts --watch",
 		"lint": "tsc --noEmit --project tsconfig.lint.json",
 		"test": "vitest run",
@@ -37,9 +37,18 @@
 	"dependencies": {
 		"fast-json-patch": "^3.1.1"
 	},
+	"peerDependencies": {
+		"playwright": ">=1.40.0"
+	},
+	"peerDependenciesMeta": {
+		"playwright": {
+			"optional": true
+		}
+	},
 	"devDependencies": {
 		"@types/node": "^25.0.3",
 		"openapi-typescript": "^7.4.4",
+		"playwright": "^1.49.0",
 		"tsup": "^8.2.4",
 		"typescript": "^5.6.3",
 		"vitest": "^2.1.4",

@@ -239,6 +239,17 @@ export {
 
 export type { LocalFSToolPackOptions } from "./tools_local_fs";
 
+// Browser automation tools (requires Playwright)
+export {
+	BrowserToolPack,
+	createBrowserToolPack,
+	createBrowserTools,
+	BrowserToolNames,
+	BrowserDefaults,
+} from "./tools_browser";
+
+export type { BrowserToolPackOptions } from "./tools_browser";
+
 // Tool runner for workflow client tools
 export { ToolRunner, createToolRunner } from "./tools_runner";
 
