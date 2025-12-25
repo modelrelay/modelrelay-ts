@@ -799,8 +799,9 @@ export interface components {
              */
             spend_limit_cents?: number;
             models?: components["schemas"]["TierModel"][];
-            /** @description Stripe price ID for this tier */
-            stripe_price_id?: string;
+            billing_provider?: components["schemas"]["BillingProvider"];
+            /** @description Billing provider price reference for this tier */
+            billing_price_ref?: string;
             /**
              * Format: uint64
              * @description Subscription price amount in cents
@@ -829,6 +830,7 @@ export interface components {
              */
             spend_limit_cents: number;
             models: components["schemas"]["TierModelCreate"][];
+            billing_provider?: components["schemas"]["BillingProvider"];
             /**
              * Format: uint64
              * @description Subscription price amount in cents (paid tiers)
@@ -851,6 +853,7 @@ export interface components {
              */
             spend_limit_cents: number;
             models?: components["schemas"]["TierModelCreate"][];
+            billing_provider?: components["schemas"]["BillingProvider"];
             /**
              * Format: uint64
              * @description Subscription price amount in cents (paid tiers)
@@ -875,7 +878,7 @@ export interface components {
          */
         SubscriptionStatusKind: "active" | "trialing" | "past_due" | "canceled" | "unpaid" | "incomplete" | "incomplete_expired" | "paused";
         /**
-         * @description Billing provider backing the subscription.
+         * @description Billing provider backing the subscription or tier.
          * @enum {string}
          */
         BillingProvider: "stripe" | "crypto" | "app_store" | "external";

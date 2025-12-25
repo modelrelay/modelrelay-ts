@@ -39,7 +39,8 @@ export interface Tier {
 	display_name: string;
 	spend_limit_cents: number;
 	models: TierModel[];
-	stripe_price_id?: string;
+	billing_provider?: components["schemas"]["BillingProvider"];
+	billing_price_ref?: string;
 	price_amount_cents?: number;
 	price_currency?: string;
 	price_interval?: PriceInterval;
@@ -59,7 +60,7 @@ export function defaultTierModelId(tier: Tier): ModelId | undefined {
 }
 
 /**
- * Request to create a tier checkout session (Stripe-first flow).
+ * Request to create a tier checkout session (checkout-first flow).
  * Stripe collects the customer's email during checkout.
  */
 export interface TierCheckoutRequest {
@@ -149,7 +150,7 @@ export class TiersClient {
 	 * Create a Stripe checkout session for a tier (Stripe-first flow).
 	 *
 	 * This enables users to subscribe before authenticating. Stripe collects
-	 * the customer's email during checkout. After checkout completes, an
+	 * the customer's email during checkout. After checkout completes, a
 	 * customer record is created with the email from Stripe. The customer
 	 * can later be linked to an identity via POST /customers/claim.
 	 *
