@@ -255,6 +255,54 @@ export class WorkflowValidationError extends ModelRelayError {
 	}
 }
 
+// ============================================================================
+// Tool Execution Errors
+// ============================================================================
+
+/**
+ * Error thrown when tool argument parsing or validation fails.
+ * Includes context for the model to retry with corrected arguments.
+ */
+export class ToolArgumentError extends ModelRelayError {
+	readonly toolCallId: string;
+	readonly toolName: string;
+	readonly rawArguments: string;
+
+	constructor(opts: {
+		message: string;
+		toolCallId: string;
+		toolName: string;
+		rawArguments: string;
+		cause?: unknown;
+	}) {
+		super(opts.message, {
+			category: "config",
+			status: 400,
+			cause: opts.cause,
+		});
+		this.toolCallId = opts.toolCallId;
+		this.toolName = opts.toolName;
+		this.rawArguments = opts.rawArguments;
+	}
+}
+
+/**
+ * Error thrown when a tool call tries to access a path outside the sandbox.
+ */
+export class PathEscapeError extends ModelRelayError {
+	readonly requestedPath: string;
+	readonly resolvedPath: string;
+
+	constructor(opts: { requestedPath: string; resolvedPath: string }) {
+		super(`path escapes sandbox: ${opts.requestedPath}`, {
+			category: "config",
+			status: 403,
+		});
+		this.requestedPath = opts.requestedPath;
+		this.resolvedPath = opts.resolvedPath;
+	}
+}
+
 // Package-level helper functions for checking error types.
 
 /**
