@@ -294,6 +294,11 @@ export type {
 // Access: generated.components["schemas"]["ResponsesResponse"]
 export * as generated from "./generated";
 
+// Workflow types with clean naming (no Workflow prefix)
+// Use: import { workflow } from "@modelrelay/sdk"
+// Access: workflow.SpecV0, workflow.NodeTypes.LLMResponses, etc.
+export * as workflow from "./workflow";
+
 // Sessions - multi-turn conversation management
 export {
 	LocalSession,
