@@ -16,6 +16,17 @@ import type {
 } from "./runs_types";
 import { WorkflowKinds, WorkflowNodeTypes } from "./runs_types";
 
+/**
+ * Semantic JSON pointer constants for LLM responses nodes.
+ * These eliminate magic strings and make bindings self-documenting.
+ */
+
+/** JSON pointer to extract text content from an LLM response output. */
+export const LLM_TEXT_OUTPUT = "/output/0/content/0/text" as const;
+
+/** JSON pointer to inject text into the user message of an LLM request. */
+export const LLM_USER_MESSAGE_TEXT = "/request/input/1/content/0/text" as const;
+
 export type TransformJSONValueV0 = { from: NodeId; pointer?: string };
 
 export function transformJSONValue(from: NodeId, pointer?: string): TransformJSONValueV0 {
@@ -290,6 +301,14 @@ export class Workflow {
 	}
 
 	/**
+	 * Add an output reference extracting text content from an LLM response.
+	 * This is a convenience method that uses the LLM_TEXT_OUTPUT pointer.
+	 */
+	outputText(name: OutputName, from: NodeId): Workflow {
+		return this.output(name, from, LLM_TEXT_OUTPUT);
+	}
+
+	/**
 	 * Explicitly add an edge between nodes.
 	 * Note: edges are automatically inferred from bindings, so this is rarely needed.
 	 */
@@ -408,12 +427,21 @@ export class LLMNodeBuilder {
 	}
 
 	/**
+	 * Add a binding from another LLM node's text output to this node's user message.
+	 * This is the most common binding pattern: LLM text → user message with json_string encoding.
+	 * The edge from the source node is automatically inferred.
+	 */
+	bindTextFrom(from: NodeId): LLMNodeBuilder {
+		return this.bindFromTo(from, LLM_TEXT_OUTPUT, LLM_USER_MESSAGE_TEXT, "json_string");
+	}
+
+	/**
 	 * Add a binding from another node's output to this node's user message text.
-	 * Uses json_string encoding and binds to /request/input/1/content/0/text.
+	 * Use bindTextFrom for the common case of binding LLM text output.
 	 * The edge from the source node is automatically inferred.
 	 */
 	bindFrom(from: NodeId, pointer?: string): LLMNodeBuilder {
-		return this.bindFromTo(from, pointer, "/request/input/1/content/0/text", "json_string");
+		return this.bindFromTo(from, pointer, LLM_USER_MESSAGE_TEXT, "json_string");
 	}
 
 	/**
@@ -480,6 +508,10 @@ export class LLMNodeBuilder {
 
 	output(name: OutputName, from: NodeId, pointer?: string): Workflow {
 		return this.workflow.output(name, from, pointer);
+	}
+
+	outputText(name: OutputName, from: NodeId): Workflow {
+		return this.workflow.outputText(name, from);
 	}
 
 	execution(exec: WorkflowSpecV0["execution"]): Workflow {
