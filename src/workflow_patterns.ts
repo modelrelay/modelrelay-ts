@@ -578,6 +578,25 @@ export class MapReduceBuilder {
 	}
 
 	/**
+	 * Adds a mapper item to the workflow.
+	 * Each item becomes a separate LLM node that runs in parallel.
+	 */
+	item(id: NodeId | string, request: WireResponsesRequest | ResponsesRequest): MapReduceBuilder {
+		return this.with({
+			items: [...this.state.items, { id: id as NodeId, request: wireRequest(request), stream: false }],
+		});
+	}
+
+	/**
+	 * Adds a mapper item with streaming enabled.
+	 */
+	itemWithStream(id: NodeId | string, request: WireResponsesRequest | ResponsesRequest): MapReduceBuilder {
+		return this.with({
+			items: [...this.state.items, { id: id as NodeId, request: wireRequest(request), stream: true }],
+		});
+	}
+
+	/**
 	 * Sets the workflow execution configuration.
 	 */
 	execution(exec: WorkflowSpecV0["execution"]): MapReduceBuilder {
@@ -719,26 +738,20 @@ export class MapReduceBuilder {
  * by a reducer node.
  *
  * @param name - Workflow name
- * @param items - Array of MapItem configurations
+ * @param items - Optional array of MapItem configurations (can also use .item() builder)
  * @returns A MapReduceBuilder for further configuration
  *
  * @example
  * ```typescript
- * // Build items with their individual prompts
- * const items = documents.map((doc, i) =>
- *   MapItem(`doc_${i}`, {
- *     model: 'claude-sonnet-4-20250514',
- *     input: [{ type: 'message', role: 'user', content: [{ type: 'text', text: `Summarize: ${doc}` }] }],
- *   })
- * );
- *
- * // Build the MapReduce workflow
- * const spec = MapReduce('summarize-docs', items)
+ * // Fluent builder pattern (preferred)
+ * const spec = mapReduce('summarize-docs')
+ *   .item('doc1', doc1Req)
+ *   .item('doc2', doc2Req)
  *   .reduce('combine', combineReq)
- *   .output('result', 'combine')
+ *   .output(parseOutputName('result'), 'combine')
  *   .build();
  * ```
  */
-export function MapReduce(name: string, items: readonly MapItemConfig[]): MapReduceBuilder {
+export function MapReduce(name: string, items: readonly MapItemConfig[] = []): MapReduceBuilder {
 	return MapReduceBuilder.create(name, items);
 }

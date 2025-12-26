@@ -128,89 +128,84 @@ const text = await mr.responses.textForCustomer({
 });
 ```
 
-## Workflow Runs (workflow.v0)
+## Workflows
+
+High-level helpers for common workflow patterns:
+
+### Chain (Sequential)
+
+Sequential LLM calls where each step's output feeds the next step's input:
 
 ```ts
-import {
-  ModelRelay,
-  type LLMResponsesBindingV0,
-  parseNodeId,
-  parseOutputName,
-  parseSecretKey,
-  workflowV0,
-} from "@modelrelay/sdk";
+import { chain, llmStep } from "@modelrelay/sdk";
 
-const mr = new ModelRelay({ key: parseSecretKey("mr_sk_...") });
-
-const spec = workflowV0()
-  .name("multi_agent_v0_example")
-  .execution({ max_parallelism: 3, node_timeout_ms: 20_000, run_timeout_ms: 30_000 })
-  .llmResponses(parseNodeId("agent_a"), {
-    model: "claude-sonnet-4-20250514",
-    input: [
-      { type: "message", role: "system", content: [{ type: "text", text: "You are Agent A." }] },
-      { type: "message", role: "user", content: [{ type: "text", text: "Write 3 ideas for a landing page." }] },
-    ],
-  })
-  .llmResponses(parseNodeId("agent_b"), {
-    model: "claude-sonnet-4-20250514",
-    input: [
-      { type: "message", role: "system", content: [{ type: "text", text: "You are Agent B." }] },
-      { type: "message", role: "user", content: [{ type: "text", text: "Write 3 objections a user might have." }] },
-    ],
-  })
-  .llmResponses(parseNodeId("agent_c"), {
-    model: "claude-sonnet-4-20250514",
-    input: [
-      { type: "message", role: "system", content: [{ type: "text", text: "You are Agent C." }] },
-      { type: "message", role: "user", content: [{ type: "text", text: "Write 3 alternative headlines." }] },
-    ],
-  })
-  .joinAll(parseNodeId("join"))
-  .llmResponses(
-    parseNodeId("aggregate"),
-    {
-      model: "claude-sonnet-4-20250514",
-      input: [
-        {
-          type: "message",
-          role: "system",
-          content: [{ type: "text", text: "Synthesize the best answer from the following agent outputs (JSON)." }],
-        },
-        { type: "message", role: "user", content: [{ type: "text", text: "" }] }, // overwritten by bindings
-      ],
-    },
-    {
-      // Bind the join output into the aggregator prompt (fan-in).
-      bindings: [
-        {
-          from: parseNodeId("join"),
-          to: "/input/1/content/0/text",
-          encoding: "json_string",
-        } satisfies LLMResponsesBindingV0,
-      ],
-    },
-  )
-  .edge(parseNodeId("agent_a"), parseNodeId("join"))
-  .edge(parseNodeId("agent_b"), parseNodeId("join"))
-  .edge(parseNodeId("agent_c"), parseNodeId("join"))
-  .edge(parseNodeId("join"), parseNodeId("aggregate"))
-  .output(parseOutputName("result"), parseNodeId("aggregate"))
+const summarizeReq = mr.responses
+  .new()
+  .model("claude-sonnet-4-20250514")
+  .system("Summarize the input concisely.")
+  .user("The quick brown fox...")
   .build();
 
-const { run_id } = await mr.runs.create(spec);
+const translateReq = mr.responses
+  .new()
+  .model("claude-sonnet-4-20250514")
+  .system("Translate the input to French.")
+  .user("") // Bound from previous step
+  .build();
 
-const events = await mr.runs.events(run_id);
-for await (const ev of events) {
-  if (ev.type === "run_completed") {
-    const status = await mr.runs.get(run_id);
-    console.log("outputs:", status.outputs);
-    console.log("cost_summary:", status.cost_summary);
-  }
-}
+const spec = chain("summarize-translate")
+  .step(llmStep("summarize", summarizeReq))
+  .step(llmStep("translate", translateReq).withStream())
+  .outputLast("result")
+  .build();
 ```
 
-See the full example in `sdk/ts/examples/workflows_multi_agent.ts`.
+### Parallel (Fan-out with Aggregation)
+
+Concurrent LLM calls with optional aggregation:
+
+```ts
+import { parallel, llmStep } from "@modelrelay/sdk";
+
+const gpt4Req = mr.responses.new().model("gpt-4.1").user("Analyze this...").build();
+const claudeReq = mr.responses.new().model("claude-sonnet-4-20250514").user("Analyze this...").build();
+const synthesizeReq = mr.responses
+  .new()
+  .model("claude-sonnet-4-20250514")
+  .system("Synthesize the analyses into a unified view.")
+  .user("") // Bound from join output
+  .build();
+
+const spec = parallel("multi-model-compare")
+  .step(llmStep("gpt4", gpt4Req))
+  .step(llmStep("claude", claudeReq))
+  .aggregate("synthesize", synthesizeReq)
+  .output("result", "synthesize")
+  .build();
+```
+
+### MapReduce (Parallel Map with Reduce)
+
+Process items in parallel, then combine results:
+
+```ts
+import { mapReduce } from "@modelrelay/sdk";
+
+const combineReq = mr.responses
+  .new()
+  .model("claude-sonnet-4-20250514")
+  .system("Combine summaries into a cohesive overview.")
+  .user("") // Bound from join output
+  .build();
+
+const spec = mapReduce("summarize-docs")
+  .item("doc1", doc1Req)
+  .item("doc2", doc2Req)
+  .item("doc3", doc3Req)
+  .reduce("combine", combineReq)
+  .output("result", "combine")
+  .build();
+```
 
 ## Chat-Like Text Helpers
 
