@@ -1675,6 +1675,11 @@ export interface components {
             model?: string;
             /** @description Text description of the image to generate */
             prompt: string;
+            /**
+             * @description Number of images to generate (1-10, default 1)
+             * @default 1
+             */
+            n: number;
             response_format?: components["schemas"]["ImageResponseFormat"];
         };
         /**
