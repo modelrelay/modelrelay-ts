@@ -18,14 +18,17 @@ import { WorkflowKinds, WorkflowNodeTypes } from "./runs_types";
 
 /**
  * Semantic JSON pointer constants for LLM responses nodes.
- * These eliminate magic strings and make bindings self-documenting.
+ * These are derived from the typed path builders to ensure consistency.
+ * Use the typed builders (LLMOutput, LLMInput) for compile-time safe path construction.
  */
+import { LLMOutputText, LLMInputUserText } from "./json_path";
 
 /** JSON pointer to extract text content from an LLM response output. */
-export const LLM_TEXT_OUTPUT = "/output/0/content/0/text" as const;
+export const LLM_TEXT_OUTPUT = LLMOutputText;
 
-/** JSON pointer to inject text into the user message of an LLM request. */
-export const LLM_USER_MESSAGE_TEXT = "/request/input/1/content/0/text" as const;
+/** JSON pointer to inject text into the user message of an LLM request.
+ * The pointer is relative to the request object (not the full node input). */
+export const LLM_USER_MESSAGE_TEXT = LLMInputUserText;
 
 export type TransformJSONValueV0 = { from: NodeId; pointer?: string };
 

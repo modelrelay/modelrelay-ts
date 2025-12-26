@@ -56,8 +56,9 @@ export { LLM_TEXT_OUTPUT, LLM_USER_MESSAGE_TEXT } from "./workflow_builder";
 /** JSON pointer to extract text content from an LLM response output. */
 const LLM_TEXT_OUTPUT_INTERNAL = "/output/0/content/0/text";
 
-/** JSON pointer to inject text into the user message of an LLM request. */
-const LLM_USER_MESSAGE_TEXT_INTERNAL = "/request/input/1/content/0/text";
+/** JSON pointer to inject text into the user message of an LLM request.
+ * The pointer is relative to the request object (not the full node input). */
+const LLM_USER_MESSAGE_TEXT_INTERNAL = "/input/1/content/0/text";
 
 // =============================================================================
 // Shared utilities

@@ -143,10 +143,5 @@ export const ToolExecutionModes = {
 } as const;
 
 // Semantic JSON pointer constants for LLM responses nodes.
-// These eliminate magic strings and make bindings self-documenting.
-
-/** JSON pointer to extract text content from an LLM response output. */
-export const LLM_TEXT_OUTPUT = "/output/0/content/0/text";
-
-/** JSON pointer to inject text into the user message of an LLM request. */
-export const LLM_USER_MESSAGE_TEXT = "/request/input/1/content/0/text";
+// Derived from typed path builders to ensure consistency.
+export { LLM_TEXT_OUTPUT, LLM_USER_MESSAGE_TEXT } from "../workflow_builder";

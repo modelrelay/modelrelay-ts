@@ -147,6 +147,7 @@ export type {
 
 export * from "./runs";
 export * from "./workflow_builder";
+export * from "./json_path";
 export { workflowV0Schema } from "./workflow_schema";
 export * from "./workflows_request";
 export * from "./workflows_client";
