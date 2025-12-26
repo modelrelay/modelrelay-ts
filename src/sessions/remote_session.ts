@@ -109,6 +109,7 @@ export class RemoteSession implements Session {
 	private nextSeq = 1;
 	private createdAt: Date;
 	private updatedAt: Date;
+	private pendingMessages: SessionMessage[] = [];
 
 	// State for multi-step tool handling
 	private currentRunId?: RunId;
@@ -417,6 +418,7 @@ export class RemoteSession implements Session {
 	private addMessage(
 		input: Omit<InputItem, "seq" | "createdAt">,
 		runId?: RunId,
+		queueForSync = true,
 	): SessionMessage {
 		const message: SessionMessage = {
 			...input,
@@ -425,6 +427,9 @@ export class RemoteSession implements Session {
 			runId,
 		};
 		this.messages.push(message);
+		if (queueForSync) {
+			this.pendingMessages.push(message);
+		}
 		this.updatedAt = new Date();
 		return message;
 	}
@@ -562,6 +567,8 @@ export class RemoteSession implements Session {
 						);
 					}
 
+					await this.flushPendingMessages();
+
 					return {
 						status: "complete",
 						output,
@@ -611,6 +618,8 @@ export class RemoteSession implements Session {
 			);
 		}
 
+		await this.flushPendingMessages();
+
 		return {
 			status: "complete",
 			output,
@@ -651,6 +660,66 @@ export class RemoteSession implements Session {
 		}
 
 		return results;
+	}
+
+	private async flushPendingMessages(): Promise<void> {
+		if (this.pendingMessages.length === 0) {
+			return;
+		}
+
+		const pending = [...this.pendingMessages];
+		this.pendingMessages = [];
+
+		for (let i = 0; i < pending.length; i++) {
+			const message = pending[i];
+			try {
+				const synced = await this.appendMessageToServer(message);
+				const idx = this.messages.indexOf(message);
+				if (idx !== -1) {
+					this.messages[idx] = synced;
+				} else {
+					const insertAt = this.messages.findIndex((m) => m.seq > synced.seq);
+					if (insertAt === -1) {
+						this.messages.push(synced);
+					} else {
+						this.messages.splice(insertAt, 0, synced);
+					}
+				}
+				if (synced.seq >= this.nextSeq) {
+					this.nextSeq = synced.seq + 1;
+				}
+				this.updatedAt = new Date();
+			} catch (err) {
+				this.pendingMessages = pending.slice(i);
+				throw err;
+			}
+		}
+	}
+
+	private async appendMessageToServer(
+		message: SessionMessage,
+	): Promise<SessionMessage> {
+		const response = await this.http.request(
+			`/sessions/${this.id}/messages`,
+			{
+				method: "POST",
+				body: {
+					role: message.role,
+					content: message.content,
+					run_id: message.runId ? String(message.runId) : undefined,
+				},
+			},
+		);
+
+		const data = (await response.json()) as SessionMessageResponse;
+		return {
+			type: "message",
+			role: data.role as "user" | "assistant" | "system" | "tool",
+			content: data.content,
+			seq: data.seq,
+			createdAt: new Date(data.created_at),
+			runId: data.run_id ? (parseRunId(data.run_id) as RunId) : undefined,
+		};
 	}
 }
 

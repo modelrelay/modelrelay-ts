@@ -756,6 +756,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/sessions/{session_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Append a session message
+         * @description Appends a message to an existing session.
+         */
+        post: operations["addSessionMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1777,6 +1799,20 @@ export interface components {
             sessions: components["schemas"]["SessionResponse"][];
             /** @description Cursor for fetching the next page (if more results exist) */
             next_cursor?: string;
+        };
+        /** @description Request body for appending a message to a session. */
+        SessionMessageCreateRequest: {
+            /** @description Message role (user, assistant, tool) */
+            role: string;
+            /** @description Message content parts */
+            content: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Format: uuid
+             * @description Run ID that generated this message (for assistant messages)
+             */
+            run_id?: string;
         };
     };
     responses: never;
@@ -3322,6 +3358,53 @@ export interface operations {
             };
             /** @description Secret key required for deletion */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Session not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    addSessionMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionMessageCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Message appended */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionMessageResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description API key required */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
