@@ -297,11 +297,13 @@ describe("ToolRunner", () => {
 				} as RunEventV0;
 			}
 
-			await expect(async () => {
-				for await (const _ of runner.processEvents(runId, mockEvents())) {
-					// consume stream
-				}
-			}).rejects.toThrow("Submit failed");
+			await expect(
+				(async () => {
+					for await (const _ of runner.processEvents(runId, mockEvents())) {
+						// consume stream
+					}
+				})(),
+			).rejects.toThrow("Submit failed");
 		});
 	});
 

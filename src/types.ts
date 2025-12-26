@@ -650,7 +650,12 @@ export interface RetryMetadata {
 	lastError?: string;
 }
 
-export type TransportErrorKind = "timeout" | "connect" | "request" | "other";
+export type TransportErrorKind =
+	| "timeout"
+	| "connect"
+	| "request"
+	| "empty_response"
+	| "other";
 
 export interface RequestContext {
 	method: string;

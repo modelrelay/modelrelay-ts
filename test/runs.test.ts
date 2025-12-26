@@ -9,22 +9,7 @@ import {
 	parseRunId,
 	parseSecretKey,
 } from "../src";
-
-function buildNDJSONResponse(lines: string[]): Response {
-	const encoder = new TextEncoder();
-	const body = new ReadableStream<Uint8Array>({
-		start(controller) {
-			for (const line of lines) {
-				controller.enqueue(encoder.encode(`${line}\n`));
-			}
-			controller.close();
-		},
-	});
-	return new Response(body, {
-		status: 200,
-		headers: { "Content-Type": "application/x-ndjson" },
-	});
-}
+import { buildNDJSONResponse } from "../src/testing";
 
 describe("runs", () => {
 	it("creates a run, fetches status, and streams events", async () => {

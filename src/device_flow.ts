@@ -52,6 +52,36 @@ export interface OAuthDeviceTokenPollRequest {
 	signal?: AbortSignal;
 }
 
+export type PollUntilResult<T> =
+	| { done: true; value: T }
+	| { done: false; retryAfterMs?: number };
+
+export interface PollUntilOptions<T> {
+	intervalMs: number;
+	deadline?: Date;
+	signal?: AbortSignal;
+	poll: (attempt: number) => Promise<PollUntilResult<T>>;
+	onTimeout?: () => Error;
+}
+
+export async function pollUntil<T>(opts: PollUntilOptions<T>): Promise<T> {
+	let intervalMs = Math.max(1, opts.intervalMs);
+	let attempt = 0;
+	while (true) {
+		if (opts.deadline && Date.now() >= opts.deadline.getTime()) {
+			throw opts.onTimeout?.() ?? new TransportError("polling timed out", { kind: "timeout" });
+		}
+		const result = await opts.poll(attempt);
+		if (result.done) {
+			return result.value;
+		}
+		const delay = Math.max(1, result.retryAfterMs ?? intervalMs);
+		intervalMs = delay;
+		await sleep(delay, opts.signal);
+		attempt += 1;
+	}
+}
+
 export async function startOAuthDeviceAuthorization(
 	req: OAuthDeviceAuthorizationRequest,
 ): Promise<OAuthDeviceAuthorization> {
@@ -121,67 +151,67 @@ export async function pollOAuthDeviceToken(
 	const deadline = req.deadline ?? new Date(Date.now() + 10 * 60 * 1000);
 	let intervalMs = Math.max(1, req.intervalSeconds ?? 5) * 1000;
 
-	while (true) {
-		if (Date.now() >= deadline.getTime()) {
-			throw new TransportError("oauth device flow timed out", { kind: "timeout" });
-		}
+	return pollUntil<OAuthDeviceToken>({
+		intervalMs,
+		deadline,
+		signal: req.signal,
+		onTimeout: () => new TransportError("oauth device flow timed out", { kind: "timeout" }),
+		poll: async () => {
+			const form = new URLSearchParams();
+			form.set("grant_type", "urn:ietf:params:oauth:grant-type:device_code");
+			form.set("device_code", deviceCode);
+			form.set("client_id", clientId);
 
-		const form = new URLSearchParams();
-		form.set("grant_type", "urn:ietf:params:oauth:grant-type:device_code");
-		form.set("device_code", deviceCode);
-		form.set("client_id", clientId);
-
-		const payload = await postOAuthForm(tokenEndpoint, form, {
-			fetch: req.fetch,
-			signal: req.signal,
-			allowErrorPayload: true,
-		});
-
-		const err = String(payload.error || "").trim();
-		if (err) {
-			switch (err) {
-				case "authorization_pending":
-					await sleep(intervalMs, req.signal);
-					continue;
-				case "slow_down":
-					intervalMs += 5_000;
-					await sleep(intervalMs, req.signal);
-					continue;
-				case "expired_token":
-				case "access_denied":
-				case "invalid_grant":
-					throw new TransportError(`oauth device flow failed: ${err}`, {
-						kind: "request",
-						cause: payload,
-					});
-				default:
-					throw new TransportError(`oauth device flow error: ${err}`, {
-						kind: "request",
-						cause: payload,
-					});
-			}
-		}
-
-		const accessToken = String(payload.access_token || "").trim() || undefined;
-		const idToken = String(payload.id_token || "").trim() || undefined;
-		const refreshToken = String(payload.refresh_token || "").trim() || undefined;
-		const tokenType = String(payload.token_type || "").trim() || undefined;
-		const scope = String(payload.scope || "").trim() || undefined;
-		const expiresIn = payload.expires_in !== undefined ? Number(payload.expires_in) : undefined;
-		const expiresAt =
-			typeof expiresIn === "number" && Number.isFinite(expiresIn) && expiresIn > 0
-				? new Date(Date.now() + expiresIn * 1000)
-				: undefined;
-
-		if (!accessToken && !idToken) {
-			throw new TransportError("oauth device flow returned an invalid token response", {
-				kind: "request",
-				cause: payload,
+			const payload = await postOAuthForm(tokenEndpoint, form, {
+				fetch: req.fetch,
+				signal: req.signal,
+				allowErrorPayload: true,
 			});
-		}
 
-		return { accessToken, idToken, refreshToken, tokenType, scope, expiresAt };
-	}
+			const err = String(payload.error || "").trim();
+			if (err) {
+				switch (err) {
+					case "authorization_pending":
+						return { done: false };
+					case "slow_down":
+						intervalMs += 5_000;
+						return { done: false, retryAfterMs: intervalMs };
+					case "expired_token":
+					case "access_denied":
+					case "invalid_grant":
+						throw new TransportError(`oauth device flow failed: ${err}`, {
+							kind: "request",
+							cause: payload,
+						});
+					default:
+						throw new TransportError(`oauth device flow error: ${err}`, {
+							kind: "request",
+							cause: payload,
+						});
+				}
+			}
+
+			const accessToken = String(payload.access_token || "").trim() || undefined;
+			const idToken = String(payload.id_token || "").trim() || undefined;
+			const refreshToken = String(payload.refresh_token || "").trim() || undefined;
+			const tokenType = String(payload.token_type || "").trim() || undefined;
+			const scope = String(payload.scope || "").trim() || undefined;
+			const expiresIn = payload.expires_in !== undefined ? Number(payload.expires_in) : undefined;
+			const expiresAt =
+				typeof expiresIn === "number" && Number.isFinite(expiresIn) && expiresIn > 0
+					? new Date(Date.now() + expiresIn * 1000)
+					: undefined;
+
+			if (!accessToken && !idToken) {
+				throw new TransportError("oauth device flow returned an invalid token response", {
+					kind: "request",
+					cause: payload,
+				});
+			}
+
+			return { done: true, value: { accessToken, idToken, refreshToken, tokenType, scope, expiresAt } };
+		},
+	});
 }
 
 export async function runOAuthDeviceFlowForIDToken(cfg: {
@@ -286,4 +316,3 @@ async function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 		}, ms);
 	});
 }
-

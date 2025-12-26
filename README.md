@@ -369,7 +369,7 @@ try {
   } else if (error instanceof TransportError) {
     console.log("Network error:", error.message);
   } else if (error instanceof StreamTimeoutError) {
-    console.log("Stream timeout:", error.streamKind); // "ttft" | "idle" | "total"
+    console.log("Stream timeout:", error.kind); // "ttft" | "idle" | "total"
   }
 }
 ```

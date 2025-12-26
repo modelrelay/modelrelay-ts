@@ -116,7 +116,7 @@ export function extractAssistantText(output: OutputItem[]): string {
 		.join("");
 	if (!text.trim()) {
 		throw new TransportError("response contained no assistant text output", {
-			kind: "request",
+			kind: "empty_response",
 		});
 	}
 	return text;

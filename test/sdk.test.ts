@@ -12,6 +12,10 @@ import {
 	type StructuredJSONEvent,
 } from "../src";
 import {
+	buildDelayedNDJSONResponse,
+	buildNDJSONResponse,
+} from "../src/testing";
+import {
 	APIError,
 	ConfigError,
 	StreamProtocolError,
@@ -299,7 +303,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		const stream = await client.responses.stream(req, { streamTTFTTimeoutMs: 20 });
 		const it = stream[Symbol.asyncIterator]();
 		await it.next(); // message_start
-		await expect(it.next()).rejects.toMatchObject({ streamKind: "ttft" });
+		await expect(it.next()).rejects.toMatchObject({ kind: "ttft" });
 	});
 
 	it("enforces idle timeout for response streams", async () => {
@@ -347,7 +351,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		const stream = await client.responses.stream(req, { streamIdleTimeoutMs: 20 });
 		const it = stream[Symbol.asyncIterator]();
 		await it.next(); // message_start
-		await expect(it.next()).rejects.toMatchObject({ streamKind: "idle" });
+		await expect(it.next()).rejects.toMatchObject({ kind: "idle" });
 	});
 
 	it("enforces total timeout for response streams even with keepalive bytes", async () => {
@@ -400,7 +404,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		const stream = await client.responses.stream(req, { streamTotalTimeoutMs: 20 });
 		const it = stream[Symbol.asyncIterator]();
 		await it.next(); // message_start
-		await expect(it.next()).rejects.toMatchObject({ streamKind: "total" });
+		await expect(it.next()).rejects.toMatchObject({ kind: "total" });
 	});
 
 	it("caches frontend tokens issued from publishable keys", async () => {
@@ -772,7 +776,7 @@ describe("ModelRelay TypeScript SDK", () => {
 			streamTTFTTimeoutMs: 20,
 		});
 		const it = stream[Symbol.asyncIterator]();
-		await expect(it.next()).rejects.toMatchObject({ streamKind: "ttft" });
+		await expect(it.next()).rejects.toMatchObject({ kind: "ttft" });
 	});
 
 	it("validates output_format type for structured streaming", async () => {
@@ -1390,56 +1394,3 @@ describe("ModelRelay TypeScript SDK", () => {
 		).toThrow(ConfigError);
 	});
 });
-
-function buildNDJSONResponse(
-	lines: string[],
-	headers: Record<string, string> = {},
-): Response {
-	const encoder = new TextEncoder();
-	const stream = new ReadableStream({
-		start(controller) {
-			for (const line of lines) {
-				controller.enqueue(encoder.encode(`${line}\n`));
-			}
-			controller.close();
-		},
-	});
-	return new Response(stream, {
-		status: 200,
-		headers: {
-			"Content-Type": "application/x-ndjson",
-			...headers,
-		},
-	});
-}
-
-function buildDelayedNDJSONResponse(
-	steps: Array<{ delayMs: number; line: string }>,
-	headers: Record<string, string> = {},
-): Response {
-	const encoder = new TextEncoder();
-	const stream = new ReadableStream({
-		start(controller) {
-			let idx = 0;
-			const pushNext = () => {
-				if (idx >= steps.length) {
-					controller.close();
-					return;
-				}
-				const step = steps[idx++];
-				setTimeout(() => {
-					controller.enqueue(encoder.encode(`${step.line}\n`));
-					pushNext();
-				}, Math.max(0, step.delayMs));
-			};
-			pushNext();
-		},
-	});
-	return new Response(stream, {
-		status: 200,
-		headers: {
-			"Content-Type": "application/x-ndjson",
-			...headers,
-		},
-	});
-}

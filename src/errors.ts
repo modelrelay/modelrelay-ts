@@ -112,8 +112,8 @@ export class StreamProtocolError extends TransportError {
 	}
 }
 
-export class StreamTimeoutError extends TransportError {
-	streamKind: StreamTimeoutKind;
+export class StreamTimeoutError extends ModelRelayError {
+	kind: StreamTimeoutKind;
 	timeoutMs: number;
 
 	constructor(streamKind: StreamTimeoutKind, timeoutMs: number) {
@@ -123,8 +123,8 @@ export class StreamTimeoutError extends TransportError {
 				: streamKind === "idle"
 					? "idle"
 					: "total";
-		super(`stream ${label} timeout after ${timeoutMs}ms`, { kind: "timeout" });
-		this.streamKind = streamKind;
+		super(`stream ${label} timeout after ${timeoutMs}ms`, { category: "transport", status: 408 });
+		this.kind = streamKind;
 		this.timeoutMs = timeoutMs;
 	}
 }

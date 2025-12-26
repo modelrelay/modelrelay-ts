@@ -136,6 +136,7 @@ export {
 	startOAuthDeviceAuthorization,
 	pollOAuthDeviceToken,
 	runOAuthDeviceFlowForIDToken,
+	pollUntil,
 } from "./device_flow";
 
 export type {
@@ -143,6 +144,8 @@ export type {
 	OAuthDeviceAuthorizationRequest,
 	OAuthDeviceToken,
 	OAuthDeviceTokenPollRequest,
+	PollUntilOptions,
+	PollUntilResult,
 } from "./device_flow";
 
 export * from "./runs";
@@ -165,6 +168,8 @@ export {
 } from "./workflow_patterns";
 
 export type { LLMStepConfig, MapItemConfig } from "./workflow_patterns";
+
+export * from "./testing";
 
 
 export {
