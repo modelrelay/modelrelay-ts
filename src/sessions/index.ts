@@ -26,6 +26,8 @@ export type {
 	ListSessionsOptions,
 	ListSessionsResponse,
 	RemoteSessionInfo,
+	SessionSyncOptions,
+	SessionSyncResult,
 } from "./types";
 
 // Type utilities

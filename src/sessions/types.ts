@@ -338,3 +338,33 @@ export interface SessionStore {
 	/** Close the store and release resources. */
 	close(): Promise<void>;
 }
+
+// ============================================================================
+// Sync Types
+// ============================================================================
+
+/**
+ * Options for syncing a local session to a remote session.
+ */
+export interface SessionSyncOptions {
+	/**
+	 * Called for each message synced. Useful for progress indicators.
+	 * @param synced - Number of messages synced so far
+	 * @param total - Total messages to sync
+	 */
+	onProgress?: (synced: number, total: number) => void;
+
+	/** Abort signal for cancellation. */
+	signal?: AbortSignal;
+}
+
+/**
+ * Result of syncing a local session to a remote session.
+ */
+export interface SessionSyncResult {
+	/** Number of messages synced. */
+	readonly messagesSynced: number;
+
+	/** The remote session ID messages were synced to. */
+	readonly remoteSessionId: SessionId;
+}

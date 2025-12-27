@@ -11,6 +11,7 @@
  */
 
 import type { ModelRelay } from "../index";
+import { ConfigError } from "../errors";
 import type { InputItem, Tool, ModelId, ProviderId, ContentPart } from "../types";
 import type { ToolRegistry, ToolExecutionResult } from "../tools";
 import type { RunId, NodeId } from "../runs_ids";
@@ -36,7 +37,10 @@ import type {
 	SessionState,
 	LocalSessionOptions,
 	LocalSessionPersistence,
+	SessionSyncOptions,
+	SessionSyncResult,
 } from "./types";
+import type { RemoteSession } from "./remote_session";
 import { asSessionId, generateSessionId } from "./types";
 import { MemorySessionStore, createMemorySessionStore } from "./stores/memory_store";
 
@@ -273,6 +277,88 @@ export class LocalSession implements Session {
 	async close(): Promise<void> {
 		await this.persist();
 		await this.store.close();
+	}
+
+	/**
+	 * Sync this local session's messages to a remote session.
+	 *
+	 * This uploads all local messages to the remote session, enabling
+	 * cross-device access and server-side backup. Messages are synced
+	 * in order and the remote session's history will contain all local
+	 * messages after sync completes.
+	 *
+	 * @param remoteSession - The remote session to sync to
+	 * @param options - Optional sync configuration
+	 * @returns Sync result with message count
+	 *
+	 * @example
+	 * ```typescript
+	 * // Create local session and work offline
+	 * const local = LocalSession.create(client, { ... });
+	 * await local.run("Implement the feature");
+	 *
+	 * // Later, sync to remote for backup/sharing
+	 * const remote = await RemoteSession.create(client);
+	 * const result = await local.syncTo(remote, {
+	 *   onProgress: (synced, total) => console.log(`${synced}/${total}`),
+	 * });
+	 * ```
+	 */
+	async syncTo(
+		remoteSession: RemoteSession,
+		options: SessionSyncOptions = {},
+	): Promise<SessionSyncResult> {
+		const { onProgress, signal } = options;
+		const total = this.messages.length;
+
+		if (total === 0) {
+			return {
+				messagesSynced: 0,
+				remoteSessionId: remoteSession.id,
+			};
+		}
+
+		// Fail fast if remote session already has messages.
+		// syncTo() is for initial migration to an empty remote session.
+		// For re-syncing or merging, use bidirectional sync (see #971).
+		if (remoteSession.history.length > 0) {
+			throw new ConfigError(
+				`Cannot sync to non-empty remote session (has ${remoteSession.history.length} messages). ` +
+					"syncTo() is for initial migration only. Create a new remote session or use bidirectional sync.",
+			);
+		}
+
+		// Get HTTP client from ModelRelay instance
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const http = (this.client as any).http;
+
+		let synced = 0;
+		for (const message of this.messages) {
+			if (signal?.aborted) {
+				throw new Error("Sync aborted");
+			}
+
+			await http.request(`/sessions/${remoteSession.id}/messages`, {
+				method: "POST",
+				body: {
+					role: message.role,
+					content: message.content,
+					run_id: message.runId ? String(message.runId) : undefined,
+				},
+			});
+
+			synced++;
+			onProgress?.(synced, total);
+		}
+
+		// Refresh remote session so its local history reflects the synced messages.
+		// This allows immediate use (e.g., remoteSession.run()) without manual refresh.
+		await remoteSession.refresh();
+
+		return {
+			messagesSynced: synced,
+			remoteSessionId: remoteSession.id,
+		};
 	}
 
 	// ============================================================================

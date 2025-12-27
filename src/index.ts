@@ -30,6 +30,9 @@ export class ModelRelay {
 	readonly sessions: SessionsClient;
 	readonly baseUrl: string;
 
+	/** @internal HTTP client for internal use by session sync */
+	readonly http: HTTPClient;
+
 	static fromSecretKey(
 		secretKey: string,
 		options: Omit<ModelRelayKeyOptions, "key"> = {},
@@ -60,7 +63,7 @@ export class ModelRelay {
 		const accessToken = "token" in cfg ? cfg.token : undefined;
 		const tokenProvider = "tokenProvider" in cfg ? cfg.tokenProvider : undefined;
 		this.baseUrl = resolveBaseUrl(cfg.baseUrl);
-		const http = new HTTPClient({
+		this.http = new HTTPClient({
 			baseUrl: this.baseUrl,
 			apiKey,
 			accessToken,
@@ -73,30 +76,30 @@ export class ModelRelay {
 			metrics: cfg.metrics,
 			trace: cfg.trace,
 		});
-		const auth = new AuthClient(http, {
+		const auth = new AuthClient(this.http, {
 			apiKey,
 			accessToken,
 			customer: cfg.customer,
 			tokenProvider,
 		});
 		this.auth = auth;
-		this.responses = new ResponsesClient(http, auth, {
+		this.responses = new ResponsesClient(this.http, auth, {
 			metrics: cfg.metrics,
 			trace: cfg.trace,
 		});
-		this.runs = new RunsClient(http, auth, {
+		this.runs = new RunsClient(this.http, auth, {
 			metrics: cfg.metrics,
 			trace: cfg.trace,
 		});
-		this.workflows = new WorkflowsClient(http, auth, {
+		this.workflows = new WorkflowsClient(this.http, auth, {
 			metrics: cfg.metrics,
 			trace: cfg.trace,
 		});
-		this.images = new ImagesClient(http, auth);
-		this.customers = new CustomersClient(http, { apiKey, accessToken, tokenProvider });
-		this.tiers = new TiersClient(http, { apiKey });
-		this.models = new ModelsClient(http);
-		this.sessions = new SessionsClient(this, http, auth);
+		this.images = new ImagesClient(this.http, auth);
+		this.customers = new CustomersClient(this.http, { apiKey, accessToken, tokenProvider });
+		this.tiers = new TiersClient(this.http, { apiKey });
+		this.models = new ModelsClient(this.http);
+		this.sessions = new SessionsClient(this, this.http, auth);
 	}
 
 	forCustomer(customerId: string): CustomerScopedModelRelay {
@@ -351,6 +354,8 @@ export type {
 	ListSessionsOptions,
 	ListSessionsResponse,
 	RemoteSessionInfo,
+	SessionSyncOptions,
+	SessionSyncResult,
 } from "./sessions";
 
 function resolveBaseUrl(override?: string): string {
