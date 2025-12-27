@@ -245,24 +245,60 @@ for await (const delta of deltas) {
 
 ## Structured Outputs with Zod
 
+The simplest way to get typed structured output:
+
 ```ts
-import { ModelRelay, parseSecretKey } from "@modelrelay/sdk";
+import { ModelRelay } from "@modelrelay/sdk";
 import { z } from "zod";
 
-const mr = new ModelRelay({ key: parseSecretKey("mr_sk_...") });
+const mr = ModelRelay.fromSecretKey("mr_sk_...");
 
 const Person = z.object({
   name: z.string(),
   age: z.number(),
 });
 
+// Simple one-call API (recommended)
+const person = await mr.responses.object<z.infer<typeof Person>>({
+  model: "claude-sonnet-4-20250514",
+  schema: Person,
+  prompt: "Extract: John Doe is 30 years old",
+});
+
+console.log(person.name); // "John Doe"
+console.log(person.age);  // 30
+```
+
+For parallel structured output calls:
+
+```ts
+const [security, performance] = await Promise.all([
+  mr.responses.object<SecurityReview>({
+    model: "claude-sonnet-4-20250514",
+    schema: SecuritySchema,
+    system: "You are a security expert.",
+    prompt: code,
+  }),
+  mr.responses.object<PerformanceReview>({
+    model: "claude-sonnet-4-20250514",
+    schema: PerformanceSchema,
+    system: "You are a performance expert.",
+    prompt: code,
+  }),
+]);
+```
+
+For more control (retries, custom handlers, metadata):
+
+```ts
 const result = await mr.responses.structured(
   Person,
   mr.responses.new().model("claude-sonnet-4-20250514").user("Extract: John Doe is 30").build(),
   { maxRetries: 2 },
 );
 
-console.log(result.value); // { name: "John Doe", age: 30 }
+console.log(result.value);    // { name: "John Doe", age: 30 }
+console.log(result.attempts); // 1
 ```
 
 ## Streaming Structured Outputs

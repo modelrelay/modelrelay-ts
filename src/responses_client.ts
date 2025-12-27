@@ -90,6 +90,144 @@ export class ResponsesClient {
 	}
 
 	/**
+	 * Generate a typed object from a Zod schema with a single function call.
+	 *
+	 * This is the most ergonomic way to get structured output - all configuration
+	 * is passed in a single object argument, matching the Vercel AI SDK pattern.
+	 *
+	 * @example
+	 * ```typescript
+	 * import { z } from 'zod';
+	 *
+	 * const review = await client.responses.object({
+	 *   model: 'claude-sonnet-4-20250514',
+	 *   schema: z.object({
+	 *     vulnerabilities: z.array(z.string()),
+	 *     riskLevel: z.enum(['low', 'medium', 'high']),
+	 *   }),
+	 *   system: 'You are a security expert.',
+	 *   prompt: `Review this code:\n${code}`,
+	 * });
+	 *
+	 * console.log(review.riskLevel); // 'low' | 'medium' | 'high'
+	 * ```
+	 *
+	 * @example Parallel execution with Promise.all
+	 * ```typescript
+	 * const [security, performance] = await Promise.all([
+	 *   client.responses.object({
+	 *     model,
+	 *     schema: SecuritySchema,
+	 *     system: 'Security expert...',
+	 *     prompt: code,
+	 *   }),
+	 *   client.responses.object({
+	 *     model,
+	 *     schema: PerformanceSchema,
+	 *     system: 'Performance expert...',
+	 *     prompt: code,
+	 *   }),
+	 * ]);
+	 * ```
+	 */
+	async object<T>(args: {
+		/** The model to use for generation. */
+		model: ModelId;
+		/** Zod schema defining the expected output structure. */
+		schema: ZodLikeSchema;
+		/** The user prompt/input to send to the model. */
+		prompt: string;
+		/** Optional system prompt to set context for the model. */
+		system?: string;
+		/** Maximum retry attempts on validation failure (default: 0). */
+		maxRetries?: number;
+		/** Handler for customizing retry messages. */
+		retryHandler?: RetryHandler;
+		/** Override the schema name in the JSON schema (defaults to "response"). */
+		schemaName?: string;
+		/** Customer ID for billing attribution. */
+		customerId?: string;
+		/** Request options (timeout, headers, etc). */
+		options?: ResponsesRequestOptions;
+	}): Promise<T> {
+		let builder = this.new().model(args.model);
+		if (args.system) {
+			builder = builder.system(args.system);
+		}
+		builder = builder.user(args.prompt);
+		if (args.customerId) {
+			builder = builder.customerId(args.customerId);
+		}
+		const request = builder.build();
+
+		const result = await this.structured<T>(args.schema, request, {
+			maxRetries: args.maxRetries,
+			retryHandler: args.retryHandler,
+			schemaName: args.schemaName,
+			...args.options,
+		});
+
+		return result.value;
+	}
+
+	/**
+	 * Generate a typed object with full result metadata.
+	 *
+	 * Like `object()` but returns the full `StructuredResult<T>` including
+	 * attempt count and request ID.
+	 *
+	 * @example
+	 * ```typescript
+	 * const result = await client.responses.objectWithMetadata({
+	 *   model: 'claude-sonnet-4-20250514',
+	 *   schema: ReviewSchema,
+	 *   prompt: 'Review this code...',
+	 * });
+	 *
+	 * console.log(result.value);     // The parsed object
+	 * console.log(result.attempts);  // Number of attempts (1 = first try succeeded)
+	 * console.log(result.requestId); // Server request ID
+	 * ```
+	 */
+	async objectWithMetadata<T>(args: {
+		/** The model to use for generation. */
+		model: ModelId;
+		/** Zod schema defining the expected output structure. */
+		schema: ZodLikeSchema;
+		/** The user prompt/input to send to the model. */
+		prompt: string;
+		/** Optional system prompt to set context for the model. */
+		system?: string;
+		/** Maximum retry attempts on validation failure (default: 0). */
+		maxRetries?: number;
+		/** Handler for customizing retry messages. */
+		retryHandler?: RetryHandler;
+		/** Override the schema name in the JSON schema (defaults to "response"). */
+		schemaName?: string;
+		/** Customer ID for billing attribution. */
+		customerId?: string;
+		/** Request options (timeout, headers, etc). */
+		options?: ResponsesRequestOptions;
+	}): Promise<StructuredResult<T>> {
+		let builder = this.new().model(args.model);
+		if (args.system) {
+			builder = builder.system(args.system);
+		}
+		builder = builder.user(args.prompt);
+		if (args.customerId) {
+			builder = builder.customerId(args.customerId);
+		}
+		const request = builder.build();
+
+		return this.structured<T>(args.schema, request, {
+			maxRetries: args.maxRetries,
+			retryHandler: args.retryHandler,
+			schemaName: args.schemaName,
+			...args.options,
+		});
+	}
+
+	/**
 	 * Convenience helper for customer-attributed requests where the backend selects the model.
 	 *
 	 * This sets `customerId(...)` and omits `model` from the request body.

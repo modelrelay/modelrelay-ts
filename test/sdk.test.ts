@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import z from "zod";
 
 import {
 	ModelRelay,
@@ -111,6 +112,221 @@ describe("ModelRelay TypeScript SDK", () => {
 		await expect(client.responses.text("gpt-4o", "sys", "user")).rejects.toBeInstanceOf(
 			TransportError,
 		);
+	});
+
+	it("generates typed objects from Zod schemas via object() helper", async () => {
+		const ReviewSchema = z.object({
+			vulnerabilities: z.array(z.string()),
+			riskLevel: z.enum(["low", "medium", "high"]),
+		});
+
+		const fetchMock = vi.fn(async (url, init) => {
+			const path = String(url);
+			if (path.endsWith("/responses")) {
+				// biome-ignore lint/suspicious/noExplicitAny: init.body is untyped
+				const body = JSON.parse(String(init?.body as any));
+				expect(body.model).toBe("claude-sonnet-4-20250514");
+				expect(body.output_format?.type).toBe("json_schema");
+				expect(body.input?.[0]?.role).toBe("system");
+				expect(body.input?.[1]?.role).toBe("user");
+				return new Response(
+					JSON.stringify({
+						id: "resp_object",
+						output: [
+							{
+								type: "message",
+								role: "assistant",
+								content: [
+									{
+										type: "text",
+										text: '{"vulnerabilities": ["SQL injection"], "riskLevel": "high"}',
+									},
+								],
+							},
+						],
+						model: "claude-sonnet-4-20250514",
+						stop_reason: "stop",
+						usage: { input_tokens: 10, output_tokens: 20, total_tokens: 30 },
+					}),
+					{ status: 200, headers: { "Content-Type": "application/json" } },
+				);
+			}
+			throw new Error(`unexpected URL: ${url}`);
+		});
+
+		const client = ModelRelay.fromSecretKey("mr_sk_object_helper", {
+			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
+			fetch: fetchMock as any,
+		});
+
+		const review = await client.responses.object<z.infer<typeof ReviewSchema>>({
+			model: "claude-sonnet-4-20250514",
+			schema: ReviewSchema,
+			system: "You are a security expert.",
+			prompt: "Review this code: SELECT * FROM users WHERE id = $input",
+		});
+
+		expect(review.vulnerabilities).toEqual(["SQL injection"]);
+		expect(review.riskLevel).toBe("high");
+	});
+
+	it("returns full metadata via objectWithMetadata() helper", async () => {
+		const PersonSchema = z.object({
+			name: z.string(),
+			age: z.number(),
+		});
+
+		const fetchMock = vi.fn(async (url) => {
+			const path = String(url);
+			if (path.endsWith("/responses")) {
+				return new Response(
+					JSON.stringify({
+						id: "resp_meta",
+						output: [
+							{
+								type: "message",
+								role: "assistant",
+								content: [{ type: "text", text: '{"name": "Alice", "age": 30}' }],
+							},
+						],
+						model: "gpt-4o",
+						stop_reason: "stop",
+						usage: { input_tokens: 5, output_tokens: 10, total_tokens: 15 },
+					}),
+					{
+						status: 200,
+						headers: {
+							"Content-Type": "application/json",
+							"X-ModelRelay-Request-Id": "req-123",
+						},
+					},
+				);
+			}
+			throw new Error(`unexpected URL: ${url}`);
+		});
+
+		const client = ModelRelay.fromSecretKey("mr_sk_object_meta", {
+			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
+			fetch: fetchMock as any,
+		});
+
+		const result = await client.responses.objectWithMetadata<z.infer<typeof PersonSchema>>({
+			model: "gpt-4o",
+			schema: PersonSchema,
+			prompt: "Extract person info from: Alice is 30 years old.",
+		});
+
+		expect(result.value.name).toBe("Alice");
+		expect(result.value.age).toBe(30);
+		expect(result.attempts).toBe(1);
+		expect(result.requestId).toBe("req-123");
+	});
+
+	it("supports parallel object() calls with Promise.all", async () => {
+		const SecuritySchema = z.object({ risk: z.string() });
+		const PerformanceSchema = z.object({ score: z.number() });
+
+		let callCount = 0;
+		const fetchMock = vi.fn(async (url, init) => {
+			const path = String(url);
+			if (path.endsWith("/responses")) {
+				callCount++;
+				// biome-ignore lint/suspicious/noExplicitAny: init.body is untyped
+				const body = JSON.parse(String(init?.body as any));
+				const isSecurityCall = body.input?.[0]?.content?.[0]?.text?.includes("security");
+				return new Response(
+					JSON.stringify({
+						id: `resp_parallel_${callCount}`,
+						output: [
+							{
+								type: "message",
+								role: "assistant",
+								content: [
+									{
+										type: "text",
+										text: isSecurityCall
+											? '{"risk": "low"}'
+											: '{"score": 95}',
+									},
+								],
+							},
+						],
+						model: "gpt-4o",
+						stop_reason: "stop",
+						usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
+					}),
+					{ status: 200, headers: { "Content-Type": "application/json" } },
+				);
+			}
+			throw new Error(`unexpected URL: ${url}`);
+		});
+
+		const client = ModelRelay.fromSecretKey("mr_sk_parallel_object", {
+			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
+			fetch: fetchMock as any,
+		});
+
+		const [security, performance] = await Promise.all([
+			client.responses.object<z.infer<typeof SecuritySchema>>({
+				model: "gpt-4o",
+				schema: SecuritySchema,
+				system: "You are a security expert.",
+				prompt: "Analyze this code.",
+			}),
+			client.responses.object<z.infer<typeof PerformanceSchema>>({
+				model: "gpt-4o",
+				schema: PerformanceSchema,
+				system: "You are a performance expert.",
+				prompt: "Score this code.",
+			}),
+		]);
+
+		expect(security.risk).toBe("low");
+		expect(performance.score).toBe(95);
+		expect(fetchMock).toHaveBeenCalledTimes(2);
+	});
+
+	it("passes customerId to object() calls for billing attribution", async () => {
+		const Schema = z.object({ result: z.string() });
+
+		const fetchMock = vi.fn(async (url, init) => {
+			const path = String(url);
+			if (path.endsWith("/responses")) {
+				const headers = new Headers(init?.headers as HeadersInit);
+				expect(headers.get("X-ModelRelay-Customer-Id")).toBe("customer-abc");
+				return new Response(
+					JSON.stringify({
+						id: "resp_customer",
+						output: [
+							{
+								type: "message",
+								role: "assistant",
+								content: [{ type: "text", text: '{"result": "ok"}' }],
+							},
+						],
+						model: "gpt-4o",
+						stop_reason: "stop",
+						usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
+					}),
+					{ status: 200, headers: { "Content-Type": "application/json" } },
+				);
+			}
+			throw new Error(`unexpected URL: ${url}`);
+		});
+
+		const client = ModelRelay.fromSecretKey("mr_sk_object_customer", {
+			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
+			fetch: fetchMock as any,
+		});
+
+		const result = await client.responses.object<z.infer<typeof Schema>>({
+			model: "gpt-4o",
+			schema: Schema,
+			prompt: "Do something.",
+			customerId: "customer-abc",
+		});
+
+		expect(result.result).toBe("ok");
 	});
 
 	it("supports chat-like text helper for customer-attributed requests", async () => {
