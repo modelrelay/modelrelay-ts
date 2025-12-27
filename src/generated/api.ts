@@ -635,6 +635,56 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/images/{image_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Image ID */
+                image_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Get image details
+         * @description Retrieve information about a specific image, including its pinned status and URL.
+         */
+        get: operations["getImage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/images/{image_id}/pin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Image ID */
+                image_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pin an image
+         * @description Pin an image to prevent it from expiring. Pinned images remain accessible permanently (subject to tier limits).
+         */
+        post: operations["pinImage"];
+        /**
+         * Unpin an image
+         * @description Unpin an image, setting it to expire after the default ephemeral period (7 days).
+         */
+        delete: operations["unpinImage"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/runs": {
         parameters: {
             query?: never;
@@ -1711,6 +1761,15 @@ export interface components {
             b64_json?: string;
             /** @description MIME type of the image (e.g., 'image/png', 'image/webp') */
             mime_type?: string;
+            /** @description Unique identifier for the image (used for pinning) */
+            image_id?: string;
+            /**
+             * Format: date-time
+             * @description When the image URL expires (null if pinned)
+             */
+            expires_at?: string;
+            /** @description URL to pin this image for permanent storage */
+            pin_url?: string;
         };
         /** @description Usage statistics for image generation. */
         ImageUsage: {
@@ -1719,6 +1778,20 @@ export interface components {
              * @description Number of images generated
              */
             images: number;
+        };
+        /** @description Response from pin/unpin operations. */
+        ImagePinResponse: {
+            /** @description Image ID */
+            id: string;
+            /** @description Whether the image is currently pinned */
+            pinned: boolean;
+            /**
+             * Format: date-time
+             * @description When the image expires (null if pinned)
+             */
+            expires_at?: string;
+            /** @description URL of the image */
+            url: string;
         };
         /** @description Request body for creating a session. */
         SessionCreateRequest: {
@@ -3152,6 +3225,110 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ImageResponse"];
                 };
+            };
+        };
+    };
+    getImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Image ID */
+                image_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Image details */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImagePinResponse"];
+                };
+            };
+            /** @description Image not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    pinImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Image ID */
+                image_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Image pinned successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImagePinResponse"];
+                };
+            };
+            /** @description Quota exceeded */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Image not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Image has expired */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    unpinImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Image ID */
+                image_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Image unpinned successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImagePinResponse"];
+                };
+            };
+            /** @description Image not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

@@ -29,6 +29,11 @@ export type ImageUsage = components["schemas"]["ImageUsage"];
  */
 export type ImageResponseFormat = components["schemas"]["ImageResponseFormat"];
 
+/**
+ * Response from pin/unpin operations.
+ */
+export type ImagePinResponse = components["schemas"]["ImagePinResponse"];
+
 const IMAGES_PATH = "/images/generate";
 
 /**
@@ -79,6 +84,69 @@ export class ImagesClient {
 		return await this.http.json<ImageResponse>(IMAGES_PATH, {
 			method: "POST",
 			body: request,
+			apiKey: auth.apiKey,
+			accessToken: auth.accessToken,
+		});
+	}
+
+	/**
+	 * Get information about a specific image.
+	 *
+	 * Returns the image's pinned status, expiration time, and URL.
+	 *
+	 * @param imageId - The image ID to retrieve
+	 * @returns Image details including pinned status and URL
+	 * @throws {Error} If imageId is empty
+	 */
+	async get(imageId: string): Promise<ImagePinResponse> {
+		if (!imageId?.trim()) {
+			throw new Error("imageId is required");
+		}
+		const auth = await this.auth.authForResponses();
+		return await this.http.json<ImagePinResponse>(`/images/${imageId}`, {
+			method: "GET",
+			apiKey: auth.apiKey,
+			accessToken: auth.accessToken,
+		});
+	}
+
+	/**
+	 * Pin an image to prevent it from expiring.
+	 *
+	 * Pinned images remain accessible permanently (subject to tier limits).
+	 *
+	 * @param imageId - The image ID to pin
+	 * @returns Updated image state including permanent URL
+	 * @throws {Error} If imageId is empty
+	 */
+	async pin(imageId: string): Promise<ImagePinResponse> {
+		if (!imageId?.trim()) {
+			throw new Error("imageId is required");
+		}
+		const auth = await this.auth.authForResponses();
+		return await this.http.json<ImagePinResponse>(`/images/${imageId}/pin`, {
+			method: "POST",
+			apiKey: auth.apiKey,
+			accessToken: auth.accessToken,
+		});
+	}
+
+	/**
+	 * Unpin an image, allowing it to expire.
+	 *
+	 * The image will expire after the default ephemeral period (7 days).
+	 *
+	 * @param imageId - The image ID to unpin
+	 * @returns Updated image state including new expiration time
+	 * @throws {Error} If imageId is empty
+	 */
+	async unpin(imageId: string): Promise<ImagePinResponse> {
+		if (!imageId?.trim()) {
+			throw new Error("imageId is required");
+		}
+		const auth = await this.auth.authForResponses();
+		return await this.http.json<ImagePinResponse>(`/images/${imageId}/pin`, {
+			method: "DELETE",
 			apiKey: auth.apiKey,
 			accessToken: auth.accessToken,
 		});

@@ -206,6 +206,7 @@ export type {
 	ImageData,
 	ImageUsage,
 	ImageResponseFormat,
+	ImagePinResponse,
 } from "./images";
 
 export * from "./types";
