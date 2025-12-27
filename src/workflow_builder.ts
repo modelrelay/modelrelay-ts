@@ -562,6 +562,33 @@ export class LLMNodeBuilder {
 	}
 
 	/**
+	 * Add a binding that replaces a {{placeholder}} in the prompt text.
+	 * This is useful when the prompt contains placeholder markers like {{tier_data}}.
+	 * The edge from the source node is automatically inferred.
+	 */
+	bindToPlaceholder(from: NodeId, fromPointer: string | undefined, placeholder: string): LLMNodeBuilder {
+		const pending = this.workflow._getPendingNode();
+		if (pending) {
+			pending.bindings.push({
+				from,
+				...(fromPointer ? { pointer: fromPointer } : {}),
+				to_placeholder: placeholder,
+				encoding: "json_string",
+			});
+		}
+		return this;
+	}
+
+	/**
+	 * Add a binding from an LLM node's text output to a placeholder.
+	 * This is the most common placeholder binding: LLM text → {{placeholder}}.
+	 * The edge from the source node is automatically inferred.
+	 */
+	bindTextToPlaceholder(from: NodeId, placeholder: string): LLMNodeBuilder {
+		return this.bindToPlaceholder(from, LLM_TEXT_OUTPUT, placeholder);
+	}
+
+	/**
 	 * Set the tool execution mode (server or client).
 	 */
 	toolExecution(mode: ToolExecutionModeV0): LLMNodeBuilder {
