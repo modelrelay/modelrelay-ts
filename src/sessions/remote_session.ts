@@ -24,6 +24,11 @@ import type { ToolRegistry, ToolExecutionResult } from "../tools";
 import type { RunId, NodeId } from "../runs_ids";
 import type { RunEventV0, NodeWaitingV0, PendingToolCallV0 } from "../runs_types";
 import { parseRunId } from "../runs_ids";
+import {
+	buildSessionInputWithContext,
+	createModelContextResolver,
+	type ModelContextResolver,
+} from "./context_management";
 
 import type {
 	Session,
@@ -111,6 +116,7 @@ export class RemoteSession implements Session {
 	private readonly defaultTools?: Tool[];
 	private metadata: Record<string, unknown>;
 	private endUserId?: string;
+	private readonly resolveModelContext: ModelContextResolver;
 
 	private messages: SessionMessage[] = [];
 	private artifacts: Map<string, unknown> = new Map();
@@ -150,6 +156,7 @@ export class RemoteSession implements Session {
 		this.defaultModel = options.defaultModel;
 		this.defaultProvider = options.defaultProvider;
 		this.defaultTools = options.defaultTools;
+		this.resolveModelContext = createModelContextResolver(client);
 
 		// Load messages if available
 		if ("messages" in sessionData && sessionData.messages) {
@@ -297,8 +304,8 @@ export class RemoteSession implements Session {
 		this.resetRunState();
 
 		try {
-			// Build input from full history
-			const input = this.buildInput();
+			// Build input from history with context management
+			const input = await this.buildInput(options);
 
 			// Merge tools
 			const tools = mergeTools(this.defaultTools, options.tools);
@@ -443,14 +450,13 @@ export class RemoteSession implements Session {
 		return message;
 	}
 
-	private buildInput(): InputItem[] {
-		return this.messages.map((m) => ({
-			type: m.type,
-			role: m.role,
-			content: m.content,
-			toolCalls: m.toolCalls,
-			toolCallId: m.toolCallId,
-		}));
+	private async buildInput(options: SessionRunOptions): Promise<InputItem[]> {
+		return buildSessionInputWithContext(
+			this.messages,
+			options,
+			this.defaultModel,
+			this.resolveModelContext,
+		);
 	}
 
 	private resetRunState(): void {

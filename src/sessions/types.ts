@@ -75,6 +75,14 @@ export interface SessionRunOptions {
 	model?: ModelId;
 	/** Override the provider for this run. */
 	provider?: ProviderId;
+	/** How to manage history when it approaches the model context window. */
+	contextManagement?: SessionContextManagement;
+	/** Max tokens allowed for history (derived from model if not set). */
+	maxHistoryTokens?: number;
+	/** Tokens to reserve for output (defaults to model metadata when available). */
+	reserveOutputTokens?: number;
+	/** Called when history is truncated to fit the context window. */
+	onContextTruncate?: (info: SessionContextTruncateInfo) => void;
 	/** Additional tools for this run (merged with session defaults). */
 	tools?: Tool[];
 	/** Maximum number of LLM turns (for tool loops). */
@@ -93,6 +101,18 @@ export type SessionRunStatus =
 	| "waiting_for_tools"
 	| "error"
 	| "canceled";
+
+/** Context management strategy for session history. */
+export type SessionContextManagement = "none" | "truncate" | "summarize";
+
+/** Metadata for context truncation callbacks. */
+export interface SessionContextTruncateInfo {
+	readonly model: ModelId;
+	readonly originalMessages: number;
+	readonly keptMessages: number;
+	readonly maxHistoryTokens: number;
+	readonly reservedOutputTokens?: number;
+}
 
 /**
  * Pending tool call that needs client-side execution.

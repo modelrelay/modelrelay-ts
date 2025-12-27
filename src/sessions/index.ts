@@ -12,6 +12,8 @@ export type {
 	SessionMessage,
 	SessionArtifacts,
 	SessionRunOptions,
+	SessionContextManagement,
+	SessionContextTruncateInfo,
 	SessionRunResult,
 	SessionRunStatus,
 	SessionPendingToolCall,

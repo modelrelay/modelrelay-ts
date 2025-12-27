@@ -16,6 +16,11 @@ import type { ToolRegistry, ToolExecutionResult } from "../tools";
 import type { RunId, NodeId } from "../runs_ids";
 import type { RunEventV0, RunStatusV0, TokenUsageV0, NodeWaitingV0 } from "../runs_types";
 import { parseRunId } from "../runs_ids";
+import {
+	buildSessionInputWithContext,
+	createModelContextResolver,
+	type ModelContextResolver,
+} from "./context_management";
 
 import type {
 	Session,
@@ -67,6 +72,7 @@ export class LocalSession implements Session {
 	private readonly defaultProvider?: ProviderId;
 	private readonly defaultTools?: Tool[];
 	private readonly metadata: Record<string, unknown>;
+	private readonly resolveModelContext: ModelContextResolver;
 
 	private messages: SessionMessage[] = [];
 	private artifacts: Map<string, unknown> = new Map();
@@ -100,6 +106,7 @@ export class LocalSession implements Session {
 		this.defaultProvider = options.defaultProvider;
 		this.defaultTools = options.defaultTools;
 		this.metadata = options.metadata || {};
+		this.resolveModelContext = createModelContextResolver(client);
 
 		if (existingState) {
 			// Resume from persisted state
@@ -183,8 +190,8 @@ export class LocalSession implements Session {
 		this.currentWaiting = undefined;
 
 		try {
-			// Build input from full history
-			const input = this.buildInput();
+			// Build input from history with context management
+			const input = await this.buildInput(options);
 
 			// Merge tools
 			const tools = mergeTools(this.defaultTools, options.tools);
@@ -287,14 +294,13 @@ export class LocalSession implements Session {
 		return message;
 	}
 
-	private buildInput(): InputItem[] {
-		return this.messages.map((m) => ({
-			type: m.type,
-			role: m.role,
-			content: m.content,
-			toolCalls: m.toolCalls,
-			toolCallId: m.toolCallId,
-		}));
+	private async buildInput(options: SessionRunOptions): Promise<InputItem[]> {
+		return buildSessionInputWithContext(
+			this.messages,
+			options,
+			this.defaultModel,
+			this.resolveModelContext,
+		);
 	}
 
 	private async processRunEvents(signal?: AbortSignal): Promise<SessionRunResult> {
