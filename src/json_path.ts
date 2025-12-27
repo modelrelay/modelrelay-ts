@@ -152,3 +152,44 @@ export const LLMInputUserText: JSONPointer = LLMInput().userMessage().text();
 
 /** Targets the first message text (input[0].content[0].text) */
 export const LLMInputFirstMessageText: JSONPointer = LLMInput().message(0).text();
+
+/**
+ * Path builder for accessing outputs from a join.all node.
+ * A join.all node produces an object keyed by upstream node IDs.
+ *
+ * @example
+ * ```typescript
+ * // Access text from a specific node in the join output:
+ * const pointer = JoinOutput("cost_analyst").text();
+ * // Produces: "/cost_analyst/output/0/content/0/text"
+ * ```
+ */
+export class JoinOutputPath {
+	constructor(private readonly path: string) {}
+
+	/** Access the output array of the node */
+	output(): LLMOutputPath {
+		return new LLMOutputPath(`${this.path}/output`);
+	}
+
+	/**
+	 * Shorthand for accessing the first text content from the node.
+	 * Equivalent to: JoinOutput(nodeId).output().content(0).text()
+	 */
+	text(): JSONPointer {
+		return this.output().content(0).text();
+	}
+
+	/** Get the path as a string */
+	toString(): string {
+		return this.path;
+	}
+}
+
+/**
+ * Start building a path to access a specific node's output from a join.all node.
+ * @param nodeId The ID of the upstream node
+ */
+export function JoinOutput(nodeId: string): JoinOutputPath {
+	return new JoinOutputPath(`/${nodeId}`);
+}
