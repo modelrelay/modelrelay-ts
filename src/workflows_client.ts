@@ -3,7 +3,7 @@ import type { HTTPClient } from "./http";
 import type { MetricsCallbacks, TraceCallbacks } from "./types";
 import { mergeMetrics, mergeTrace } from "./types";
 import { parsePlanHash } from "./runs_ids";
-import type { WorkflowSpecV0 } from "./runs_types";
+import type { WorkflowSpecV0, WorkflowSpecV1 } from "./runs_types";
 import { WORKFLOWS_COMPILE_PATH } from "./workflows_request";
 import { CUSTOMER_ID_HEADER } from "./responses_request";
 import { APIError, ModelRelayError, WorkflowValidationError, type WorkflowValidationIssue } from "./errors";
@@ -30,8 +30,29 @@ export type WorkflowsCompileResponseV0 = {
 	plan_hash: import("./runs_ids").PlanHash;
 };
 
+export type WorkflowsCompileResponseV1 = {
+	plan_json: unknown;
+	plan_hash: import("./runs_ids").PlanHash;
+};
+
 export type WorkflowsCompileV0Result =
 	| ({ ok: true } & WorkflowsCompileResponseV0)
+	| {
+			ok: false;
+			error_type: "validation_error";
+			issues: ReadonlyArray<WorkflowValidationIssue>;
+	  }
+	| {
+			ok: false;
+			error_type: "internal_error";
+			status: number;
+			message: string;
+			code?: string;
+			requestId?: string;
+	  };
+
+export type WorkflowsCompileV1Result =
+	| ({ ok: true } & WorkflowsCompileResponseV1)
 	| {
 			ok: false;
 			error_type: "validation_error";
@@ -67,6 +88,71 @@ export class WorkflowsClient {
 		spec: WorkflowSpecV0,
 		options: WorkflowsCompileOptions = {},
 	): Promise<WorkflowsCompileV0Result> {
+		const metrics = mergeMetrics(this.metrics, options.metrics);
+		const trace = mergeTrace(this.trace, options.trace);
+		const authHeaders = await this.auth.authForResponses();
+		const headers: Record<string, string> = { ...(options.headers || {}) };
+		const customerId = options.customerId?.trim();
+		if (customerId) {
+			headers[CUSTOMER_ID_HEADER] = customerId;
+		}
+
+		try {
+			const out = await this.http.json<{ plan_json: unknown; plan_hash: string }>(
+				WORKFLOWS_COMPILE_PATH,
+				{
+					method: "POST",
+					headers,
+					body: spec,
+					signal: options.signal,
+					apiKey: authHeaders.apiKey,
+					accessToken: authHeaders.accessToken,
+					timeoutMs: options.timeoutMs,
+					connectTimeoutMs: options.connectTimeoutMs,
+					retry: options.retry,
+					metrics,
+					trace,
+					context: { method: "POST", path: WORKFLOWS_COMPILE_PATH },
+				},
+			);
+
+			return {
+				ok: true,
+				plan_json: out.plan_json,
+				plan_hash: parsePlanHash(out.plan_hash),
+			};
+		} catch (err) {
+			if (err instanceof WorkflowValidationError) {
+				return { ok: false, error_type: "validation_error", issues: err.issues };
+			}
+			if (err instanceof APIError) {
+				return {
+					ok: false,
+					error_type: "internal_error",
+					status: err.status ?? 0,
+					message: err.message,
+					code: err.code,
+					requestId: err.requestId,
+				};
+			}
+			if (err instanceof ModelRelayError && err.category === "api") {
+				return {
+					ok: false,
+					error_type: "internal_error",
+					status: err.status ?? 0,
+					message: err.message,
+					code: err.code,
+					requestId: err.requestId,
+				};
+			}
+			throw err;
+		}
+	}
+
+	async compileV1(
+		spec: WorkflowSpecV1,
+		options: WorkflowsCompileOptions = {},
+	): Promise<WorkflowsCompileV1Result> {
 		const metrics = mergeMetrics(this.metrics, options.metrics);
 		const trace = mergeTrace(this.trace, options.trace);
 		const authHeaders = await this.auth.authForResponses();

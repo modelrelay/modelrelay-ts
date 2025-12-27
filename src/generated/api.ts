@@ -24,6 +24,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/schemas/workflow_v1.schema.json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get JSON Schema for workflow.v1
+         * @description Returns the canonical JSON Schema (draft-07) for `workflow.v1`.
+         */
+        get: operations["getWorkflowV1Schema"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/schemas/run_event_v0.schema.json": {
         parameters: {
             query?: never;
@@ -695,8 +715,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Start a workflow run (workflow.v0)
-         * @description Starts a run for a `workflow.v0` spec and returns a `run_id`. Auth matches `/responses` (API key or frontend bearer token). Session owner tokens from `/auth/login` are not accepted. Provide `session_id` to link the run to a session; when linked, assistant messages are appended to the session on completion.
+         * Start a workflow run (workflow.v0 or workflow.v1)
+         * @description Starts a run for a `workflow.v0` or `workflow.v1` spec and returns a `run_id`. Auth matches `/responses` (API key or frontend bearer token). Session owner tokens from `/auth/login` are not accepted. Provide `session_id` to link the run to a session; when linked, assistant messages are appended to the session on completion.
          */
         post: operations["createRun"];
         delete?: never;
@@ -1335,11 +1355,15 @@ export interface components {
         WorkflowSpecV0: {
             [key: string]: unknown;
         };
+        /** @description A `workflow.v1` spec. The canonical JSON Schema is available at `/schemas/workflow_v1.schema.json`. */
+        WorkflowSpecV1: {
+            [key: string]: unknown;
+        };
         RunsCreateOptionsV0: {
             idempotency_key?: string;
         };
         RunsCreateRequest: {
-            spec: components["schemas"]["WorkflowSpecV0"];
+            spec: components["schemas"]["WorkflowSpecV0"] | components["schemas"]["WorkflowSpecV1"];
             /**
              * Format: uuid
              * @description Optional session ID to link this run to a session.
@@ -1721,7 +1745,7 @@ export interface components {
          * @description Type of workflow node.
          * @enum {string}
          */
-        NodeTypeV0: "llm.responses" | "join.all" | "transform.json";
+        NodeTypeV0: "llm.responses" | "route.switch" | "join.all" | "join.any" | "join.collect" | "map.fanout" | "transform.json";
         /** @description Tier code identifier (e.g., free, pro, enterprise). */
         TierCode: string;
         /** @description Request to generate images from a text prompt. */
@@ -1910,6 +1934,26 @@ export interface components {
 export type $defs = Record<string, never>;
 export interface operations {
     getWorkflowV0Schema: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Schema document */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/schema+json": Record<string, never>;
+                };
+            };
+        };
+    };
+    getWorkflowV1Schema: {
         parameters: {
             query?: never;
             header?: never;

@@ -11,6 +11,7 @@ import {
 	parseOutputName,
 	parseSecretKey,
 	workflowV0,
+	workflowV1,
 } from "../src";
 
 function conformanceWorkflowsV0Dir(): string | null {
@@ -35,8 +36,29 @@ function conformanceWorkflowsV0Dir(): string | null {
 	return internal;
 }
 
-function readJSONFixture<T>(name: string): T {
-	const base = CONFORMANCE_DIR;
+function conformanceWorkflowsV1Dir(): string | null {
+	const here = path.dirname(fileURLToPath(import.meta.url));
+	const envRoot = process.env.MODELRELAY_CONFORMANCE_DIR;
+	if (envRoot) {
+		return path.join(envRoot, "workflows", "v1");
+	}
+
+	// sdk/ts/test -> repo root
+	const repoRoot = path.resolve(here, "..", "..", "..");
+	const internal = path.join(
+		repoRoot,
+		"platform",
+		"workflow",
+		"testdata",
+		"conformance",
+		"workflows",
+		"v1",
+	);
+	if (!existsSync(path.join(internal, "workflow_v1_router.json"))) return null;
+	return internal;
+}
+
+function readJSONFixture<T>(base: string | null, name: string): T {
 	if (!base) {
 		throw new Error(
 			"conformance fixtures not available (set MODELRELAY_CONFORMANCE_DIR)",
@@ -44,6 +66,14 @@ function readJSONFixture<T>(name: string): T {
 	}
 	const full = path.join(base, name);
 	return JSON.parse(readFileSync(full, "utf8")) as T;
+}
+
+function readJSONFixtureV0<T>(name: string): T {
+	return readJSONFixture<T>(CONFORMANCE_DIR_V0, name);
+}
+
+function readJSONFixtureV1<T>(name: string): T {
+	return readJSONFixture<T>(CONFORMANCE_DIR_V1, name);
 }
 
 type WorkflowValidationIssueFixture =
@@ -69,12 +99,14 @@ async function withTestServer(handler: (req: IncomingMessage, res: ServerRespons
 	};
 }
 
-const CONFORMANCE_DIR = conformanceWorkflowsV0Dir();
-const conformanceSuite = CONFORMANCE_DIR ? describe : describe.skip;
+const CONFORMANCE_DIR_V0 = conformanceWorkflowsV0Dir();
+const CONFORMANCE_DIR_V1 = conformanceWorkflowsV1Dir();
+const conformanceSuiteV0 = CONFORMANCE_DIR_V0 ? describe : describe.skip;
+const conformanceSuiteV1 = CONFORMANCE_DIR_V1 ? describe : describe.skip;
 
-conformanceSuite("workflow builder conformance", () => {
+conformanceSuiteV0("workflow builder conformance v0", () => {
 	it("builds the canonical parallel agents workflow.v0", () => {
-		const fixture = readJSONFixture<any>(
+		const fixture = readJSONFixtureV0<any>(
 			"workflow_v0_parallel_agents.json",
 		);
 
@@ -160,7 +192,7 @@ conformanceSuite("workflow builder conformance", () => {
 	});
 
 	it("builds the canonical bindings workflow.v0", () => {
-		const fixture = readJSONFixture<any>(
+		const fixture = readJSONFixtureV0<any>(
 			"workflow_v0_bindings_join_into_aggregate.json",
 		);
 
@@ -219,9 +251,9 @@ conformanceSuite("workflow builder conformance", () => {
 	});
 
 	it("workflows.compileV0 returns canonical plan + plan_hash", async () => {
-		const fixtureSpec = readJSONFixture<any>("workflow_v0_parallel_agents.json");
-		const fixturePlan = readJSONFixture<any>("workflow_v0_parallel_agents.plan.json");
-		const planHash = readJSONFixture<{ plan_hash: string }>(
+		const fixtureSpec = readJSONFixtureV0<any>("workflow_v0_parallel_agents.json");
+		const fixturePlan = readJSONFixtureV0<any>("workflow_v0_parallel_agents.plan.json");
+		const planHash = readJSONFixtureV0<{ plan_hash: string }>(
 			"workflow_v0_parallel_agents.plan_hash.json",
 		).plan_hash;
 
@@ -275,8 +307,8 @@ conformanceSuite("workflow builder conformance", () => {
 		] as const;
 
 		for (const [specRel, issuesRel] of fixtures) {
-			const spec = readJSONFixture<any>(specRel);
-			const issues = readJSONFixture<WorkflowValidationIssueFixture>(issuesRel);
+			const spec = readJSONFixtureV0<any>(specRel);
+			const issues = readJSONFixtureV0<WorkflowValidationIssueFixture>(issuesRel);
 
 			const { baseUrl, close } = await withTestServer((_req, res) => {
 				res.statusCode = 400;
@@ -287,6 +319,291 @@ conformanceSuite("workflow builder conformance", () => {
 			try {
 				const mr = new ModelRelay({ key: parseSecretKey("mr_sk_test"), baseUrl });
 				const out = await mr.workflows.compileV0(spec);
+				expect(out.ok).toBe(false);
+				if (out.ok) {
+					throw new Error("expected validation_error");
+				}
+				expect(out.error_type).toBe("validation_error");
+				if (out.error_type !== "validation_error") {
+					throw new Error(`expected validation_error, got ${out.error_type}`);
+				}
+				expect(out.issues).toEqual(issues.issues);
+			} finally {
+				await close();
+			}
+		}
+	});
+});
+
+conformanceSuiteV1("workflow builder conformance v1", () => {
+	it("builds the canonical router workflow.v1", () => {
+		const fixture = readJSONFixtureV1<any>("workflow_v1_router.json");
+
+		const spec = workflowV1()
+			.name("router_specialists")
+			.execution({
+				max_parallelism: 4,
+				node_timeout_ms: 60_000,
+				run_timeout_ms: 180_000,
+			})
+			.routeSwitch(parseNodeId("router"), {
+				model: "echo-1",
+				max_output_tokens: 32,
+				input: [
+					{
+						type: "message",
+						role: "system",
+						content: [
+							{
+								type: "text",
+								text: "Return JSON with a single 'route' field.",
+							},
+						],
+					},
+					{
+						type: "message",
+						role: "user",
+						content: [
+							{
+								type: "text",
+								text: "Classify the request into billing or support.",
+							},
+						],
+					},
+				],
+			})
+			.llmResponses(parseNodeId("billing_agent"), {
+				model: "echo-1",
+				max_output_tokens: 128,
+				input: [
+					{
+						type: "message",
+						role: "system",
+						content: [{ type: "text", text: "You are a billing specialist." }],
+					},
+					{
+						type: "message",
+						role: "user",
+						content: [{ type: "text", text: "Handle the billing request." }],
+					},
+				],
+			})
+			.llmResponses(parseNodeId("support_agent"), {
+				model: "echo-1",
+				max_output_tokens: 128,
+				input: [
+					{
+						type: "message",
+						role: "system",
+						content: [{ type: "text", text: "You are a support specialist." }],
+					},
+					{
+						type: "message",
+						role: "user",
+						content: [{ type: "text", text: "Handle the support request." }],
+					},
+				],
+			})
+			.joinAny(parseNodeId("join"))
+			.llmResponses(
+				parseNodeId("aggregate"),
+				{
+					model: "echo-1",
+					max_output_tokens: 256,
+					input: [
+						{
+							type: "message",
+							role: "system",
+							content: [
+								{
+									type: "text",
+									text: "Summarize the specialist output: {{route_output}}",
+								},
+							],
+						},
+					],
+				},
+				{
+					bindings: [
+						{
+							from: parseNodeId("join"),
+							to_placeholder: "route_output",
+							encoding: "json_string",
+						},
+					],
+				},
+			)
+			.edge(parseNodeId("router"), parseNodeId("billing_agent"), {
+				source: "node_output",
+				op: "equals",
+				path: "$.route",
+				value: "billing",
+			})
+			.edge(parseNodeId("router"), parseNodeId("support_agent"), {
+				source: "node_output",
+				op: "equals",
+				path: "$.route",
+				value: "support",
+			})
+			.edge(parseNodeId("billing_agent"), parseNodeId("join"))
+			.edge(parseNodeId("support_agent"), parseNodeId("join"))
+			.edge(parseNodeId("join"), parseNodeId("aggregate"))
+			.output(parseOutputName("final"), parseNodeId("aggregate"))
+			.build();
+
+		expect(spec).toEqual(fixture);
+	});
+
+	it("builds the canonical fanout workflow.v1", () => {
+		const fixture = readJSONFixtureV1<any>("workflow_v1_fanout.json");
+
+		const spec = workflowV1()
+			.name("fanout_questions")
+			.llmResponses(parseNodeId("question_generator"), {
+				model: "echo-1",
+				max_output_tokens: 128,
+				input: [
+					{
+						type: "message",
+						role: "system",
+						content: [
+							{ type: "text", text: "Return JSON with a 'questions' array." },
+						],
+					},
+					{
+						type: "message",
+						role: "user",
+						content: [{ type: "text", text: "Generate 3 subquestions." }],
+					},
+				],
+			})
+			.mapFanout(parseNodeId("fanout"), {
+				items: { from: parseNodeId("question_generator"), path: "$.questions" },
+				item_bindings: [
+					{
+						path: "$",
+						to_placeholder: "question",
+						encoding: "json_string",
+					},
+				],
+				subnode: {
+					id: parseNodeId("mapper"),
+					type: "llm.responses",
+					input: {
+						request: {
+							model: "echo-1",
+							max_output_tokens: 128,
+							input: [
+								{
+									type: "message",
+									role: "system",
+									content: [
+										{ type: "text", text: "Answer the question: {{question}}" },
+									],
+								},
+							],
+						},
+					},
+				},
+				max_parallelism: 4,
+			})
+			.llmResponses(
+				parseNodeId("aggregate"),
+				{
+					model: "echo-1",
+					max_output_tokens: 256,
+					input: [
+						{
+							type: "message",
+							role: "system",
+							content: [{ type: "text", text: "Combine the answers: " }],
+						},
+					],
+				},
+				{
+					bindings: [
+						{
+							from: parseNodeId("fanout"),
+							pointer: "/results",
+							to: "/input/0/content/0/text",
+							encoding: "json_string",
+						},
+					],
+				},
+			)
+			.edge(parseNodeId("question_generator"), parseNodeId("fanout"))
+			.edge(parseNodeId("fanout"), parseNodeId("aggregate"))
+			.output(parseOutputName("final"), parseNodeId("aggregate"))
+			.build();
+
+		expect(spec).toEqual(fixture);
+	});
+
+	it("workflows.compileV1 returns canonical plan + plan_hash", async () => {
+		const fixtureSpec = readJSONFixtureV1<any>("workflow_v1_router.json");
+		const fixturePlan = readJSONFixtureV1<any>("workflow_v1_router.plan.json");
+		const planHash = readJSONFixtureV1<{ plan_hash: string }>(
+			"workflow_v1_router.plan_hash.json",
+		).plan_hash;
+
+		const { baseUrl, close } = await withTestServer((req, res) => {
+			if (req.method !== "POST" || req.url !== "/api/v1/workflows/compile") {
+				res.statusCode = 404;
+				res.end();
+				return;
+			}
+			let body = "";
+			req.setEncoding("utf8");
+			req.on("data", (chunk) => {
+				body += chunk;
+			});
+			req.on("end", () => {
+				expect(JSON.parse(body)).toEqual(fixtureSpec);
+				res.statusCode = 200;
+				res.setHeader("Content-Type", "application/json");
+				res.end(JSON.stringify({ plan_json: fixturePlan, plan_hash: planHash }));
+			});
+		});
+
+		try {
+			const mr = new ModelRelay({ key: parseSecretKey("mr_sk_test"), baseUrl });
+			const out = await mr.workflows.compileV1(fixtureSpec);
+			expect(out.ok).toBe(true);
+			if (!out.ok) {
+				throw new Error(`expected ok compile result, got ${out.error_type}`);
+			}
+			expect(out.plan_hash).toBe(planHash);
+			expect(out.plan_json).toEqual(fixturePlan);
+		} finally {
+			await close();
+		}
+	});
+
+	it("workflows.compileV1 surfaces server validation issues (no SDK validator)", async () => {
+		const fixtures = [
+			[
+				"workflow_v1_invalid_condition.json",
+				"workflow_v1_invalid_condition.issues.json",
+			],
+			[
+				"workflow_v1_invalid_map_spec.json",
+				"workflow_v1_invalid_map_spec.issues.json",
+			],
+		] as const;
+
+		for (const [specRel, issuesRel] of fixtures) {
+			const spec = readJSONFixtureV1<any>(specRel);
+			const issues = readJSONFixtureV1<WorkflowValidationIssueFixture>(issuesRel);
+
+			const { baseUrl, close } = await withTestServer((_req, res) => {
+				res.statusCode = 400;
+				res.setHeader("Content-Type", "application/json");
+				res.end(JSON.stringify(issues));
+			});
+
+			try {
+				const mr = new ModelRelay({ key: parseSecretKey("mr_sk_test"), baseUrl });
+				const out = await mr.workflows.compileV1(spec);
 				expect(out.ok).toBe(false);
 				if (out.ok) {
 					throw new Error("expected validation_error");

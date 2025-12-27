@@ -16,14 +16,26 @@
 import type {
 	WorkflowKind as _WorkflowKind,
 	WorkflowSpecV0 as _WorkflowSpecV0,
+	WorkflowSpecV1 as _WorkflowSpecV1,
 	WorkflowNodeV0 as _WorkflowNodeV0,
+	WorkflowNodeV1 as _WorkflowNodeV1,
 	WorkflowEdgeV0 as _WorkflowEdgeV0,
+	WorkflowEdgeV1 as _WorkflowEdgeV1,
 	WorkflowOutputRefV0 as _WorkflowOutputRefV0,
+	WorkflowOutputRefV1 as _WorkflowOutputRefV1,
 	LLMResponsesBindingV0 as _LLMResponsesBindingV0,
+	LLMResponsesBindingV1 as _LLMResponsesBindingV1,
 	LLMResponsesBindingEncodingV0 as _LLMResponsesBindingEncodingV0,
+	LLMResponsesBindingEncodingV1 as _LLMResponsesBindingEncodingV1,
 	LLMResponsesToolLimitsV0 as _LLMResponsesToolLimitsV0,
+	LLMResponsesToolLimitsV1 as _LLMResponsesToolLimitsV1,
 	ToolExecutionV0 as _ToolExecutionV0,
+	ToolExecutionV1 as _ToolExecutionV1,
 	ToolExecutionModeV0 as _ToolExecutionModeV0,
+	ToolExecutionModeV1 as _ToolExecutionModeV1,
+	ConditionV1 as _ConditionV1,
+	ConditionOpV1 as _ConditionOpV1,
+	ConditionSourceV1 as _ConditionSourceV1,
 	RunStatusV0 as _RunStatusV0,
 	RunEventTypeV0 as _RunEventTypeV0,
 	RunEventV0 as _RunEventV0,
@@ -55,7 +67,7 @@ import type {
 	StreamEventKind as _StreamEventKind,
 } from "../runs_types";
 
-import { WorkflowKinds, WorkflowNodeTypes } from "../runs_types";
+import { WorkflowKinds, WorkflowNodeTypes, WorkflowNodeTypesV1 } from "../runs_types";
 
 import type {
 	NodeId as _NodeId,
@@ -78,16 +90,29 @@ export { parseNodeId, parseRunId, parsePlanHash, parseOutputName };
 // Workflow spec types (drop Workflow prefix)
 export type Kind = _WorkflowKind;
 export type SpecV0 = _WorkflowSpecV0;
+export type SpecV1 = _WorkflowSpecV1;
 export type NodeV0 = _WorkflowNodeV0;
+export type NodeV1 = _WorkflowNodeV1;
 export type EdgeV0 = _WorkflowEdgeV0;
+export type EdgeV1 = _WorkflowEdgeV1;
 export type OutputRefV0 = _WorkflowOutputRefV0;
+export type OutputRefV1 = _WorkflowOutputRefV1;
 
 // Binding types
 export type BindingV0 = _LLMResponsesBindingV0;
+export type BindingV1 = _LLMResponsesBindingV1;
 export type BindingEncodingV0 = _LLMResponsesBindingEncodingV0;
+export type BindingEncodingV1 = _LLMResponsesBindingEncodingV1;
 export type ToolLimitsV0 = _LLMResponsesToolLimitsV0;
+export type ToolLimitsV1 = _LLMResponsesToolLimitsV1;
 export type ToolExecutionV0 = _ToolExecutionV0;
+export type ToolExecutionV1 = _ToolExecutionV1;
 export type ToolExecutionModeV0 = _ToolExecutionModeV0;
+export type ToolExecutionModeV1 = _ToolExecutionModeV1;
+
+export type ConditionV1 = _ConditionV1;
+export type ConditionOpV1 = _ConditionOpV1;
+export type ConditionSourceV1 = _ConditionSourceV1;
 
 // Run types (drop Run prefix)
 export type StatusV0 = _RunStatusV0;
@@ -124,6 +149,7 @@ export type StreamEventKind = _StreamEventKind;
 
 // Constants
 export const KindV0 = WorkflowKinds.WorkflowV0;
+export const KindV1 = WorkflowKinds.WorkflowV1;
 
 export const NodeTypes = {
 	LLMResponses: WorkflowNodeTypes.LLMResponses,
@@ -131,6 +157,17 @@ export const NodeTypes = {
 	TransformJSON: WorkflowNodeTypes.TransformJSON,
 } as const;
 export type NodeType = (typeof NodeTypes)[keyof typeof NodeTypes];
+
+export const NodeTypesV1 = {
+	LLMResponses: WorkflowNodeTypesV1.LLMResponses,
+	RouteSwitch: WorkflowNodeTypesV1.RouteSwitch,
+	JoinAll: WorkflowNodeTypesV1.JoinAll,
+	JoinAny: WorkflowNodeTypesV1.JoinAny,
+	JoinCollect: WorkflowNodeTypesV1.JoinCollect,
+	TransformJSON: WorkflowNodeTypesV1.TransformJSON,
+	MapFanout: WorkflowNodeTypesV1.MapFanout,
+} as const;
+export type NodeTypeV1 = (typeof NodeTypesV1)[keyof typeof NodeTypesV1];
 
 export const BindingEncodings = {
 	JSON: "json",
@@ -145,3 +182,29 @@ export const ToolExecutionModes = {
 // Semantic JSON pointer constants for LLM responses nodes.
 // Derived from typed path builders to ensure consistency.
 export { LLM_TEXT_OUTPUT, LLM_USER_MESSAGE_TEXT } from "../workflow_builder";
+
+// v1 helpers: condition and binding factories
+export {
+	whenOutputEquals,
+	whenOutputMatches,
+	whenOutputExists,
+	whenStatusEquals,
+	whenStatusMatches,
+	whenStatusExists,
+	bindToPlaceholder,
+	bindToPointer,
+	bindFrom,
+	BindingBuilder,
+} from "./helpers_v1";
+export type { BindingOptions } from "./helpers_v1";
+
+// v1 pattern builders
+export {
+	RouterV1,
+	FanoutReduceV1,
+} from "./patterns_v1";
+export type {
+	RouterConfigV1,
+	RouterRouteV1,
+	FanoutReduceConfigV1,
+} from "./patterns_v1";
