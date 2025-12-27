@@ -11,7 +11,15 @@
 
 import type { ModelRelay } from "../index";
 import type { HTTPClient } from "../http";
-import type { InputItem, Tool, ToolCall, ModelId, ProviderId, ContentPart } from "../types";
+import type {
+	InputItem,
+	Tool,
+	ToolCall,
+	ModelId,
+	ProviderId,
+	ContentPart,
+	OutputItem,
+} from "../types";
 import type { ToolRegistry, ToolExecutionResult } from "../tools";
 import type { RunId, NodeId } from "../runs_ids";
 import type { RunEventV0, NodeWaitingV0, PendingToolCallV0 } from "../runs_types";
@@ -322,6 +330,7 @@ export class RemoteSession implements Session {
 			// Create run
 			const run = await this.client.runs.create(spec, {
 				customerId: options.customerId || this.endUserId,
+				sessionId: String(this.id),
 			});
 			this.currentRunId = run.run_id;
 
@@ -547,13 +556,7 @@ export class RemoteSession implements Session {
 				case "run_completed": {
 					// Get final output
 					const runState = await this.client.runs.get(this.currentRunId);
-					let output: string | undefined;
-					if (runState.outputs && Array.isArray(runState.outputs)) {
-						output = (runState.outputs as unknown as Array<{ type: string; text?: string }>)
-							.filter((o) => o.type === "text")
-							.map((o) => o.text || "")
-							.join("");
-					}
+					const output = this.extractOutputText(runState.outputs);
 
 					// Add assistant message to history
 					if (output) {
@@ -564,6 +567,7 @@ export class RemoteSession implements Session {
 								content: [{ type: "text", text: output }],
 							},
 							this.currentRunId,
+							false,
 						);
 					}
 
@@ -599,13 +603,7 @@ export class RemoteSession implements Session {
 
 		// Stream ended without explicit completion - get final state
 		const runState = await this.client.runs.get(this.currentRunId);
-		let output: string | undefined;
-		if (runState.outputs && Array.isArray(runState.outputs)) {
-			output = (runState.outputs as unknown as Array<{ type: string; text?: string }>)
-				.filter((o) => o.type === "text")
-				.map((o) => o.text || "")
-				.join("");
-		}
+		const output = this.extractOutputText(runState.outputs);
 
 		if (output) {
 			this.addMessage(
@@ -615,6 +613,7 @@ export class RemoteSession implements Session {
 					content: [{ type: "text", text: output }],
 				},
 				this.currentRunId,
+				false,
 			);
 		}
 
@@ -720,6 +719,52 @@ export class RemoteSession implements Session {
 			createdAt: new Date(data.created_at),
 			runId: data.run_id ? (parseRunId(data.run_id) as RunId) : undefined,
 		};
+	}
+
+	private extractOutputText(outputs?: Record<string, unknown>): string | undefined {
+		if (!outputs) return undefined;
+		for (const value of Object.values(outputs)) {
+			const text = this.extractTextFromOutputValue(value);
+			if (text) return text;
+		}
+		return undefined;
+	}
+
+	private extractTextFromOutputValue(value: unknown): string | undefined {
+		if (!value || typeof value !== "object") return undefined;
+		if ("output" in value && Array.isArray((value as { output?: unknown }).output)) {
+			return this.extractTextFromOutputItems((value as { output: OutputItem[] }).output);
+		}
+		if (Array.isArray(value)) {
+			const arr = value as unknown[];
+			if (arr.length === 0 || typeof arr[0] !== "object") return undefined;
+			if ("content" in (arr[0] as object)) {
+				return this.extractTextFromOutputItems(arr as OutputItem[]);
+			}
+			if ("type" in (arr[0] as object) && "text" in (arr[0] as object)) {
+				return this.extractTextFromContentParts(arr as ContentPart[]);
+			}
+		}
+		return undefined;
+	}
+
+	private extractTextFromOutputItems(items: OutputItem[]): string | undefined {
+		const texts: string[] = [];
+		for (const item of items) {
+			if (item.type !== "message" || item.role !== "assistant") continue;
+			texts.push(this.extractTextFromContentParts(item.content) || "");
+		}
+		const combined = texts.join("");
+		return combined.trim() ? combined : undefined;
+	}
+
+	private extractTextFromContentParts(parts: ContentPart[]): string | undefined {
+		if (!parts || parts.length === 0) return undefined;
+		const text = parts
+			.filter((p) => p.type === "text")
+			.map((p) => p.text || "")
+			.join("");
+		return text.trim() ? text : undefined;
 	}
 }
 

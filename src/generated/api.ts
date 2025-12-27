@@ -646,7 +646,7 @@ export interface paths {
         put?: never;
         /**
          * Start a workflow run (workflow.v0)
-         * @description Starts a run for a `workflow.v0` spec and returns a `run_id`. Auth matches `/responses` (API key or frontend bearer token). Session owner tokens from `/auth/login` are not accepted.
+         * @description Starts a run for a `workflow.v0` spec and returns a `run_id`. Auth matches `/responses` (API key or frontend bearer token). Session owner tokens from `/auth/login` are not accepted. Provide `session_id` to link the run to a session; when linked, assistant messages are appended to the session on completion.
          */
         post: operations["createRun"];
         delete?: never;
@@ -1290,6 +1290,11 @@ export interface components {
         };
         RunsCreateRequest: {
             spec: components["schemas"]["WorkflowSpecV0"];
+            /**
+             * Format: uuid
+             * @description Optional session ID to link this run to a session.
+             */
+            session_id?: string;
             /** @description Reserved for future use. */
             input?: {
                 [key: string]: unknown;

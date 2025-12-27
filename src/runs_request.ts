@@ -48,6 +48,7 @@ export type RunsPendingToolsResponse = {
 
 export type RunsCreateRequest = {
 	spec: WorkflowSpecV0;
+	session_id?: string;
 	input?: unknown; // reserved for future use
 	options?: {
 		idempotency_key?: string;

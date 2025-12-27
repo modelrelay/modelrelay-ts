@@ -26,6 +26,7 @@ import { parseNodeId, parsePlanHash, parseRunId } from "./runs_ids";
 
 export type RunsCreateOptions = {
 	customerId?: string;
+	sessionId?: string;
 	idempotencyKey?: string;
 	signal?: AbortSignal;
 	headers?: Record<string, string>;
@@ -117,6 +118,9 @@ export class RunsClient {
 		const headers: Record<string, string> = { ...(options.headers || {}) };
 		this.applyCustomerHeader(headers, options.customerId);
 		const payload: RunsCreateRequest = { spec };
+		if (options.sessionId?.trim()) {
+			payload.session_id = options.sessionId.trim();
+		}
 		if (options.idempotencyKey?.trim()) {
 			payload.options = { idempotency_key: options.idempotencyKey.trim() };
 		}
