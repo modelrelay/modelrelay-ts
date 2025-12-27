@@ -73,7 +73,8 @@ export type LLMResponsesBindingEncodingV0 = "json" | "json_string";
 export type LLMResponsesBindingV0 = {
 	from: NodeId;
 	pointer?: string;
-	to: string;
+	to?: string;
+	to_placeholder?: string;
 	encoding?: LLMResponsesBindingEncodingV0;
 };
 
