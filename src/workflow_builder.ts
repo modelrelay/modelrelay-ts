@@ -15,6 +15,7 @@ import type {
 	WorkflowSpecV0,
 } from "./runs_types";
 import { WorkflowKinds, WorkflowNodeTypes } from "./runs_types";
+import type { InputItem } from "./types";
 
 /**
  * Semantic JSON pointer constants for LLM responses nodes.
@@ -71,6 +72,85 @@ function wireRequest(req: WireResponsesRequest | ResponsesRequest): WireResponse
 	return asInternal(req as ResponsesRequest).body;
 }
 
+// =============================================================================
+// Binding Target Validation
+// =============================================================================
+
+/** Pattern matching /input/{index}/content/{contentIndex}/... */
+const INPUT_POINTER_PATTERN = /^\/input\/(\d+)(?:\/content\/(\d+))?/;
+
+/**
+ * Error thrown when a binding targets a non-existent path in the request.
+ */
+export class BindingTargetError extends Error {
+	readonly nodeId: NodeId;
+	readonly bindingIndex: number;
+	readonly pointer: string;
+
+	constructor(nodeId: NodeId, bindingIndex: number, pointer: string, message: string) {
+		super(`node "${nodeId}" binding ${bindingIndex}: ${message}`);
+		this.name = "BindingTargetError";
+		this.nodeId = nodeId;
+		this.bindingIndex = bindingIndex;
+		this.pointer = pointer;
+	}
+}
+
+/**
+ * Validates that binding targets exist in the request.
+ * Throws BindingTargetError if a binding targets a non-existent path.
+ */
+function validateBindingTargets(
+	nodeId: NodeId,
+	input: InputItem[],
+	bindings: ReadonlyArray<LLMResponsesBindingV0>,
+): void {
+	for (let i = 0; i < bindings.length; i++) {
+		const binding = bindings[i];
+		// Skip placeholder bindings (no `to` path to validate)
+		if (!binding.to) continue;
+
+		const error = validateInputPointer(binding.to, input);
+		if (error) {
+			throw new BindingTargetError(nodeId, i, binding.to, error);
+		}
+	}
+}
+
+/**
+ * Validates that an input pointer targets an existing path.
+ * Returns an error message if invalid, or undefined if valid.
+ */
+function validateInputPointer(pointer: string, input: InputItem[]): string | undefined {
+	// Only validate /input/... pointers
+	if (!pointer.startsWith("/input/")) {
+		return undefined;
+	}
+
+	const match = pointer.match(INPUT_POINTER_PATTERN);
+	if (!match) {
+		// Doesn't match our expected pattern, skip validation
+		return undefined;
+	}
+
+	const msgIndex = parseInt(match[1], 10);
+
+	if (msgIndex >= input.length) {
+		return `targets ${pointer} but request only has ${input.length} messages (indices 0-${input.length - 1}); add placeholder messages or adjust binding target`;
+	}
+
+	// Optionally validate content block index
+	if (match[2] !== undefined) {
+		const contentIndex = parseInt(match[2], 10);
+		const msg = input[msgIndex];
+		if (contentIndex >= msg.content.length) {
+			return `targets ${pointer} but message ${msgIndex} only has ${msg.content.length} content blocks (indices 0-${msg.content.length - 1})`;
+		}
+	}
+
+	return undefined;
+}
+
 export type WorkflowBuilderV0State = {
 	readonly name?: string;
 	readonly execution?: WorkflowSpecV0["execution"];
@@ -119,8 +199,15 @@ export class WorkflowBuilderV0 {
 			bindings?: ReadonlyArray<LLMResponsesBindingV0>;
 		} = {},
 	): WorkflowBuilderV0 {
+		const wiredRequest = wireRequest(request);
+
+		// Validate binding targets before building the node
+		if (options.bindings) {
+			validateBindingTargets(id, wiredRequest.input, options.bindings);
+		}
+
 		const input: LLMResponsesNodeInputV0 = {
-			request: wireRequest(request),
+			request: wiredRequest,
 			...(options.stream === undefined ? {} : { stream: options.stream }),
 			...(options.toolExecution === undefined
 				? {}
@@ -391,6 +478,11 @@ export class Workflow {
 		const pending = this._pendingNode;
 		if (!pending) return;
 		this._pendingNode = null;
+
+		// Validate binding targets before building the node
+		if (pending.bindings.length > 0) {
+			validateBindingTargets(pending.id, pending.request.input, pending.bindings);
+		}
 
 		const input: WorkflowNodeV0 & { type: typeof WorkflowNodeTypes.LLMResponses } = {
 			id: pending.id,
