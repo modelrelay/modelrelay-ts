@@ -848,6 +848,88 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{id}/tool-hooks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+            };
+            cookie?: never;
+        };
+        /** List project tool hooks */
+        get: operations["listProjectToolHooks"];
+        put?: never;
+        /** Create a project tool hook */
+        post: operations["createProjectToolHook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{id}/tool-hooks/{hook_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                hook_id: components["parameters"]["ToolHookID"];
+            };
+            cookie?: never;
+        };
+        /** Get a project tool hook */
+        get: operations["getProjectToolHook"];
+        /** Update a project tool hook */
+        put: operations["updateProjectToolHook"];
+        post?: never;
+        /** Delete a project tool hook */
+        delete: operations["deleteProjectToolHook"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{id}/tool-hooks/{hook_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                hook_id: components["parameters"]["ToolHookID"];
+            };
+            cookie?: never;
+        };
+        /** List tool hook delivery events */
+        get: operations["listProjectToolHookEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{id}/tool-hooks/{hook_id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                hook_id: components["parameters"]["ToolHookID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Test a tool hook */
+        post: operations["testProjectToolHook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1921,11 +2003,86 @@ export interface components {
              */
             run_id?: string;
         };
+        ToolHookConfig: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            project_id?: string;
+            /** @enum {string} */
+            hook_type?: "pre_tool_use" | "post_tool_use" | "tool_execute";
+            /** Format: uri */
+            endpoint_url?: string;
+            enabled?: boolean;
+            /** Format: int32 */
+            timeout_ms?: number;
+            /** @enum {string} */
+            fail_behavior?: "fail_closed" | "fail_open";
+            tools_allowlist?: string[];
+            allow_mutation?: boolean;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        ToolHookConfigInput: {
+            /** @enum {string} */
+            hook_type: "pre_tool_use" | "post_tool_use" | "tool_execute";
+            /** Format: uri */
+            endpoint_url: string;
+            enabled?: boolean;
+            /** Format: int32 */
+            timeout_ms?: number;
+            /** @enum {string} */
+            fail_behavior?: "fail_closed" | "fail_open";
+            tools_allowlist?: string[];
+            allow_mutation?: boolean;
+        };
+        ToolHookConfigUpdate: {
+            /** Format: uri */
+            endpoint_url?: string;
+            enabled?: boolean;
+            /** Format: int32 */
+            timeout_ms?: number;
+            /** @enum {string} */
+            fail_behavior?: "fail_closed" | "fail_open";
+            tools_allowlist?: string[];
+            allow_mutation?: boolean;
+            rotate_secret?: boolean;
+        };
+        ToolHookEvent: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            hook_config_id?: string;
+            request_id?: string;
+            tool_call_id?: string;
+            /** @enum {string} */
+            status?: "success" | "blocked" | "timeout" | "error";
+            /** Format: int32 */
+            response_status?: number;
+            response_body?: string;
+            /** Format: int32 */
+            latency_ms?: number;
+            error?: string;
+            /** Format: date-time */
+            created_at?: string;
+        };
+        ToolHookTestResult: {
+            /** @enum {string} */
+            status?: "success" | "blocked" | "timeout" | "error";
+            /** Format: int32 */
+            response_status?: number;
+            response_body?: string;
+            /** Format: int32 */
+            latency_ms?: number;
+            error?: string;
+        };
     };
     responses: never;
     parameters: {
         ProjectID: string;
         WebhookID: string;
+        ToolHookID: string;
     };
     requestBodies: never;
     headers: never;
@@ -3643,6 +3800,192 @@ export interface operations {
             };
             /** @description Session not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listProjectToolHooks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tool hook list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        hooks?: components["schemas"]["ToolHookConfig"][];
+                    };
+                };
+            };
+        };
+    };
+    createProjectToolHook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ToolHookConfigInput"];
+            };
+        };
+        responses: {
+            /** @description Tool hook created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        hook?: components["schemas"]["ToolHookConfig"];
+                        signing_secret?: string;
+                    };
+                };
+            };
+        };
+    };
+    getProjectToolHook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                hook_id: components["parameters"]["ToolHookID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tool hook details */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        hook?: components["schemas"]["ToolHookConfig"];
+                    };
+                };
+            };
+        };
+    };
+    updateProjectToolHook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                hook_id: components["parameters"]["ToolHookID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ToolHookConfigUpdate"];
+            };
+        };
+        responses: {
+            /** @description Tool hook updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        hook?: components["schemas"]["ToolHookConfig"];
+                        signing_secret?: string;
+                    };
+                };
+            };
+        };
+    };
+    deleteProjectToolHook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                hook_id: components["parameters"]["ToolHookID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tool hook deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listProjectToolHookEvents: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                hook_id: components["parameters"]["ToolHookID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tool hook events */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        events?: components["schemas"]["ToolHookEvent"][];
+                    };
+                };
+            };
+        };
+    };
+    testProjectToolHook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                hook_id: components["parameters"]["ToolHookID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tool hook test result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolHookTestResult"];
+                };
+            };
+            /** @description Tool hook test failed */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };
