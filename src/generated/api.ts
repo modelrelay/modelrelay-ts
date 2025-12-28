@@ -1480,7 +1480,7 @@ export interface components {
              * @description Optional session ID to link this run to a session.
              */
             session_id?: string;
-            /** @description Reserved for future use. */
+            /** @description Runtime inputs for the workflow. Required when the spec uses from_input references (e.g., map.fanout with items.from_input). Each key is the input name, and the value is the JSON data to provide. */
             input?: {
                 [key: string]: unknown;
             };
