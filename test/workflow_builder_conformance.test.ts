@@ -478,10 +478,9 @@ conformanceSuiteV1("workflow builder conformance v1", () => {
 				],
 			})
 			.mapFanout(parseNodeId("fanout"), {
-				items: { from: parseNodeId("question_generator"), path: "$.questions" },
+				items: { from: parseNodeId("question_generator"), path: "/questions" },
 				item_bindings: [
 					{
-						path: "$",
 						to_placeholder: "question",
 						encoding: "json_string",
 					},
@@ -533,7 +532,7 @@ conformanceSuiteV1("workflow builder conformance v1", () => {
 			)
 			.edge(parseNodeId("question_generator"), parseNodeId("fanout"))
 			.edge(parseNodeId("fanout"), parseNodeId("aggregate"))
-			.output(parseOutputName("final"), parseNodeId("aggregate"))
+			.output(parseOutputName("final"), parseNodeId("aggregate"), "")
 			.build();
 
 		expect(spec).toEqual(fixture);

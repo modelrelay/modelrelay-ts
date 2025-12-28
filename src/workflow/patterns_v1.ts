@@ -20,7 +20,7 @@
  * // FanoutReduce pattern: generate items, process each, aggregate
  * const fanoutSpec = new FanoutReduceV1({
  *   generator: { model: "gpt-4o-mini", input: [...] },
- *   itemsPath: "$.questions",
+ *   itemsPath: "/questions",
  *   mapperPlaceholder: "question",
  *   mapper: { model: "gpt-4o", input: [...] },
  *   reducer: { model: "gpt-4o", input: [...] },
@@ -217,7 +217,7 @@ export interface FanoutReduceConfigV1 {
 	generator: WireResponsesRequest | ResponsesRequest;
 	/** Generator node ID (defaults to "generator") */
 	generatorId?: NodeId;
-	/** JSONPath to extract items array from generator output (defaults to "$.items") */
+	/** JSON Pointer to extract items array from generator output (defaults to "/items") */
 	itemsPath?: string;
 	/** The mapper subnode template (processes each item) */
 	mapper: WireResponsesRequest | ResponsesRequest;
@@ -260,7 +260,7 @@ export interface FanoutReduceConfigV1 {
  *     model: "gpt-4o-mini",
  *     input: [{ role: "user", content: "Generate 3 questions about {{topic}}" }]
  *   },
- *   itemsPath: "$.questions",
+ *   itemsPath: "/questions",
  *   mapperPlaceholder: "question",
  *   mapper: {
  *     model: "gpt-4o",
@@ -290,7 +290,7 @@ export class FanoutReduceV1 {
 			name,
 			generator,
 			generatorId = "generator" as NodeId,
-			itemsPath = "$.items",
+			itemsPath = "/items",
 			mapper,
 			mapperPlaceholder = "item",
 			maxParallelism = 4,
