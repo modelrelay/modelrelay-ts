@@ -610,7 +610,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create a response via the provider-agnostic API */
+        /**
+         * Create a response via the provider-agnostic API
+         * @description Creates a model response. Auth accepts secret API keys or bearer tokens. Bearer tokens may be owner session tokens (dashboard/server) or end-user tokens; publishable keys are not allowed.
+         */
         post: operations["createResponse"];
         delete?: never;
         options?: never;
@@ -823,7 +826,11 @@ export interface paths {
         delete: operations["deleteSession"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update session metadata
+         * @description Updates session metadata. Keys with null values are removed.
+         */
+        patch: operations["updateSession"];
         trace?: never;
     };
     "/sessions/{session_id}/messages": {
@@ -924,6 +931,28 @@ export interface paths {
         put?: never;
         /** Test a tool hook */
         post: operations["testProjectToolHook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sessions/{session_id}/clear": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Clear session messages
+         * @description Deletes all messages in the session and returns the updated session.
+         */
+        post: operations["clearSession"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2076,6 +2105,13 @@ export interface components {
             /** Format: int32 */
             latency_ms?: number;
             error?: string;
+        };
+        /** @description Request body for updating session metadata. Null values remove keys. */
+        SessionUpdateRequest: {
+            /** @description Metadata fields to set or remove */
+            metadata: {
+                [key: string]: unknown;
+            };
         };
     };
     responses: never;
@@ -3760,6 +3796,53 @@ export interface operations {
             };
         };
     };
+    updateSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Session updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description API key required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Session not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     addSessionMessage: {
         parameters: {
             query?: never;
@@ -3986,6 +4069,42 @@ export interface operations {
             };
             /** @description Tool hook test failed */
             502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    clearSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session cleared */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponse"];
+                };
+            };
+            /** @description API key required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Session not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
