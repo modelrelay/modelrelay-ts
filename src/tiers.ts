@@ -10,7 +10,8 @@ import type { components } from "./generated/api";
 export type PriceInterval = "month" | "year";
 
 /**
- * TierModel represents a model with pricing in a tier.
+ * TierModel represents a model with cost information in a tier.
+ * Customer prices are derived from model costs: price = cost * (1 + platformFeePercent/100).
  */
 export interface TierModel {
 	id: string;
@@ -22,8 +23,10 @@ export interface TierModel {
 	context_window: number;
 	max_output_tokens: number;
 	deprecated: boolean;
-	input_price_per_million_cents: number;
-	output_price_per_million_cents: number;
+	/** Provider input cost in cents per million tokens */
+	model_input_cost_cents: number;
+	/** Provider output cost in cents per million tokens */
+	model_output_cost_cents: number;
 	is_default: boolean;
 	created_at: string;
 	updated_at: string;

@@ -1033,15 +1033,15 @@ export interface components {
             /** @description Whether the model is deprecated */
             deprecated: boolean;
             /**
-             * Format: uint64
-             * @description Input token price in cents per million (e.g., 300 = $3.00/1M tokens)
+             * Format: int64
+             * @description Provider input cost in cents per million tokens. Customer price is derived as cost * (1 + platformFeePercent/100).
              */
-            input_price_per_million_cents: number;
+            model_input_cost_cents: number;
             /**
-             * Format: uint64
-             * @description Output token price in cents per million (e.g., 1500 = $15.00/1M tokens)
+             * Format: int64
+             * @description Provider output cost in cents per million tokens. Customer price is derived as cost * (1 + platformFeePercent/100).
              */
-            output_price_per_million_cents: number;
+            model_output_cost_cents: number;
             /** @description Whether this is the default model for the tier */
             is_default: boolean;
             /** Format: date-time */
@@ -1049,12 +1049,9 @@ export interface components {
             /** Format: date-time */
             updated_at: string;
         };
+        /** @description Model to add to a tier. Pricing is derived from the model_pricing table. */
         TierModelCreate: {
             model_id: components["schemas"]["ModelId"];
-            /** Format: uint64 */
-            input_price_per_million_cents: number;
-            /** Format: uint64 */
-            output_price_per_million_cents: number;
             /** @default false */
             is_default: boolean;
         };

@@ -1,6 +1,6 @@
 {
 	"name": "@modelrelay/sdk",
-	"version": "1.24.0",
+	"version": "1.25.0",
 	"description": "TypeScript SDK for the ModelRelay API",
 	"type": "module",
 	"main": "dist/index.cjs",
