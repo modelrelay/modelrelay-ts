@@ -525,13 +525,12 @@ export const ToolTypes = {
 } as const;
 export type ToolType = (typeof ToolTypes)[keyof typeof ToolTypes];
 
-export const WebToolModes = {
+export const WebToolIntents = {
 	Auto: "auto",
-	SearchOnly: "search_only",
-	FetchOnly: "fetch_only",
-	SearchAndFetch: "search_and_fetch",
+	SearchWeb: "search_web",
+	FetchURL: "fetch_url",
 } as const;
-export type WebToolMode = (typeof WebToolModes)[keyof typeof WebToolModes];
+export type WebToolIntent = (typeof WebToolIntents)[keyof typeof WebToolIntents];
 
 export interface FunctionTool {
 	name: string;
@@ -543,7 +542,7 @@ export interface WebSearchConfig {
 	allowedDomains?: string[];
 	excludedDomains?: string[];
 	maxUses?: number;
-	mode?: WebToolMode;
+	intent?: WebToolIntent;
 }
 
 export interface XSearchConfig {

@@ -6,7 +6,7 @@ import type {
 	FunctionTool,
 	FunctionCall,
 	ToolCallDelta,
-	WebToolMode,
+	WebToolIntent,
 	InputItem,
 	Response,
 } from "./types";
@@ -461,10 +461,10 @@ export function createFunctionTool(
 }
 
 /**
- * Creates a web tool with optional domain filters and mode.
+ * Creates a web tool with optional domain filters and intent.
  */
 export function createWebTool(options?: {
-	mode?: WebToolMode;
+	intent?: WebToolIntent;
 	allowedDomains?: string[];
 	excludedDomains?: string[];
 	maxUses?: number;
@@ -473,7 +473,7 @@ export function createWebTool(options?: {
 		type: ToolTypes.Web,
 		web: options
 			? {
-					mode: options.mode,
+					intent: options.intent,
 					allowedDomains: options.allowedDomains,
 					excludedDomains: options.excludedDomains,
 					maxUses: options.maxUses,
