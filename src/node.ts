@@ -29,3 +29,14 @@ export {
 } from "./tools_local_fs";
 
 export type { LocalFSToolPackOptions } from "./tools_local_fs";
+
+// Browser automation tools (requires Playwright)
+export {
+	BrowserToolPack,
+	createBrowserToolPack,
+	createBrowserTools,
+	BrowserToolNames,
+	BrowserDefaults,
+} from "./tools_browser";
+
+export type { BrowserToolPackOptions } from "./tools_browser";
