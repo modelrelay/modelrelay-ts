@@ -267,18 +267,6 @@ export type {
 	RetryOptions,
 } from "./tools";
 
-// Local filesystem tools (Node.js/Bun)
-export {
-	LocalFSToolPack,
-	createLocalFSToolPack,
-	createLocalFSTools,
-	ToolNames as FSToolNames,
-	FSDefaults,
-	DEFAULT_IGNORE_DIRS,
-} from "./tools_local_fs";
-
-export type { LocalFSToolPackOptions } from "./tools_local_fs";
-
 // Browser automation tools (requires Playwright)
 export {
 	BrowserToolPack,
