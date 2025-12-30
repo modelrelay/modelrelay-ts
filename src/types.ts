@@ -294,12 +294,14 @@ export interface FrontendToken {
 	sessionId: string;
 	/** The project ID this token is scoped to. */
 	projectId: string;
-	/** The internal customer ID (UUID). */
-	customerId: string;
+	/** The internal customer ID (UUID). Only present for managed billing projects; BYOB projects have end-users but not customers. */
+	customerId?: string;
 	/** The external customer ID provided by the application. */
 	customerExternalId: string;
-	/** The tier code for the customer (e.g., "free", "pro", "enterprise"). */
-	tierCode: string;
+	/** The tier code for the customer (e.g., "free", "pro", "enterprise").
+	 * Optional for BYOB (external billing) projects where customers may not have subscriptions.
+	 */
+	tierCode?: TierCode;
 	/**
 	 * Publishable key used for issuance. Added client-side for caching.
 	 */
@@ -334,9 +336,11 @@ export interface CustomerToken {
 	expiresIn: number;
 	tokenType: TokenType;
 	projectId: string;
-	customerId: string;
+	/** Only present for managed billing projects; BYOB projects have end-users but not customers. */
+	customerId?: string;
 	customerExternalId: string;
-	tierCode: string;
+	/** Optional for BYOB (external billing) projects */
+	tierCode?: TierCode;
 }
 
 // =============================================================================
@@ -396,12 +400,12 @@ export interface DeviceTokenResponse {
 	tokenType: TokenType;
 	/** The project ID this token is scoped to */
 	projectId: string;
-	/** The internal customer ID (UUID) */
-	customerId: string;
+	/** The internal customer ID (UUID). Only present for managed billing projects; BYOB projects have end-users but not customers. */
+	customerId?: string;
 	/** The external customer ID */
 	customerExternalId: string;
-	/** The tier code for the customer */
-	tierCode: string;
+	/** The tier code for the customer (optional for BYOB projects) */
+	tierCode?: TierCode;
 }
 
 /**
@@ -870,9 +874,10 @@ export interface APIFrontendToken {
 	key_id: string;
 	session_id: string;
 	project_id: string;
-	customer_id: string;
+	/** Optional for BYOB projects where customers are not created in the billing sense. */
+	customer_id?: string;
 	customer_external_id: string;
-	tier_code: string;
+	tier_code?: TierCode;
 }
 
 export interface APICustomerRef {

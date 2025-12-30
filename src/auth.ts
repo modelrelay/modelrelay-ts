@@ -16,6 +16,7 @@ import type {
 	TokenProvider,
 } from "./types";
 import type { ApiKey, PublishableKey } from "./types";
+import { asTierCode } from "./types";
 import type { components } from "./generated/api";
 
 interface AuthConfig {
@@ -243,9 +244,9 @@ export class AuthClient {
 			expires_in: number;
 			token_type: "Bearer";
 			project_id: string;
-			customer_id: string;
+			customer_id?: string;
 			customer_external_id: string;
-			tier_code: string;
+			tier_code?: string;
 		}>("/auth/customer-token", {
 			method: "POST",
 			body: payload,
@@ -260,7 +261,7 @@ export class AuthClient {
 			projectId: apiResp.project_id,
 			customerId: apiResp.customer_id,
 			customerExternalId: apiResp.customer_external_id,
-			tierCode: apiResp.tier_code,
+			tierCode: apiResp.tier_code ? asTierCode(apiResp.tier_code) : undefined,
 		};
 	}
 
@@ -287,9 +288,9 @@ export class AuthClient {
 			expires_in: number;
 			token_type: "Bearer";
 			project_id: string;
-			customer_id: string;
+			customer_id?: string;
 			customer_external_id: string;
-			tier_code: string;
+			tier_code?: string;
 		}>("/auth/oidc/exchange", {
 			method: "POST",
 			body: payload,
@@ -304,7 +305,7 @@ export class AuthClient {
 			projectId: apiResp.project_id,
 			customerId: apiResp.customer_id,
 			customerExternalId: apiResp.customer_external_id,
-			tierCode: apiResp.tier_code,
+			tierCode: apiResp.tier_code ? asTierCode(apiResp.tier_code) : undefined,
 		};
 	}
 
@@ -424,7 +425,7 @@ export class AuthClient {
 					projectId: apiResp.project_id,
 					customerId: apiResp.customer_id,
 					customerExternalId: apiResp.customer_external_id,
-					tierCode: apiResp.tier_code,
+					tierCode: apiResp.tier_code ? asTierCode(apiResp.tier_code) : undefined,
 				},
 			};
 		} catch (err) {

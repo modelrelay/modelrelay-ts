@@ -963,6 +963,11 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * @description Billing mode for a project. 'managed' uses ModelRelay billing with tiers and subscriptions. 'byob' (Bring Your Own Billing) allows external billing.
+         * @enum {string}
+         */
+        BillingMode: "managed" | "byob";
         AuthTokens: {
             access_token?: string;
             refresh_token?: string;
@@ -990,6 +995,7 @@ export interface components {
             owner_id?: string;
             name?: string;
             description?: string;
+            billing_mode?: components["schemas"]["BillingMode"];
             /** Format: uuid */
             customer_auto_provision_tier_id?: string;
             customer_oauth_providers?: ("github" | "google")[];
@@ -1594,12 +1600,12 @@ export interface components {
             project_id: string;
             /**
              * Format: uuid
-             * @description Internal customer UUID
+             * @description Internal customer UUID. Only present for managed billing projects; BYOB projects have end-users but not customers.
              */
-            customer_id: string;
+            customer_id?: string;
             /** @description External customer identifier */
             customer_external_id: string;
-            tier_code: components["schemas"]["TierCode"];
+            tier_code?: components["schemas"]["TierCode"];
         };
         CheckoutSessionResponse: {
             /** @description Stripe checkout session ID */
@@ -3020,6 +3026,7 @@ export interface operations {
                 "application/json": {
                     name?: string;
                     description?: string;
+                    billing_mode?: components["schemas"]["BillingMode"];
                     /** Format: uuid */
                     customer_auto_provision_tier_id?: string;
                     customer_oauth_providers?: ("github" | "google")[];
