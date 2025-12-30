@@ -335,6 +335,63 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/customers/{customer_id}/balance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        /** Get a customer's PAYGO balance */
+        get: operations["getCustomerBalance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/customers/{customer_id}/balance/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        /** Get a customer's PAYGO ledger history */
+        get: operations["getCustomerBalanceHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/customers/{customer_id}/topup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a PAYGO top-up checkout session for a customer */
+        post: operations["createCustomerTopup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/customers/me": {
         parameters: {
             query?: never;
@@ -393,6 +450,57 @@ export interface paths {
         get: operations["getCustomerMeSubscription"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/customers/me/balance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the authenticated customer's PAYGO balance */
+        get: operations["getCustomerMeBalance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/customers/me/balance/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the authenticated customer's PAYGO ledger history */
+        get: operations["getCustomerMeBalanceHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/customers/me/topup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a PAYGO top-up checkout session for the authenticated customer */
+        post: operations["createCustomerMeTopup"];
         delete?: never;
         options?: never;
         head?: never;
@@ -968,6 +1076,11 @@ export interface components {
          * @enum {string}
          */
         BillingMode: "managed" | "byob";
+        /**
+         * @description Billing mode for a tier. 'subscription' uses monthly spend limits; 'paygo' uses prepaid balances.
+         * @enum {string}
+         */
+        TierBillingMode: "subscription" | "paygo";
         AuthTokens: {
             access_token?: string;
             refresh_token?: string;
@@ -995,6 +1108,7 @@ export interface components {
             owner_id?: string;
             name?: string;
             description?: string;
+            markup_percentage?: number;
             billing_mode?: components["schemas"]["BillingMode"];
             /** Format: uuid */
             customer_auto_provision_tier_id?: string;
@@ -1074,6 +1188,7 @@ export interface components {
              * @description Monthly spend limit in cents (e.g., 2000 = $20/month). Must be non-negative.
              */
             spend_limit_cents?: number;
+            billing_mode?: components["schemas"]["TierBillingMode"];
             models?: components["schemas"]["TierModel"][];
             billing_provider?: components["schemas"]["BillingProvider"];
             /** @description Billing provider price reference for this tier */
@@ -1105,6 +1220,7 @@ export interface components {
              * @description Monthly spend limit in cents (e.g., 2000 = $20/month). Must be non-negative.
              */
             spend_limit_cents: number;
+            billing_mode?: components["schemas"]["TierBillingMode"];
             models: components["schemas"]["TierModelCreate"][];
             billing_provider?: components["schemas"]["BillingProvider"];
             /**
@@ -1307,6 +1423,73 @@ export interface components {
         };
         CustomerMeSubscriptionResponse: {
             subscription: components["schemas"]["CustomerMeSubscription"];
+        };
+        CustomerBalanceResponse: {
+            /** Format: uuid */
+            customer_id: string;
+            /** Format: uuid */
+            subscription_id: string;
+            /** Format: int64 */
+            balance_cents: number;
+            /** Format: int64 */
+            reserved_cents: number;
+            currency: string;
+        };
+        CustomerLedgerEntry: {
+            /** Format: uuid */
+            id: string;
+            direction: string;
+            reason: string;
+            /** Format: int64 */
+            amount_cents: number;
+            /** Format: int64 */
+            balance_after_cents?: number;
+            description: string;
+            stripe_payment_intent_id?: string;
+            stripe_invoice_id?: string;
+            stripe_checkout_session_id?: string;
+            /** Format: int64 */
+            gross_amount_cents?: number;
+            /** Format: int64 */
+            credit_amount_cents?: number;
+            /** Format: int64 */
+            owner_revenue_cents?: number;
+            /** Format: int64 */
+            platform_fee_cents?: number;
+            model_id?: components["schemas"]["ModelId"];
+            /** Format: int64 */
+            input_tokens?: number;
+            /** Format: int64 */
+            output_tokens?: number;
+            /** Format: uuid */
+            request_id?: string;
+            /** Format: date-time */
+            occurred_at: string;
+        };
+        CustomerLedgerResponse: {
+            entries: components["schemas"]["CustomerLedgerEntry"][];
+        };
+        CustomerTopupRequest: {
+            /** Format: int64 */
+            credit_amount_cents: number;
+            /** Format: uri */
+            success_url: string;
+            /** Format: uri */
+            cancel_url: string;
+        };
+        CustomerTopupResponse: {
+            session_id: string;
+            /** Format: uri */
+            checkout_url: string;
+            /** Format: int64 */
+            gross_amount_cents: number;
+            /** Format: int64 */
+            credit_amount_cents: number;
+            /** Format: int64 */
+            owner_revenue_cents: number;
+            /** Format: int64 */
+            platform_fee_cents: number;
+            status: string;
         };
         CustomerCreate: {
             /** @description External customer identifier from your system */
@@ -2789,6 +2972,135 @@ export interface operations {
             };
         };
     };
+    getCustomerBalance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description PAYGO balance */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerBalanceResponse"];
+                };
+            };
+            /** @description Subscription is not PAYGO */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Customer or subscription not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getCustomerBalanceHistory: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ledger entries */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerLedgerResponse"];
+                };
+            };
+            /** @description Customer not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    createCustomerTopup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerTopupRequest"];
+            };
+        };
+        responses: {
+            /** @description Checkout session created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerTopupResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Customer not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     getCustomerMe: {
         parameters: {
             query?: never;
@@ -2912,6 +3224,150 @@ export interface operations {
             };
         };
     };
+    getCustomerMeBalance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description PAYGO balance */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerBalanceResponse"];
+                };
+            };
+            /** @description Subscription is not PAYGO */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Customer or subscription not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getCustomerMeBalanceHistory: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ledger entries */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerLedgerResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Customer not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    createCustomerMeTopup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerTopupRequest"];
+            };
+        };
+        responses: {
+            /** @description Checkout session created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerTopupResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Customer not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     listModels: {
         parameters: {
             query?: {
@@ -2971,6 +3427,7 @@ export interface operations {
                 "application/json": {
                     name?: string;
                     description?: string;
+                    markup_percentage?: number;
                 };
             };
         };
@@ -3026,6 +3483,7 @@ export interface operations {
                 "application/json": {
                     name?: string;
                     description?: string;
+                    markup_percentage?: number;
                     billing_mode?: components["schemas"]["BillingMode"];
                     /** Format: uuid */
                     customer_auto_provision_tier_id?: string;
