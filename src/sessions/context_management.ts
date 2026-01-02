@@ -1,11 +1,14 @@
 import { ConfigError } from "../errors";
 import type { InputItem, ModelId } from "../types";
-import type { CatalogModel } from "../models";
+import type { components } from "../generated/api";
 import type {
 	SessionContextTruncateInfo,
 	SessionMessage,
 	SessionRunOptions,
 } from "./types";
+
+type CatalogModel = components["schemas"]["Model"];
+type ModelsResponse = components["schemas"]["ModelsResponse"];
 
 export interface ModelContextWindow {
 	contextWindow: number;
@@ -22,8 +25,8 @@ type ModelContextCacheEntry = {
 };
 
 type ModelListClient = {
-	models: {
-		list: () => Promise<CatalogModel[]>;
+	http: {
+		json: <T>(path: string, options?: { method?: string }) => Promise<T>;
 	};
 };
 
@@ -313,8 +316,8 @@ async function populateModelContextCache(
 ): Promise<void> {
 	if (!entry.listPromise) {
 		entry.listPromise = (async () => {
-			const models = await client.models.list();
-			for (const model of models) {
+			const response = await client.http.json<ModelsResponse>("/models");
+			for (const model of response.models) {
 				entry.byId.set(String(model.model_id), {
 					contextWindow: model.context_window,
 					maxOutputTokens: model.max_output_tokens,

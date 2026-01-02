@@ -2,9 +2,6 @@ import { AuthClient, createApiKeyAuth, createAccessTokenAuth } from "./auth";
 import { ResponsesClient, ResponsesStream, StructuredJSONStream } from "./responses";
 import { RunsClient } from "./runs";
 import { WorkflowsClient } from "./workflows_client";
-import { CustomersClient } from "./customers";
-import { TiersClient } from "./tiers";
-import { ModelsClient } from "./models";
 import { ImagesClient } from "./images";
 import { SessionsClient } from "./sessions/client";
 import { ConfigError } from "./errors";
@@ -24,9 +21,6 @@ export class ModelRelay {
 	readonly workflows: WorkflowsClient;
 	readonly images: ImagesClient;
 	readonly auth: AuthClient;
-	readonly customers: CustomersClient;
-	readonly tiers: TiersClient;
-	readonly models: ModelsClient;
 	readonly sessions: SessionsClient;
 	readonly baseUrl: string;
 
@@ -96,9 +90,6 @@ export class ModelRelay {
 			trace: cfg.trace,
 		});
 		this.images = new ImagesClient(this.http, auth);
-		this.customers = new CustomersClient(this.http, { apiKey, accessToken, tokenProvider });
-		this.tiers = new TiersClient(this.http, { apiKey });
-		this.models = new ModelsClient(this.http);
 		this.sessions = new SessionsClient(this, this.http, auth);
 	}
 
@@ -117,9 +108,6 @@ export {
 	ImagesClient,
 	SessionsClient,
 	ConfigError,
-	CustomersClient,
-	TiersClient,
-	ModelsClient,
 	DEFAULT_BASE_URL,
 	createApiKeyAuth,
 	createAccessTokenAuth,
@@ -182,26 +170,6 @@ export {
 	isPublishableKey,
 	isSecretKey,
 } from "./api_keys";
-
-export type {
-	Customer,
-	CustomerCreateRequest,
-	CustomerUpsertRequest,
-	CustomerClaimRequest,
-	CustomerSubscribeRequest,
-	CheckoutSession,
-	Subscription,
-	CustomerWithSubscription,
-} from "./customers";
-
-export type {
-	Tier,
-	PriceInterval,
-	TierCheckoutRequest,
-	TierCheckoutSession,
-} from "./tiers";
-
-export type { CatalogModel, ModelCapability, ProviderId } from "./models";
 
 export type {
 	ImageRequest,
