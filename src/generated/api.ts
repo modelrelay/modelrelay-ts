@@ -507,6 +507,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/customers/me/change-tier": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change the authenticated customer's subscription tier
+         * @description Allows customers to upgrade or downgrade their subscription tier. Supports paid-to-paid (with proration), free-to-paid (requires payment method on file), paid-to-free (cancels at period end), and free-to-free transitions.
+         */
+        post: operations["changeCustomerMeTier"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/models": {
         parameters: {
             query?: never;
@@ -1468,6 +1488,10 @@ export interface components {
         };
         CustomerLedgerResponse: {
             entries: components["schemas"]["CustomerLedgerEntry"][];
+        };
+        ChangeTierRequest: {
+            /** @description The tier code to switch to */
+            tier_code: string;
         };
         CustomerTopupRequest: {
             /** Format: int64 */
@@ -3354,6 +3378,72 @@ export interface operations {
             };
             /** @description Customer not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    changeCustomerMeTier: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeTierRequest"];
+            };
+        };
+        responses: {
+            /** @description Tier changed successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerMeSubscriptionResponse"];
+                };
+            };
+            /** @description Invalid request (missing tier_code, same tier, or PAYGO subscription) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No payment method on file (required for free-to-paid upgrade) */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Customer or tier not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Billing provider mismatch */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
