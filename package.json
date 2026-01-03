@@ -1,6 +1,6 @@
 {
 	"name": "@modelrelay/sdk",
-	"version": "1.34.0",
+	"version": "1.35.0",
 	"description": "TypeScript SDK for the ModelRelay API",
 	"type": "module",
 	"main": "dist/index.cjs",
@@ -11,6 +11,11 @@
 			"types": "./dist/index.d.ts",
 			"import": "./dist/index.js",
 			"require": "./dist/index.cjs"
+		},
+		"./billing": {
+			"types": "./dist/billing/index.d.ts",
+			"import": "./dist/billing/index.js",
+			"require": "./dist/billing/index.cjs"
 		},
 		"./node": {
 			"types": "./dist/node.d.ts",
@@ -25,8 +30,8 @@
 		"dist"
 	],
 	"scripts": {
-		"build": "tsup src/index.ts src/node.ts --format esm,cjs --dts --external playwright",
-		"dev": "tsup src/index.ts src/node.ts --format esm,cjs --dts --watch",
+		"build": "tsup src/index.ts src/node.ts src/billing/index.ts --format esm,cjs --dts --external playwright",
+		"dev": "tsup src/index.ts src/node.ts src/billing/index.ts --format esm,cjs --dts --watch",
 		"lint": "tsc --noEmit --project tsconfig.lint.json",
 		"test": "vitest run",
 		"generate:types": "openapi-typescript ../../api/openapi/api.json -o src/generated/api.ts"
@@ -41,7 +46,7 @@
 	"license": "Apache-2.0",
 	"dependencies": {
 		"fast-json-patch": "^3.1.1",
-		"zod": "^3.23.0"
+		"zod": "^3.25.76"
 	},
 	"peerDependencies": {
 		"playwright": ">=1.40.0"
@@ -53,10 +58,10 @@
 	},
 	"devDependencies": {
 		"@types/node": "^25.0.3",
-		"openapi-typescript": "^7.4.4",
-		"playwright": "^1.49.0",
-		"tsup": "^8.2.4",
-		"typescript": "^5.6.3",
-		"vitest": "^2.1.4"
+		"openapi-typescript": "^7.10.1",
+		"playwright": "^1.57.0",
+		"tsup": "^8.5.1",
+		"typescript": "^5.9.3",
+		"vitest": "^2.1.9"
 	}
 }
