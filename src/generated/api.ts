@@ -1341,8 +1341,6 @@ export interface components {
             tier_id?: string;
             tier_code?: components["schemas"]["TierCode"];
             billing_provider?: components["schemas"]["BillingProvider"];
-            /** @description Billing customer ID from the provider */
-            billing_customer_id?: string;
             /** @description Billing subscription ID from the provider */
             billing_subscription_id?: string;
             subscription_status?: components["schemas"]["SubscriptionStatusKind"];
@@ -1364,6 +1362,8 @@ export interface components {
         CustomerWithSubscription: {
             customer: components["schemas"]["Customer"];
             subscription?: components["schemas"]["Subscription"];
+            /** @description Billing provider customer ID (e.g., Stripe customer ID) */
+            billing_customer_id?: string;
         };
         CustomerMe: {
             customer: components["schemas"]["Customer"];
