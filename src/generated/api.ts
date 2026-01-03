@@ -729,6 +729,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{id}/webhooks/{webhook_id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                webhook_id: components["parameters"]["WebhookID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Test a webhook */
+        post: operations["testProjectWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects/{id}/webhooks/{webhook_id}/events": {
         parameters: {
             query?: never;
@@ -2353,6 +2373,16 @@ export interface components {
         ToolHookTestResult: {
             /** @enum {string} */
             status?: "success" | "blocked" | "timeout" | "error";
+            /** Format: int32 */
+            response_status?: number;
+            response_body?: string;
+            /** Format: int32 */
+            latency_ms?: number;
+            error?: string;
+        };
+        WebhookTestResult: {
+            /** @enum {string} */
+            status?: "delivered" | "failed";
             /** Format: int32 */
             response_status?: number;
             response_body?: string;
@@ -4015,6 +4045,42 @@ export interface operations {
         responses: {
             /** @description Webhook deleted */
             204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    testProjectWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                webhook_id: components["parameters"]["WebhookID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    event_type?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Webhook test result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookTestResult"];
+                };
+            };
+            /** @description Webhook test failed */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };
