@@ -4092,6 +4092,9 @@ export interface operations {
         parameters: {
             query?: {
                 limit?: number;
+                offset?: number;
+                event_type?: string;
+                status?: string;
             };
             header?: never;
             path: {
@@ -4110,6 +4113,7 @@ export interface operations {
                 content: {
                     "application/json": {
                         events?: components["schemas"]["OutboundWebhookEvent"][];
+                        next_cursor?: string;
                     };
                 };
             };
