@@ -430,6 +430,26 @@ export type DeviceTokenResult =
 	| { status: "pending"; pending: DeviceTokenPending }
 	| { status: "error"; error: string; errorDescription?: string };
 
+/**
+ * Request to start an OAuth flow for customer authentication.
+ */
+export interface OAuthStartRequest {
+	/** Project ID to authenticate against */
+	projectId: string;
+	/** OAuth provider: "github" or "google" */
+	provider: "github" | "google";
+	/** Where to redirect after OAuth completion. Must be in project's whitelist. */
+	redirectUri: string;
+}
+
+/**
+ * Response from starting an OAuth flow.
+ */
+export interface OAuthStartResponse {
+	/** URL to redirect the user to for OAuth authentication */
+	redirectUrl: string;
+}
+
 export interface Usage {
 	inputTokens: number;
 	outputTokens: number;

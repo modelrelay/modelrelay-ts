@@ -12,6 +12,8 @@ import type {
 	FrontendToken,
 	FrontendTokenAutoProvisionRequest,
 	FrontendTokenRequest,
+	OAuthStartRequest,
+	OAuthStartResponse,
 	OIDCExchangeRequest,
 	TokenProvider,
 } from "./types";
@@ -453,6 +455,62 @@ export class AuthClient {
 			}
 			throw err;
 		}
+	}
+
+	/**
+	 * Start an OAuth flow for customer authentication.
+	 *
+	 * This initiates the OAuth redirect flow where users authenticate with
+	 * GitHub or Google and are redirected back to your application with a
+	 * customer token.
+	 *
+	 * @param request - OAuth start parameters
+	 * @param request.projectId - The project ID to authenticate against
+	 * @param request.provider - OAuth provider: "github" or "google"
+	 * @param request.redirectUri - Where to redirect after OAuth. Must be in project's whitelist.
+	 * @returns Promise with the redirect URL
+	 *
+	 * @example
+	 * ```typescript
+	 * const { redirectUrl } = await client.auth.oauthStart({
+	 *   projectId: "your-project-id",
+	 *   provider: "github",
+	 *   redirectUri: "https://your-app.com/auth/callback",
+	 * });
+	 *
+	 * // Redirect user to the OAuth provider
+	 * window.location.href = redirectUrl;
+	 *
+	 * // After OAuth, your callback receives a POST with:
+	 * // token, token_type, expires_at, expires_in, project_id, customer_id, customer_external_id, tier_code
+	 * ```
+	 */
+	async oauthStart(request: OAuthStartRequest): Promise<OAuthStartResponse> {
+		if (!request.projectId?.trim()) {
+			throw new ConfigError("projectId is required");
+		}
+		if (!request.provider?.trim()) {
+			throw new ConfigError("provider is required");
+		}
+		if (!request.redirectUri?.trim()) {
+			throw new ConfigError("redirectUri is required");
+		}
+
+		const apiResp = await this.http.json<{ redirect_url: string }>(
+			"/auth/customer/oauth/start",
+			{
+				method: "POST",
+				body: {
+					project_id: request.projectId,
+					provider: request.provider,
+					redirect_uri: request.redirectUri,
+				},
+			},
+		);
+
+		return {
+			redirectUrl: apiResp.redirect_url,
+		};
 	}
 }
 
