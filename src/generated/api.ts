@@ -1431,6 +1431,18 @@ export interface components {
             percentage_used?: number;
             /** @description Whether remaining credits are low (only for paid tiers) */
             low?: boolean;
+            /**
+             * Format: int64
+             * @description PAYGO wallet balance in cents (available when PAYGO wallet is enabled)
+             */
+            wallet_balance_cents?: number;
+            /**
+             * Format: int64
+             * @description PAYGO wallet reserved amount in cents
+             */
+            wallet_reserved_cents?: number;
+            /** @description True when PAYGO wallet can cover subscription overages */
+            overage_enabled?: boolean;
             daily: components["schemas"]["CustomerUsagePoint"][];
         };
         CustomerMeUsageResponse: {
