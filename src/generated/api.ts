@@ -1479,8 +1479,6 @@ export interface components {
         CustomerBalanceResponse: {
             /** Format: uuid */
             customer_id: string;
-            /** Format: uuid */
-            subscription_id: string;
             /** Format: int64 */
             balance_cents: number;
             /** Format: int64 */
