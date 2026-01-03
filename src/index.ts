@@ -4,6 +4,7 @@ import { RunsClient } from "./runs";
 import { WorkflowsClient } from "./workflows_client";
 import { ImagesClient } from "./images";
 import { SessionsClient } from "./sessions/client";
+import { TiersClient } from "./tiers";
 import { ConfigError } from "./errors";
 import { HTTPClient } from "./http";
 import { parseApiKey, parsePublishableKey, parseSecretKey } from "./api_keys";
@@ -22,6 +23,7 @@ export class ModelRelay {
 	readonly images: ImagesClient;
 	readonly auth: AuthClient;
 	readonly sessions: SessionsClient;
+	readonly tiers: TiersClient;
 	readonly baseUrl: string;
 
 	/** @internal HTTP client for internal use by session sync */
@@ -91,6 +93,7 @@ export class ModelRelay {
 		});
 		this.images = new ImagesClient(this.http, auth);
 		this.sessions = new SessionsClient(this, this.http, auth);
+		this.tiers = new TiersClient(this.http, { apiKey });
 	}
 
 	forCustomer(customerId: string): CustomerScopedModelRelay {
@@ -107,6 +110,7 @@ export {
 	WorkflowsClient,
 	ImagesClient,
 	SessionsClient,
+	TiersClient,
 	ConfigError,
 	DEFAULT_BASE_URL,
 	createApiKeyAuth,
@@ -114,6 +118,18 @@ export {
 	CustomerScopedModelRelay,
 	CustomerResponsesClient,
 };
+
+export {
+	defaultTierModelId,
+} from "./tiers";
+
+export type {
+	Tier,
+	TierModel,
+	TierCheckoutRequest,
+	TierCheckoutSession,
+	PriceInterval,
+} from "./tiers";
 
 export type { AuthHeaders } from "./auth";
 

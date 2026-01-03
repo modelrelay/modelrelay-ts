@@ -1,0 +1,189 @@
+import { ConfigError } from "./errors";
+import { isSecretKey, parseApiKey } from "./api_keys";
+import type { HTTPClient } from "./http";
+import type { ApiKey, ModelId, TierCode } from "./types";
+import type { components } from "./generated/api";
+
+/**
+ * Billing interval for a tier.
+ */
+export type PriceInterval = "month" | "year";
+
+/**
+ * TierModel represents a model with cost information in a tier.
+ * Customer prices are derived from model costs: price = cost * (1 + platformFeePercent/100).
+ */
+export interface TierModel {
+	id: string;
+	tier_id: string;
+	model_id: ModelId;
+	model_display_name: string;
+	description: string;
+	capabilities: components["schemas"]["ModelCapability"][];
+	context_window: number;
+	max_output_tokens: number;
+	deprecated: boolean;
+	/** Provider input cost in cents per million tokens */
+	model_input_cost_cents: number;
+	/** Provider output cost in cents per million tokens */
+	model_output_cost_cents: number;
+	is_default: boolean;
+	created_at: string;
+	updated_at: string;
+}
+
+/**
+ * Tier represents a pricing tier in a ModelRelay project.
+ */
+export interface Tier {
+	id: string;
+	project_id: string;
+	tier_code: TierCode;
+	display_name: string;
+	spend_limit_cents: number;
+	models: TierModel[];
+	billing_provider?: components["schemas"]["BillingProvider"];
+	billing_price_ref?: string;
+	price_amount_cents?: number;
+	price_currency?: string;
+	price_interval?: PriceInterval;
+	trial_days?: number;
+	created_at: string;
+	updated_at: string;
+}
+
+/**
+ * Return the tier's default model ID, if configured.
+ */
+export function defaultTierModelId(tier: Tier): ModelId | undefined {
+	const def = tier.models.find((m) => m.is_default);
+	if (def) return def.model_id;
+	if (tier.models.length === 1) return tier.models[0].model_id;
+	return undefined;
+}
+
+/**
+ * Request to create a tier checkout session (checkout-first flow).
+ * Stripe collects the customer's email during checkout.
+ */
+export interface TierCheckoutRequest {
+	success_url: string;
+	cancel_url: string;
+}
+
+/**
+ * Tier checkout session response.
+ */
+export interface TierCheckoutSession {
+	session_id: string;
+	url: string;
+}
+
+interface TierListResponse {
+	tiers: Tier[];
+}
+
+interface TierResponse {
+	tier: Tier;
+}
+
+interface TiersClientConfig {
+	apiKey?: ApiKey;
+}
+
+/**
+ * TiersClient provides methods to query tiers in a project.
+ * Works with both publishable keys (mr_pk_*) and secret keys (mr_sk_*).
+ */
+export class TiersClient {
+	private readonly http: HTTPClient;
+	private readonly apiKey?: ApiKey;
+	private readonly hasSecretKey: boolean;
+
+	constructor(http: HTTPClient, cfg: TiersClientConfig) {
+		this.http = http;
+		this.apiKey = cfg.apiKey ? parseApiKey(cfg.apiKey) : undefined;
+		this.hasSecretKey = this.apiKey ? isSecretKey(this.apiKey) : false;
+	}
+
+	private ensureApiKey(): void {
+		if (!this.apiKey) {
+			throw new ConfigError(
+				"API key (mr_pk_* or mr_sk_*) required for tier operations",
+			);
+		}
+	}
+
+	private ensureSecretKey(): void {
+		if (!this.apiKey || !this.hasSecretKey) {
+			throw new ConfigError(
+				"Secret key (mr_sk_*) required for checkout operations",
+			);
+		}
+	}
+
+	/**
+	 * List all tiers in the project.
+	 */
+	async list(): Promise<Tier[]> {
+		this.ensureApiKey();
+		const response = await this.http.json<TierListResponse>("/tiers", {
+			method: "GET",
+			apiKey: this.apiKey,
+		});
+		return response.tiers;
+	}
+
+	/**
+	 * Get a tier by ID.
+	 */
+	async get(tierId: string): Promise<Tier> {
+		this.ensureApiKey();
+		if (!tierId?.trim()) {
+			throw new ConfigError("tierId is required");
+		}
+		const response = await this.http.json<TierResponse>(`/tiers/${tierId}`, {
+			method: "GET",
+			apiKey: this.apiKey,
+		});
+		return response.tier;
+	}
+
+	/**
+	 * Create a Stripe checkout session for a tier (Stripe-first flow).
+	 *
+	 * This enables users to subscribe before authenticating. Stripe collects
+	 * the customer's email during checkout. After checkout completes, a
+	 * customer record is created with the email from Stripe. The customer
+	 * can later be linked to an identity via POST /customers/claim.
+	 *
+	 * Requires a secret key (mr_sk_*).
+	 *
+	 * @param tierId - The tier ID to create a checkout session for
+	 * @param request - Checkout session request with redirect URLs
+	 * @returns Checkout session with Stripe URL
+	 */
+	async checkout(
+		tierId: string,
+		request: TierCheckoutRequest,
+	): Promise<TierCheckoutSession> {
+		this.ensureSecretKey();
+		if (!tierId?.trim()) {
+			throw new ConfigError("tierId is required");
+		}
+		if (!request.success_url?.trim()) {
+			throw new ConfigError("success_url is required");
+		}
+		if (!request.cancel_url?.trim()) {
+			throw new ConfigError("cancel_url is required");
+		}
+		return await this.http.json<TierCheckoutSession>(
+			`/tiers/${tierId}/checkout`,
+			{
+				method: "POST",
+				apiKey: this.apiKey,
+				body: request,
+			},
+		);
+	}
+}
