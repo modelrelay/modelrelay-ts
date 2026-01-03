@@ -18,10 +18,11 @@
  * // Get customer info
  * const me = await billing.me();
  * console.log("Customer:", me.customer.email);
+ * console.log("Tier:", me.tier?.code);
  *
  * // Get usage metrics
  * const usage = await billing.usage();
- * console.log("Tokens used:", usage.usage.total_tokens);
+ * console.log("Tokens used:", usage.total_tokens);
  * ```
  */
 
@@ -33,29 +34,19 @@ import type { components } from "../generated/api";
 export type CustomerMe = components["schemas"]["CustomerMe"];
 
 /**
- * Customer profile response wrapper.
- */
-export type CustomerMeResponse = components["schemas"]["CustomerMeResponse"];
-
-/**
  * Customer usage metrics.
  */
 export type CustomerMeUsage = components["schemas"]["CustomerMeUsage"];
-
-/**
- * Customer usage response wrapper.
- */
-export type CustomerMeUsageResponse = components["schemas"]["CustomerMeUsageResponse"];
 
 /**
  * Customer subscription details.
  */
 export type CustomerMeSubscription = components["schemas"]["CustomerMeSubscription"];
 
-/**
- * Customer subscription response wrapper.
- */
-export type CustomerMeSubscriptionResponse = components["schemas"]["CustomerMeSubscriptionResponse"];
+// Internal response wrapper types for JSON deserialization
+type CustomerMeResponse = components["schemas"]["CustomerMeResponse"];
+type CustomerMeUsageResponse = components["schemas"]["CustomerMeUsageResponse"];
+type CustomerMeSubscriptionResponse = components["schemas"]["CustomerMeSubscriptionResponse"];
 
 /**
  * Customer credit balance.
@@ -141,13 +132,14 @@ export class BillingClient {
 	 *
 	 * Returns customer details including ID, email, external ID, and metadata.
 	 *
-	 * @returns Customer profile response
+	 * @returns Customer profile with optional subscription and tier
 	 */
-	async me(): Promise<CustomerMeResponse> {
-		return await this.http.json<CustomerMeResponse>("/customers/me", {
+	async me(): Promise<CustomerMe> {
+		const response = await this.http.json<CustomerMeResponse>("/customers/me", {
 			method: "GET",
 			accessToken: this.accessToken,
 		});
+		return response.customer;
 	}
 
 	/**
@@ -155,13 +147,14 @@ export class BillingClient {
 	 *
 	 * Returns subscription status, tier information, and billing provider.
 	 *
-	 * @returns Subscription details response
+	 * @returns Subscription details
 	 */
-	async subscription(): Promise<CustomerMeSubscriptionResponse> {
-		return await this.http.json<CustomerMeSubscriptionResponse>("/customers/me/subscription", {
+	async subscription(): Promise<CustomerMeSubscription> {
+		const response = await this.http.json<CustomerMeSubscriptionResponse>("/customers/me/subscription", {
 			method: "GET",
 			accessToken: this.accessToken,
 		});
+		return response.subscription;
 	}
 
 	/**
@@ -169,13 +162,14 @@ export class BillingClient {
 	 *
 	 * Returns token usage, request counts, and cost for the current billing window.
 	 *
-	 * @returns Usage metrics response
+	 * @returns Usage metrics
 	 */
-	async usage(): Promise<CustomerMeUsageResponse> {
-		return await this.http.json<CustomerMeUsageResponse>("/customers/me/usage", {
+	async usage(): Promise<CustomerMeUsage> {
+		const response = await this.http.json<CustomerMeUsageResponse>("/customers/me/usage", {
 			method: "GET",
 			accessToken: this.accessToken,
 		});
+		return response.usage;
 	}
 
 	/**
@@ -231,13 +225,14 @@ export class BillingClient {
 	 * @param tierCode - The tier code to switch to
 	 * @returns Updated subscription details
 	 */
-	async changeTier(tierCode: string): Promise<CustomerMeSubscriptionResponse> {
+	async changeTier(tierCode: string): Promise<CustomerMeSubscription> {
 		const request: ChangeTierRequest = { tier_code: tierCode };
-		return await this.http.json<CustomerMeSubscriptionResponse>("/customers/me/change-tier", {
+		const response = await this.http.json<CustomerMeSubscriptionResponse>("/customers/me/change-tier", {
 			method: "POST",
 			body: request,
 			accessToken: this.accessToken,
 		});
+		return response.subscription;
 	}
 
 	/**
