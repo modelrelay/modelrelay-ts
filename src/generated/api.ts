@@ -2443,6 +2443,7 @@ export interface operations {
                     /** Format: email */
                     email?: string;
                     password?: string;
+                    billing_provider?: components["schemas"]["BillingProvider"];
                 };
             };
         };
