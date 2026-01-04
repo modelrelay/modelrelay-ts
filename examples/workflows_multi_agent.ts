@@ -1,6 +1,6 @@
 import { ModelRelay } from "../src";
 import { parseNodeId, parseOutputName } from "../src/runs_ids";
-import { workflowV0 } from "../src/workflow_builder";
+import { workflowV1 } from "../src/workflow";
 
 type DevLoginResponse = {
 	access_token: string;
@@ -61,8 +61,8 @@ async function bootstrapSecretKey(apiBaseUrl: string): Promise<string> {
 }
 
 function multiAgentSpec(model: string) {
-	return workflowV0()
-		.name("multi_agent_v0_example")
+	return workflowV1()
+		.name("multi_agent_v1_example")
 		.execution({
 			max_parallelism: 3,
 			node_timeout_ms: 20_000,
@@ -168,7 +168,7 @@ async function runOnce(cfg: { apiBaseUrl: string; apiKey: string; spec: any; lab
 		baseUrl: cfg.apiBaseUrl,
 	});
 
-	console.log(`[${cfg.label}] compiled workflow.v0:`);
+	console.log(`[${cfg.label}] compiled workflow.v1:`);
 	console.log(JSON.stringify(cfg.spec, null, 2));
 
 	const { run_id } = await mr.runs.create(cfg.spec);

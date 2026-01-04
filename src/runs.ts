@@ -5,17 +5,12 @@ export type { RunId, NodeId, PlanHash, OutputName } from "./runs_ids";
 export { parseRunId, parseNodeId, parsePlanHash, parseOutputName } from "./runs_ids";
 
 export type {
-	WorkflowSpecV0,
-	WorkflowNodeV0,
-	WorkflowEdgeV0,
-	WorkflowOutputRefV0,
 	RunEventV0,
 	RunEventTypeV0,
 	RunStatusV0,
 	PayloadInfoV0,
 	NodeErrorV0,
 	WorkflowKind,
-	WorkflowNodeType,
 } from "./runs_types";
 
-export { WorkflowKinds, WorkflowNodeTypes } from "./runs_types";
+export { WorkflowKinds, WorkflowNodeTypesV1, WorkflowNodeTypesV1 as WorkflowNodeTypes } from "./runs_types";

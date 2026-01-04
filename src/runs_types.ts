@@ -6,20 +6,10 @@ import type { NodeId, OutputName, PlanHash, RunId } from "./runs_ids";
 import { parseNodeId, parsePlanHash, parseRunId } from "./runs_ids";
 
 export const WorkflowKinds = {
-	WorkflowV0: "workflow.v0",
 	WorkflowV1: "workflow.v1",
 } as const;
-export type WorkflowKindV0 = (typeof WorkflowKinds)["WorkflowV0"];
 export type WorkflowKindV1 = (typeof WorkflowKinds)["WorkflowV1"];
-export type WorkflowKind = WorkflowKindV0 | WorkflowKindV1;
-
-export const WorkflowNodeTypes = {
-	LLMResponses: "llm.responses",
-	JoinAll: "join.all",
-	TransformJSON: "transform.json",
-} as const;
-export type WorkflowNodeType =
-	(typeof WorkflowNodeTypes)[keyof typeof WorkflowNodeTypes];
+export type WorkflowKind = WorkflowKindV1;
 
 export const WorkflowNodeTypesV1 = {
 	LLMResponses: "llm.responses",
@@ -32,76 +22,6 @@ export const WorkflowNodeTypesV1 = {
 } as const;
 export type WorkflowNodeTypeV1 =
 	(typeof WorkflowNodeTypesV1)[keyof typeof WorkflowNodeTypesV1];
-
-export type WorkflowSpecV0 = {
-	kind: WorkflowKindV0;
-	name?: string;
-	execution?: {
-		max_parallelism?: number;
-		node_timeout_ms?: number;
-		run_timeout_ms?: number;
-	};
-	nodes: ReadonlyArray<WorkflowNodeV0>;
-	edges?: ReadonlyArray<WorkflowEdgeV0>;
-	outputs: ReadonlyArray<WorkflowOutputRefV0>;
-};
-
-export type WorkflowNodeV0 =
-	| {
-			id: NodeId;
-			type: typeof WorkflowNodeTypes.LLMResponses;
-			input: {
-				request: WireResponsesRequest;
-				stream?: boolean;
-				tool_execution?: ToolExecutionV0;
-				tool_limits?: LLMResponsesToolLimitsV0;
-				bindings?: ReadonlyArray<LLMResponsesBindingV0>;
-			};
-	  }
-	| {
-			id: NodeId;
-			type: typeof WorkflowNodeTypes.JoinAll;
-			input?: Record<string, unknown>;
-	  }
-	| {
-			id: NodeId;
-			type: typeof WorkflowNodeTypes.TransformJSON;
-			input: {
-				object?: Record<
-					string,
-					{ from: NodeId; pointer?: string }
-				>;
-				merge?: Array<{ from: NodeId; pointer?: string }>;
-			};
-	  };
-
-export type WorkflowEdgeV0 = { from: NodeId; to: NodeId };
-
-export type WorkflowOutputRefV0 = {
-	name: OutputName;
-	from: NodeId;
-	pointer?: string;
-};
-
-export type LLMResponsesBindingEncodingV0 = "json" | "json_string";
-
-export type LLMResponsesBindingV0 = {
-	from: NodeId;
-	pointer?: string;
-	to?: string;
-	to_placeholder?: string;
-	encoding?: LLMResponsesBindingEncodingV0;
-};
-
-export type ToolExecutionModeV0 = "server" | "client";
-
-export type ToolExecutionV0 = { mode: ToolExecutionModeV0 };
-
-export type LLMResponsesToolLimitsV0 = {
-	max_llm_calls?: number;
-	max_tool_calls_per_step?: number;
-	wait_ttl_ms?: number;
-};
 
 export type ConditionSourceV1 = "node_output" | "node_status";
 

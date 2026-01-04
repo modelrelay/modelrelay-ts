@@ -7,7 +7,6 @@ import { CUSTOMER_ID_HEADER } from "./responses_request";
 import {
 	RUNS_PATH,
 	RUN_EVENT_V0_SCHEMA_PATH,
-	WORKFLOW_V0_SCHEMA_PATH,
 	type RunsCreateRequest,
 	type RunsCreateResponse,
 	type RunsGetResponse,
@@ -20,7 +19,7 @@ import {
 	runToolResultsPath,
 } from "./runs_request";
 import { RunsEventStream } from "./runs_stream";
-import type { RunEventV0, WorkflowSpecV0 } from "./runs_types";
+import type { RunEventV0, WorkflowSpecV1 } from "./runs_types";
 import type { RunId } from "./runs_ids";
 import { parseNodeId, parsePlanHash, parseRunId } from "./runs_ids";
 
@@ -108,7 +107,7 @@ export class RunsClient {
 	}
 
 	async create(
-		spec: WorkflowSpecV0,
+		spec: WorkflowSpecV1,
 		options: RunsCreateOptions = {},
 	): Promise<RunsCreateResponse> {
 		const metrics = mergeMetrics(this.metrics, options.metrics);
@@ -142,32 +141,6 @@ export class RunsClient {
 			context: { method: "POST", path: RUNS_PATH },
 		});
 		return { ...out, run_id: parseRunId(out.run_id), plan_hash: parsePlanHash(out.plan_hash) };
-	}
-
-	async schemaV0(options: {
-		signal?: AbortSignal;
-		headers?: Record<string, string>;
-		timeoutMs?: number;
-		connectTimeoutMs?: number;
-		retry?: import("./types").RetryConfig | false;
-		metrics?: MetricsCallbacks;
-		trace?: TraceCallbacks;
-	} = {}): Promise<unknown> {
-		const metrics = mergeMetrics(this.metrics, options.metrics);
-		const trace = mergeTrace(this.trace, options.trace);
-
-		return this.http.json<unknown>(WORKFLOW_V0_SCHEMA_PATH, {
-			method: "GET",
-			headers: options.headers,
-			signal: options.signal,
-			timeoutMs: options.timeoutMs,
-			connectTimeoutMs: options.connectTimeoutMs,
-			retry: options.retry,
-			metrics,
-			trace,
-			context: { method: "GET", path: WORKFLOW_V0_SCHEMA_PATH },
-			accept: "application/schema+json",
-		});
 	}
 
 	async runEventSchemaV0(options: {

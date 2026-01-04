@@ -5,9 +5,9 @@
  * ```typescript
  * import { workflow } from "@modelrelay/sdk";
  *
- * const spec: workflow.SpecV0 = {
- *   kind: workflow.KindV0,
- *   nodes: [{ id: "my_node", type: workflow.NodeTypes.LLMResponses, input: {...} }],
+ * const spec: workflow.SpecV1 = {
+ *   kind: workflow.KindV1,
+ *   nodes: [{ id: "my_node", type: workflow.NodeTypesV1.LLMResponses, input: {...} }],
  *   outputs: [],
  * };
  * ```
@@ -15,23 +15,14 @@
 
 import type {
 	WorkflowKind as _WorkflowKind,
-	WorkflowSpecV0 as _WorkflowSpecV0,
 	WorkflowSpecV1 as _WorkflowSpecV1,
-	WorkflowNodeV0 as _WorkflowNodeV0,
 	WorkflowNodeV1 as _WorkflowNodeV1,
-	WorkflowEdgeV0 as _WorkflowEdgeV0,
 	WorkflowEdgeV1 as _WorkflowEdgeV1,
-	WorkflowOutputRefV0 as _WorkflowOutputRefV0,
 	WorkflowOutputRefV1 as _WorkflowOutputRefV1,
-	LLMResponsesBindingV0 as _LLMResponsesBindingV0,
 	LLMResponsesBindingV1 as _LLMResponsesBindingV1,
-	LLMResponsesBindingEncodingV0 as _LLMResponsesBindingEncodingV0,
 	LLMResponsesBindingEncodingV1 as _LLMResponsesBindingEncodingV1,
-	LLMResponsesToolLimitsV0 as _LLMResponsesToolLimitsV0,
 	LLMResponsesToolLimitsV1 as _LLMResponsesToolLimitsV1,
-	ToolExecutionV0 as _ToolExecutionV0,
 	ToolExecutionV1 as _ToolExecutionV1,
-	ToolExecutionModeV0 as _ToolExecutionModeV0,
 	ToolExecutionModeV1 as _ToolExecutionModeV1,
 	ConditionV1 as _ConditionV1,
 	ConditionOpV1 as _ConditionOpV1,
@@ -67,7 +58,7 @@ import type {
 	StreamEventKind as _StreamEventKind,
 } from "../runs_types";
 
-import { WorkflowKinds, WorkflowNodeTypes, WorkflowNodeTypesV1 } from "../runs_types";
+import { WorkflowKinds, WorkflowNodeTypesV1 } from "../runs_types";
 
 import type {
 	NodeId as _NodeId,
@@ -89,25 +80,16 @@ export { parseNodeId, parseRunId, parsePlanHash, parseOutputName };
 
 // Workflow spec types (drop Workflow prefix)
 export type Kind = _WorkflowKind;
-export type SpecV0 = _WorkflowSpecV0;
 export type SpecV1 = _WorkflowSpecV1;
-export type NodeV0 = _WorkflowNodeV0;
 export type NodeV1 = _WorkflowNodeV1;
-export type EdgeV0 = _WorkflowEdgeV0;
 export type EdgeV1 = _WorkflowEdgeV1;
-export type OutputRefV0 = _WorkflowOutputRefV0;
 export type OutputRefV1 = _WorkflowOutputRefV1;
 
 // Binding types
-export type BindingV0 = _LLMResponsesBindingV0;
 export type BindingV1 = _LLMResponsesBindingV1;
-export type BindingEncodingV0 = _LLMResponsesBindingEncodingV0;
 export type BindingEncodingV1 = _LLMResponsesBindingEncodingV1;
-export type ToolLimitsV0 = _LLMResponsesToolLimitsV0;
 export type ToolLimitsV1 = _LLMResponsesToolLimitsV1;
-export type ToolExecutionV0 = _ToolExecutionV0;
 export type ToolExecutionV1 = _ToolExecutionV1;
-export type ToolExecutionModeV0 = _ToolExecutionModeV0;
 export type ToolExecutionModeV1 = _ToolExecutionModeV1;
 
 export type ConditionV1 = _ConditionV1;
@@ -148,15 +130,7 @@ export type PayloadInfoV0 = _PayloadInfoV0;
 export type StreamEventKind = _StreamEventKind;
 
 // Constants
-export const KindV0 = WorkflowKinds.WorkflowV0;
 export const KindV1 = WorkflowKinds.WorkflowV1;
-
-export const NodeTypes = {
-	LLMResponses: WorkflowNodeTypes.LLMResponses,
-	JoinAll: WorkflowNodeTypes.JoinAll,
-	TransformJSON: WorkflowNodeTypes.TransformJSON,
-} as const;
-export type NodeType = (typeof NodeTypes)[keyof typeof NodeTypes];
 
 export const NodeTypesV1 = {
 	LLMResponses: WorkflowNodeTypesV1.LLMResponses,
@@ -182,6 +156,9 @@ export const ToolExecutionModes = {
 // Semantic JSON pointer constants for LLM responses nodes.
 // Derived from typed path builders to ensure consistency.
 export { LLM_TEXT_OUTPUT, LLM_USER_MESSAGE_TEXT } from "../workflow_builder";
+
+// Workflow builder
+export { workflowV1, WorkflowBuilderV1 } from "../workflow_builder";
 
 // v1 helpers: condition and binding factories
 export {

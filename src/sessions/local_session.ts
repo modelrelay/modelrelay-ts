@@ -202,7 +202,7 @@ export class LocalSession implements Session {
 
 			// Create workflow spec for this turn
 			const spec = {
-				kind: "workflow.v0" as const,
+				kind: "workflow.v1" as const,
 				name: `session-${this.id}-turn-${this.nextSeq}`,
 				nodes: [
 					{

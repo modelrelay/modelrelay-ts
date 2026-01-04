@@ -130,28 +130,12 @@ export {
 } from "./token_providers";
 
 export * from "./runs";
-export * from "./workflow_builder";
 export * from "./json_path";
-export { workflowV0Schema, workflowV1Schema } from "./workflow_schema";
+export * from "./workflow_builder";
 export * from "./workflows_request";
 export * from "./workflows_client";
 
-// Workflow pattern helpers
-export {
-	Chain,
-	Parallel,
-	MapReduce,
-	LLMStep,
-	MapItem,
-	ChainBuilder,
-	ParallelBuilder,
-	MapReduceBuilder,
-} from "./workflow_patterns";
-
-export type { LLMStepConfig, MapItemConfig } from "./workflow_patterns";
-
 export * from "./testing";
-
 
 export {
 	parseApiKey,
