@@ -255,23 +255,28 @@ export class BrowserToolPack {
 	 * Close the browser and clean up resources.
 	 */
 	async close(): Promise<void> {
+		const logCleanupError = (resource: string, err: unknown): void => {
+			// eslint-disable-next-line no-console
+			console.warn(`Browser cleanup: failed to close ${resource}:`, err);
+		};
+
 		if (this.cdpSession) {
-			await this.cdpSession.detach().catch(() => {});
+			await this.cdpSession.detach().catch((err: unknown) => logCleanupError("CDP session", err));
 			this.cdpSession = null;
 		}
 
 		if (this.page) {
-			await this.page.close().catch(() => {});
+			await this.page.close().catch((err: unknown) => logCleanupError("page", err));
 			this.page = null;
 		}
 
 		if (this.ownsContext && this.context) {
-			await this.context.close().catch(() => {});
+			await this.context.close().catch((err: unknown) => logCleanupError("context", err));
 			this.context = null;
 		}
 
 		if (this.ownsBrowser && this.browser) {
-			await this.browser.close().catch(() => {});
+			await this.browser.close().catch((err: unknown) => logCleanupError("browser", err));
 			this.browser = null;
 		}
 	}

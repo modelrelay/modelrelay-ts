@@ -329,8 +329,7 @@ export class LocalSession implements Session {
 		}
 
 		// Get HTTP client from ModelRelay instance
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const http = (this.client as any).http;
+		const http = this.client.http;
 
 		let synced = 0;
 		for (const message of this.messages) {
@@ -609,6 +608,52 @@ function mergeTools(
 	return Array.from(merged.values());
 }
 
+// Type guards for extractTextOutput
+interface OutputMessage {
+	type: string;
+	role?: string;
+	content?: unknown[];
+}
+
+interface ContentPiece {
+	type: string;
+	text?: string;
+}
+
+interface ResponseWithOutput {
+	output?: unknown[];
+}
+
+interface ResponseWithContent {
+	content?: unknown[];
+}
+
+function isOutputMessage(item: unknown): item is OutputMessage {
+	return (
+		typeof item === "object" &&
+		item !== null &&
+		"type" in item &&
+		typeof (item as OutputMessage).type === "string"
+	);
+}
+
+function isContentPiece(c: unknown): c is ContentPiece {
+	return (
+		typeof c === "object" &&
+		c !== null &&
+		"type" in c &&
+		typeof (c as ContentPiece).type === "string"
+	);
+}
+
+function hasOutputArray(obj: object): obj is ResponseWithOutput {
+	return "output" in obj && Array.isArray((obj as ResponseWithOutput).output);
+}
+
+function hasContentArray(obj: object): obj is ResponseWithContent {
+	return "content" in obj && Array.isArray((obj as ResponseWithContent).content);
+}
+
 function extractTextOutput(outputs: Record<string, unknown>): string | undefined {
 	// Try common output patterns
 	const result = outputs.result;
@@ -616,25 +661,29 @@ function extractTextOutput(outputs: Record<string, unknown>): string | undefined
 
 	if (result && typeof result === "object") {
 		// Check for response object with output array
-		const resp = result as any;
-		if (Array.isArray(resp.output)) {
-			const textParts = resp.output
-				.filter((item: any) => item?.type === "message" && item?.role === "assistant")
-				.flatMap((item: any) =>
+		if (hasOutputArray(result)) {
+			const textParts = result.output!
+				.filter(
+					(item): item is OutputMessage =>
+						isOutputMessage(item) && item.type === "message" && item.role === "assistant",
+				)
+				.flatMap((item) =>
 					(item.content || [])
-						.filter((c: any) => c?.type === "text")
-						.map((c: any) => c.text),
-				);
+						.filter((c): c is ContentPiece => isContentPiece(c) && c.type === "text")
+						.map((c) => c.text ?? ""),
+				)
+				.filter((text) => text.length > 0);
 			if (textParts.length > 0) {
 				return textParts.join("\n");
 			}
 		}
 
 		// Check for direct text content
-		if (Array.isArray(resp.content)) {
-			const textParts = resp.content
-				.filter((c: any) => c?.type === "text")
-				.map((c: any) => c.text);
+		if (hasContentArray(result)) {
+			const textParts = result.content!
+				.filter((c): c is ContentPiece => isContentPiece(c) && c.type === "text")
+				.map((c) => c.text ?? "")
+				.filter((text) => text.length > 0);
 			if (textParts.length > 0) {
 				return textParts.join("\n");
 			}

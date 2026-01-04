@@ -180,7 +180,7 @@ export class SessionsClient {
 	/**
 	 * Delete a remote session.
 	 *
-	 * Requires a secret key (not publishable key).
+	 * Requires a secret key.
 	 *
 	 * @param sessionId - ID of the session to delete
 	 *

@@ -10,7 +10,7 @@ import { APIError, ModelRelayError, WorkflowValidationError, type WorkflowValida
 
 export type WorkflowsCompileOptions = {
 	/**
-	 * Optional customer attribution header (mainly for publishable-key contexts).
+	 * Optional customer attribution header for attributing requests to a customer.
 	 */
 	customerId?: string;
 	/**

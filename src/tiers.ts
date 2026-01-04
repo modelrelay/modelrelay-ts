@@ -89,27 +89,30 @@ interface TierResponse {
 
 interface TiersClientConfig {
 	apiKey?: ApiKey;
+	accessToken?: string;
 }
 
 /**
  * TiersClient provides methods to query tiers in a project.
- * Works with both publishable keys (mr_pk_*) and secret keys (mr_sk_*).
+ * Requires a secret key (mr_sk_*) or a bearer token.
  */
 export class TiersClient {
 	private readonly http: HTTPClient;
 	private readonly apiKey?: ApiKey;
 	private readonly hasSecretKey: boolean;
+	private readonly hasAccessToken: boolean;
 
 	constructor(http: HTTPClient, cfg: TiersClientConfig) {
 		this.http = http;
 		this.apiKey = cfg.apiKey ? parseApiKey(cfg.apiKey) : undefined;
 		this.hasSecretKey = this.apiKey ? isSecretKey(this.apiKey) : false;
+		this.hasAccessToken = !!cfg.accessToken?.trim();
 	}
 
-	private ensureApiKey(): void {
-		if (!this.apiKey) {
+	private ensureAuth(): void {
+		if (!this.apiKey && !this.hasAccessToken) {
 			throw new ConfigError(
-				"API key (mr_pk_* or mr_sk_*) required for tier operations",
+				"API key (mr_sk_*) or bearer token required for tier operations",
 			);
 		}
 	}
@@ -126,7 +129,7 @@ export class TiersClient {
 	 * List all tiers in the project.
 	 */
 	async list(): Promise<Tier[]> {
-		this.ensureApiKey();
+		this.ensureAuth();
 		const response = await this.http.json<TierListResponse>("/tiers", {
 			method: "GET",
 			apiKey: this.apiKey,
@@ -138,7 +141,7 @@ export class TiersClient {
 	 * Get a tier by ID.
 	 */
 	async get(tierId: string): Promise<Tier> {
-		this.ensureApiKey();
+		this.ensureAuth();
 		if (!tierId?.trim()) {
 			throw new ConfigError("tierId is required");
 		}

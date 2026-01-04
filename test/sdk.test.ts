@@ -5,7 +5,6 @@ import {
 	ModelRelay,
 	StructuredJSONStream,
 	createUserMessage,
-	parsePublishableKey,
 	parseSecretKey,
 	type OutputFormat,
 	type StructuredJSONEvent,
@@ -23,10 +22,10 @@ import {
 
 describe("ModelRelay TypeScript SDK", () => {
 	it("does not leak raw API keys in config errors", () => {
-		const rawSecret = "mr_sk_leak_me";
+		const rawSecret = "mr_pk_leak_me";
 		let err: unknown;
 		try {
-			parsePublishableKey(rawSecret);
+			parseSecretKey(rawSecret);
 		} catch (e) {
 			err = e;
 		}
@@ -38,9 +37,8 @@ describe("ModelRelay TypeScript SDK", () => {
 
 	it("creates clients from api key helpers", () => {
 		expect(() => ModelRelay.fromSecretKey("mr_sk_helper")).not.toThrow();
-		expect(() => ModelRelay.fromPublishableKey("mr_pk_helper")).not.toThrow();
 		expect(() => ModelRelay.fromApiKey("mr_sk_helper")).not.toThrow();
-		expect(() => ModelRelay.fromApiKey("mr_pk_helper")).not.toThrow();
+		expect(() => ModelRelay.fromApiKey("mr_pk_helper")).toThrow(ConfigError);
 	});
 
 	it("provides a chat-like text helper", async () => {

@@ -91,9 +91,8 @@ export type BillingProvider =
 /** Arbitrary customer metadata. Values can be any JSON type. */
 export type CustomerMetadata = Record<string, unknown>;
 
-export type PublishableKey = string & { readonly __brand: "PublishableKey" };
 export type SecretKey = string & { readonly __brand: "SecretKey" };
-export type ApiKey = PublishableKey | SecretKey;
+export type ApiKey = SecretKey;
 
 /**
  * TokenProvider supplies short-lived bearer tokens for ModelRelay data-plane calls.
@@ -148,9 +147,7 @@ export interface ModelRelayBaseOptions {
  */
 export interface ModelRelayKeyOptions extends ModelRelayBaseOptions {
 	/**
-	 * API key (secret or publishable). Required.
-	 * - Secret keys (`mr_sk_...`) are for server-side API calls.
-	 * - Publishable keys (`mr_pk_...`) are for limited project-scope reads (e.g., tiers).
+	 * Secret API key (`mr_sk_...`). Required.
 	 */
 	key: ApiKey;
 	/**

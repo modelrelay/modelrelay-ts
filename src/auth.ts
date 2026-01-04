@@ -1,5 +1,5 @@
 import { ConfigError } from "./errors";
-import { isPublishableKey, parseApiKey } from "./api_keys";
+import { parseApiKey } from "./api_keys";
 import type { HTTPClient } from "./http";
 import type {
 	CustomerToken,
@@ -37,14 +37,12 @@ export function createAccessTokenAuth(accessToken: string): AuthHeaders {
 export class AuthClient {
 	private readonly http: HTTPClient;
 	private readonly apiKey?: ApiKey;
-	private readonly apiKeyIsPublishable: boolean;
 	private readonly accessToken?: string;
 	private readonly tokenProvider?: TokenProvider;
 
 	constructor(http: HTTPClient, cfg: AuthConfig) {
 		this.http = http;
 		this.apiKey = cfg.apiKey ? parseApiKey(cfg.apiKey) : undefined;
-		this.apiKeyIsPublishable = this.apiKey ? isPublishableKey(this.apiKey) : false;
 		this.accessToken = cfg.accessToken;
 		this.tokenProvider = cfg.tokenProvider;
 	}
@@ -66,9 +64,6 @@ export class AuthClient {
 		if (!this.apiKey) {
 			throw new ConfigError("API key or token is required");
 		}
-		if (this.apiKeyIsPublishable) {
-			throw new ConfigError("publishable keys cannot call data-plane endpoints");
-		}
 		return createApiKeyAuth(this.apiKey);
 	}
 
@@ -84,7 +79,7 @@ export class AuthClient {
 		if (request.ttlSeconds !== undefined && request.ttlSeconds < 0) {
 			throw new ConfigError("ttlSeconds must be non-negative when provided");
 		}
-		if (!this.apiKey || this.apiKeyIsPublishable) {
+		if (!this.apiKey) {
 			throw new ConfigError("Secret API key is required to mint customer tokens");
 		}
 
@@ -129,7 +124,7 @@ export class AuthClient {
 	}
 
 	/**
-	 * Billing calls accept either bearer tokens or API keys (including publishable keys).
+	 * Billing calls accept either bearer tokens or API keys.
 	 */
 	authForBilling(): AuthHeaders {
 		if (this.accessToken) {

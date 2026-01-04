@@ -7,7 +7,7 @@ import { SessionsClient } from "./sessions/client";
 import { TiersClient } from "./tiers";
 import { ConfigError } from "./errors";
 import { HTTPClient } from "./http";
-import { parseApiKey, parsePublishableKey, parseSecretKey } from "./api_keys";
+import { parseApiKey, parseSecretKey } from "./api_keys";
 import { CustomerResponsesClient, CustomerScopedModelRelay } from "./customer_scoped";
 import {
 	DEFAULT_BASE_URL,
@@ -34,13 +34,6 @@ export class ModelRelay {
 		options: Omit<ModelRelayKeyOptions, "key"> = {},
 	): ModelRelay {
 		return new ModelRelay({ ...options, key: parseSecretKey(secretKey) });
-	}
-
-	static fromPublishableKey(
-		publishableKey: string,
-		options: Omit<ModelRelayKeyOptions, "key"> = {},
-	): ModelRelay {
-		return new ModelRelay({ ...options, key: parsePublishableKey(publishableKey) });
 	}
 
 	static fromApiKey(
@@ -92,7 +85,7 @@ export class ModelRelay {
 		});
 		this.images = new ImagesClient(this.http, auth);
 		this.sessions = new SessionsClient(this, this.http, auth);
-		this.tiers = new TiersClient(this.http, { apiKey });
+		this.tiers = new TiersClient(this.http, { apiKey, accessToken });
 	}
 
 	forCustomer(customerId: string): CustomerScopedModelRelay {
@@ -162,9 +155,7 @@ export * from "./testing";
 
 export {
 	parseApiKey,
-	parsePublishableKey,
 	parseSecretKey,
-	isPublishableKey,
 	isSecretKey,
 } from "./api_keys";
 
