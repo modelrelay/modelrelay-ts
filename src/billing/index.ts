@@ -11,7 +11,7 @@
  * import { ModelRelay } from "@modelrelay/sdk";
  * import { BillingClient } from "@modelrelay/sdk/billing";
  *
- * // Customer token from device flow or OIDC exchange
+ * // Customer token from your backend
  * const client = new ModelRelay({ token: customerToken });
  * const billing = new BillingClient(client.http);
  *
@@ -102,7 +102,7 @@ interface HTTPClientLike {
 /**
  * Client for customer billing self-service operations.
  *
- * These endpoints require a customer bearer token (from device flow or OIDC exchange).
+ * These endpoints require a customer bearer token.
  * API keys are not accepted.
  *
  * @example

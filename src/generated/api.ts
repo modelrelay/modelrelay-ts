@@ -171,49 +171,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/auth/oidc/exchange": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Exchange an OIDC id_token for a customer bearer token
-         * @description Verifies a provided OIDC `id_token` using the project's configured OIDC settings,
-         *     resolves (provider, subject) to a customer via customer_identities, and returns
-         *     a short-lived customer-scoped bearer token for data-plane access.
-         */
-        post: operations["exchangeOidcToken"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/customers/claim": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Link a customer identity to a customer by email
-         * @description Used when a customer subscribes via Stripe Checkout (email only) and later authenticates to the app.
-         *     Links (provider, subject) to the existing customer record found by email.
-         */
-        post: operations["claimCustomer"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/customers": {
         parameters: {
             query?: never;
@@ -1127,14 +1084,6 @@ export interface components {
             description?: string;
             markup_percentage?: number;
             billing_mode?: components["schemas"]["BillingMode"];
-            /** Format: uuid */
-            customer_auto_provision_tier_id?: string;
-            customer_oauth_providers?: ("github" | "google")[];
-            oidc_enabled?: boolean;
-            oidc_issuer?: string;
-            oidc_audiences?: string[];
-            oidc_jwks_url?: string;
-            oidc_subject_claim?: string;
             /** Format: date-time */
             created_at?: string;
             /** Format: date-time */
@@ -2583,116 +2532,6 @@ export interface operations {
             };
         };
     };
-    exchangeOidcToken: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @description OIDC id_token JWT to verify and exchange */
-                    id_token: string;
-                    /**
-                     * Format: uuid
-                     * @description Optional; must match the API key's project_id if provided
-                     */
-                    project_id?: string;
-                };
-            };
-        };
-        responses: {
-            /** @description Customer token issued */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CustomerTokenResponse"];
-                };
-            };
-            /** @description Invalid request or token contents */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["APIError"];
-                };
-            };
-            /** @description Invalid id_token */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Identity unknown and auto-provision disabled */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["APIError"];
-                };
-            };
-            /** @description Identity already linked to a different customer */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    claimCustomer: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** Format: email */
-                    email: string;
-                    /**
-                     * @description Identity provider (must match project's enabled providers)
-                     * @enum {string}
-                     */
-                    provider: "github" | "google" | "oidc";
-                    /** @description OAuth/OIDC subject claim from the identity provider */
-                    subject: string;
-                };
-            };
-        };
-        responses: {
-            /** @description Customer identity linked */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Customer not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Identity already linked to a different customer */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     listCustomers: {
         parameters: {
             query?: never;
@@ -3558,14 +3397,6 @@ export interface operations {
                     description?: string;
                     markup_percentage?: number;
                     billing_mode?: components["schemas"]["BillingMode"];
-                    /** Format: uuid */
-                    customer_auto_provision_tier_id?: string;
-                    customer_oauth_providers?: ("github" | "google")[];
-                    oidc_enabled?: boolean;
-                    oidc_issuer?: string;
-                    oidc_audiences?: string[];
-                    oidc_jwks_url?: string;
-                    oidc_subject_claim?: string;
                 };
             };
         };

@@ -154,8 +154,8 @@ export class TiersClient {
 	 *
 	 * This enables users to subscribe before authenticating. Stripe collects
 	 * the customer's email during checkout. After checkout completes, a
-	 * customer record is created with the email from Stripe. The customer
-	 * can later be linked to an identity via POST /customers/claim.
+	 * customer record is created with the email from Stripe. Your backend
+	 * can map it to your app user and mint customer tokens as needed.
 	 *
 	 * Requires a secret key (mr_sk_*).
 	 *

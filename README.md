@@ -8,22 +8,6 @@ bun add @modelrelay/sdk
 
 Use token providers when you want the SDK to automatically obtain/refresh **bearer tokens** for data-plane calls like `/responses` and `/runs`.
 
-### OIDC id_token → customer bearer token (exchange)
-
-```ts
-import { ModelRelay, OIDCExchangeTokenProvider, parseSecretKey } from "@modelrelay/sdk";
-
-const tokenProvider = new OIDCExchangeTokenProvider({
-  apiKey: parseSecretKey(process.env.MODELRELAY_API_KEY!),
-  idTokenProvider: async () => {
-    // Return an OIDC id_token from your auth system (web login, device flow, etc).
-    return process.env.OIDC_ID_TOKEN!;
-  },
-});
-
-const mr = new ModelRelay({ tokenProvider });
-```
-
 ### Secret key → customer bearer token (mint)
 
 ```ts

@@ -75,7 +75,6 @@ export class ModelRelay {
 		const auth = new AuthClient(this.http, {
 			apiKey,
 			accessToken,
-			customer: cfg.customer,
 			tokenProvider,
 		});
 		this.auth = auth;
@@ -135,8 +134,6 @@ export type { AuthHeaders } from "./auth";
 
 export {
 	CustomerTokenProvider,
-	FrontendTokenProvider,
-	OIDCExchangeTokenProvider,
 } from "./token_providers";
 
 export * from "./runs";

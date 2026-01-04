@@ -3,9 +3,7 @@ import z from "zod";
 
 import {
 	ModelRelay,
-	ResponsesStream,
 	StructuredJSONStream,
-	OIDCExchangeTokenProvider,
 	createUserMessage,
 	parsePublishableKey,
 	parseSecretKey,
@@ -22,8 +20,6 @@ import {
 	StreamProtocolError,
 	TransportError,
 } from "../src/errors";
-
-const future = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
 describe("ModelRelay TypeScript SDK", () => {
 	it("does not leak raw API keys in config errors", () => {
@@ -623,38 +619,6 @@ describe("ModelRelay TypeScript SDK", () => {
 		await expect(it.next()).rejects.toMatchObject({ kind: "total" });
 	});
 
-	it("caches frontend tokens issued from publishable keys", async () => {
-		const fetchMock = vi.fn(async (url) => {
-			if (String(url).endsWith("/auth/frontend-token")) {
-				return new Response(
-					JSON.stringify({
-						token: "front-token",
-						expires_at: future,
-						token_type: "Bearer",
-					}),
-					{ status: 200, headers: { "Content-Type": "application/json" } },
-				);
-			}
-			throw new Error(`unexpected URL: ${url}`);
-		});
-
-		const client = new ModelRelay({
-			key: parsePublishableKey("mr_pk_test_123"),
-			customer: { provider: "oidc:test", subject: "sub-1" },
-			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
-			fetch: fetchMock as any,
-		});
-
-		const req = { publishableKey: parsePublishableKey("mr_pk_test_123"), identityProvider: "oidc:test", identitySubject: "sub-1" };
-		const first = await client.auth.frontendToken(req);
-		const second = await client.auth.frontendToken(req);
-
-		expect(fetchMock).toHaveBeenCalledTimes(1);
-		expect(first).toBe(second);
-		expect(first.token).toBe("front-token");
-		expect(first.tokenType).toBe("Bearer");
-	});
-
 	it("can call /responses using a token provider (no manual auth headers)", async () => {
 		const tokenProvider = {
 			getToken: vi.fn(async () => "tp-123"),
@@ -693,157 +657,6 @@ describe("ModelRelay TypeScript SDK", () => {
 		const text = await client.responses.text("gpt-4o", "sys", "user");
 		expect(text).toBe("OK");
 		expect(tokenProvider.getToken).toHaveBeenCalledTimes(1);
-	});
-
-	it("OIDCExchangeTokenProvider exchanges id_tokens and caches by expiry", async () => {
-		const idTokenProvider = vi.fn(async () => "idtok-1");
-		const fetchMock = vi.fn(async (url, init) => {
-			const path = String(url);
-			if (path.endsWith("/auth/oidc/exchange")) {
-				// biome-ignore lint/suspicious/noExplicitAny: init.body is untyped
-				const body = JSON.parse(String(init?.body as any));
-				expect(body.id_token).toBe("idtok-1");
-				return new Response(
-					JSON.stringify({
-						token: "customer-token-1",
-						expires_at: future,
-						expires_in: 3600,
-						token_type: "Bearer",
-						project_id: "proj_1",
-						customer_id: "customer_1",
-						customer_external_id: "ext_1",
-						tier_code: "free",
-					}),
-					{ status: 200, headers: { "Content-Type": "application/json" } },
-				);
-			}
-			throw new Error(`unexpected URL: ${url}`);
-		});
-
-		const provider = new OIDCExchangeTokenProvider({
-			apiKey: parseSecretKey("mr_sk_oidc"),
-			idTokenProvider,
-			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
-			fetch: fetchMock as any,
-		});
-
-		const first = await provider.getToken();
-		const second = await provider.getToken();
-
-		expect(first).toBe("customer-token-1");
-		expect(second).toBe("customer-token-1");
-		expect(fetchMock).toHaveBeenCalledTimes(1);
-		expect(idTokenProvider).toHaveBeenCalledTimes(1);
-	});
-
-	it("does not reuse frontend tokens across different devices", async () => {
-		const fetchMock = vi.fn(async (url, init) => {
-			if (String(url).endsWith("/auth/frontend-token")) {
-				// biome-ignore lint/suspicious/noExplicitAny: init.body is untyped
-				const body = JSON.parse(String(init?.body as any));
-				return new Response(
-					JSON.stringify({
-						token: `front-${body.device_id || "none"}`,
-						expires_at: future,
-					}),
-					{ status: 200, headers: { "Content-Type": "application/json" } },
-				);
-			}
-			throw new Error(`unexpected URL: ${url}`);
-		});
-
-		const client = new ModelRelay({
-			key: parsePublishableKey("mr_pk_test_device"),
-			customer: { provider: "oidc:test", subject: "sub-1" },
-			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
-			fetch: fetchMock as any,
-		});
-
-		const first = await client.auth.frontendToken({
-			publishableKey: parsePublishableKey("mr_pk_test_device"),
-			identityProvider: "oidc:test",
-			identitySubject: "sub-1",
-			deviceId: "device-a",
-		});
-		const second = await client.auth.frontendToken({
-			publishableKey: parsePublishableKey("mr_pk_test_device"),
-			identityProvider: "oidc:test",
-			identitySubject: "sub-1",
-			deviceId: "device-b",
-		});
-
-		expect(first.token).toBe("front-device-a");
-		expect(second.token).toBe("front-device-b");
-		expect(fetchMock).toHaveBeenCalledTimes(2);
-	});
-
-	it("exchanges publishable keys for frontend tokens before streaming responses", async () => {
-		const fetchMock = vi.fn(async (url, init) => {
-			const path = String(url);
-			if (path.endsWith("/auth/frontend-token")) {
-				return new Response(
-					JSON.stringify({
-						token: "front-token",
-						expires_at: future,
-					}),
-					{ status: 200, headers: { "Content-Type": "application/json" } },
-				);
-			}
-			if (path.endsWith("/responses")) {
-				const headers = new Headers(init?.headers as HeadersInit);
-				expect(headers.get("Authorization")).toBe("Bearer front-token");
-				expect(headers.get("X-ModelRelay-Request-Id")).toBe("req-123");
-				// biome-ignore lint/suspicious/noExplicitAny: init.body is untyped
-				const body = JSON.parse(String(init?.body as any));
-				expect(body.max_output_tokens).toBeUndefined(); // do not inject a default ceiling
-				expect(body.model).toBe("gpt-4o");
-				expect(body.input?.[0]?.role).toBe("user");
-				// Unified NDJSON format
-				return buildNDJSONResponse(
-					[
-						JSON.stringify({ type: "start", request_id: "resp-1", model: "gpt-4o" }),
-						JSON.stringify({ type: "update", delta: "Hello" }),
-						JSON.stringify({
-							type: "completion",
-							stop_reason: "end_turn",
-							usage: { input_tokens: 1, output_tokens: 2, total_tokens: 3 },
-						}),
-					],
-					{ "X-ModelRelay-Request-Id": "req-stream-1" },
-				);
-			}
-			throw new Error(`unexpected URL: ${url}`);
-		});
-
-		const client = new ModelRelay({
-			key: parsePublishableKey("mr_pk_test_456"),
-			customer: { provider: "oidc:test", subject: "sub-42" },
-			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
-			fetch: fetchMock as any,
-		});
-
-		const req = client.responses
-			.new()
-			.model("gpt-4o")
-			.input([createUserMessage("hi")])
-			.requestId("req-123")
-			.build();
-
-		const stream = await client.responses.stream(req);
-
-		expect(stream).toBeInstanceOf(ResponsesStream);
-		const events: string[] = [];
-		for await (const evt of stream) {
-			events.push(evt.type);
-			if (evt.type === "message_delta") {
-				expect(evt.textDelta).toBe("Hello");
-			}
-			if (evt.type === "message_stop") {
-				expect(evt.usage?.totalTokens).toBe(3);
-			}
-		}
-		expect(events).toEqual(["message_start", "message_delta", "message_stop"]);
-		expect(fetchMock).toHaveBeenCalledTimes(2);
 	});
 
 	it("streams structured JSON over NDJSON", async () => {
