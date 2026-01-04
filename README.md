@@ -24,22 +24,6 @@ const tokenProvider = new OIDCExchangeTokenProvider({
 const mr = new ModelRelay({ tokenProvider });
 ```
 
-If you need an `id_token` in a CLI-like context, you can use the OAuth device flow helper:
-
-```ts
-import { runOAuthDeviceFlowForIDToken } from "@modelrelay/sdk";
-
-const idToken = await runOAuthDeviceFlowForIDToken({
-  deviceAuthorizationEndpoint: "https://issuer.example.com/oauth/device/code",
-  tokenEndpoint: "https://issuer.example.com/oauth/token",
-  clientId: "your-client-id",
-  scope: "openid email profile",
-  onUserCode: ({ verificationUri, userCode }) => {
-    console.log(`Open ${verificationUri} and enter code: ${userCode}`);
-  },
-});
-```
-
 ### Secret key → customer bearer token (mint)
 
 ```ts

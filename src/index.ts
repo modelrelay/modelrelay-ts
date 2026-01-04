@@ -139,22 +139,6 @@ export {
 	OIDCExchangeTokenProvider,
 } from "./token_providers";
 
-export {
-	startOAuthDeviceAuthorization,
-	pollOAuthDeviceToken,
-	runOAuthDeviceFlowForIDToken,
-	pollUntil,
-} from "./device_flow";
-
-export type {
-	OAuthDeviceAuthorization,
-	OAuthDeviceAuthorizationRequest,
-	OAuthDeviceToken,
-	OAuthDeviceTokenPollRequest,
-	PollUntilOptions,
-	PollUntilResult,
-} from "./device_flow";
-
 export * from "./runs";
 export * from "./workflow_builder";
 export * from "./json_path";

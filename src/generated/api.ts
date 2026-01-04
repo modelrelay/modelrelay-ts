@@ -171,49 +171,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/auth/device/start": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Start a device authorization session
-         * @description Starts an OAuth 2.0 device authorization session so constrained clients (TUIs)
-         *     can obtain a customer-scoped bearer token without running a local web server.
-         *     Requires a project-scoped API key (publishable or secret).
-         */
-        post: operations["startDeviceAuthorization"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/auth/device/token": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Poll a device authorization session
-         * @description Polls a device authorization session by `device_code`. Returns a customer-scoped bearer token
-         *     once the user completes authorization in the browser.
-         */
-        post: operations["pollDeviceToken"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/auth/oidc/exchange": {
         parameters: {
             query?: never;
@@ -1887,37 +1844,6 @@ export interface components {
              */
             url: string;
         };
-        DeviceStartResponse: {
-            /** @description Device code used for polling /auth/device/token */
-            device_code: string;
-            /** @description Human-enterable code shown to the user */
-            user_code: string;
-            /** @description URL where the user enters the code and completes authorization */
-            verification_uri: string;
-            /** @description Convenience URL that pre-fills the user_code (optional) */
-            verification_uri_complete?: string;
-            /**
-             * Format: uint32
-             * @description Seconds until the device code expires
-             */
-            expires_in: number;
-            /**
-             * Format: uint32
-             * @description Minimum polling interval in seconds
-             */
-            interval: number;
-        };
-        DeviceTokenError: {
-            /** @description OAuth device flow error code */
-            error: string;
-            /** @description Optional human-readable error message */
-            error_description?: string;
-            /**
-             * Format: uint32
-             * @description Updated recommended polling interval in seconds (when error is slow_down)
-             */
-            interval?: number;
-        };
         APIError: {
             error: string;
             code: string;
@@ -2650,83 +2576,6 @@ export interface operations {
             };
             /** @description Customer not found */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    startDeviceAuthorization: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Device authorization session started */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DeviceStartResponse"];
-                };
-            };
-            /** @description Invalid request (e.g., missing project-scoped API key) */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Missing or invalid API key */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    pollDeviceToken: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @description Opaque device code returned by /auth/device/start */
-                    device_code: string;
-                };
-            };
-        };
-        responses: {
-            /** @description Customer token issued */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CustomerTokenResponse"];
-                };
-            };
-            /** @description OAuth device flow error (authorization_pending, slow_down, expired_token, invalid_grant, access_denied) */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DeviceTokenError"];
-                };
-            };
-            /** @description Missing or invalid API key */
-            401: {
                 headers: {
                     [name: string]: unknown;
                 };
