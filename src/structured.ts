@@ -16,7 +16,7 @@
  *
  * const result = await client.responses.structured(
  *   PersonSchema,
- *   client.responses.new().model("claude-sonnet-4-20250514").user("...").build(),
+ *   client.responses.new().model("claude-sonnet-4-5").user("...").build(),
  *   { maxRetries: 2 }
  * );
  *

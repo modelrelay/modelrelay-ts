@@ -193,7 +193,7 @@ async function main() {
 	const apiBaseUrl =
 		process.env.MODELRELAY_API_BASE_URL?.trim() || "http://localhost:8080/api/v1";
 
-	const modelOk = process.env.MODELRELAY_MODEL_OK?.trim() || "claude-sonnet-4-20250514";
+	const modelOk = process.env.MODELRELAY_MODEL_OK?.trim() || "claude-sonnet-4-5";
 	const modelBad = process.env.MODELRELAY_MODEL_BAD?.trim() || "does-not-exist";
 
 	const apiKey = await bootstrapSecretKey(apiBaseUrl);

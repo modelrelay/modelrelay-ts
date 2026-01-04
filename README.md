@@ -30,7 +30,7 @@ const mr = ModelRelay.fromSecretKey("mr_sk_...");
 
 const req = mr.responses
   .new()
-  .model("claude-sonnet-4-20250514")
+  .model("claude-sonnet-4-5")
   .user("Hello")
   .build();
 
@@ -109,14 +109,14 @@ import { chain, llmStep } from "@modelrelay/sdk";
 
 const summarizeReq = mr.responses
   .new()
-  .model("claude-sonnet-4-20250514")
+  .model("claude-sonnet-4-5")
   .system("Summarize the input concisely.")
   .user("The quick brown fox...")
   .build();
 
 const translateReq = mr.responses
   .new()
-  .model("claude-sonnet-4-20250514")
+  .model("claude-sonnet-4-5")
   .system("Translate the input to French.")
   .user("") // Bound from previous step
   .build();
@@ -136,10 +136,10 @@ Concurrent LLM calls with optional aggregation:
 import { parallel, llmStep } from "@modelrelay/sdk";
 
 const gpt4Req = mr.responses.new().model("gpt-4.1").user("Analyze this...").build();
-const claudeReq = mr.responses.new().model("claude-sonnet-4-20250514").user("Analyze this...").build();
+const claudeReq = mr.responses.new().model("claude-sonnet-4-5").user("Analyze this...").build();
 const synthesizeReq = mr.responses
   .new()
-  .model("claude-sonnet-4-20250514")
+  .model("claude-sonnet-4-5")
   .system("Synthesize the analyses into a unified view.")
   .user("") // Bound from join output
   .build();
@@ -161,7 +161,7 @@ import { mapReduce } from "@modelrelay/sdk";
 
 const combineReq = mr.responses
   .new()
-  .model("claude-sonnet-4-20250514")
+  .model("claude-sonnet-4-5")
   .system("Combine summaries into a cohesive overview.")
   .user("") // Bound from join output
   .build();
@@ -181,7 +181,7 @@ For the most common path (**system + user → assistant text**):
 
 ```ts
 const text = await mr.responses.text(
-  "claude-sonnet-4-20250514",
+  "claude-sonnet-4-5",
   "Answer concisely.",
   "Say hi.",
 );
@@ -202,7 +202,7 @@ To stream only message text deltas:
 
 ```ts
 const deltas = await mr.responses.streamTextDeltas(
-  "claude-sonnet-4-20250514",
+  "claude-sonnet-4-5",
   "Answer concisely.",
   "Say hi.",
 );
@@ -228,7 +228,7 @@ const Person = z.object({
 
 // Simple one-call API (recommended)
 const person = await mr.responses.object<z.infer<typeof Person>>({
-  model: "claude-sonnet-4-20250514",
+  model: "claude-sonnet-4-5",
   schema: Person,
   prompt: "Extract: John Doe is 30 years old",
 });
@@ -242,13 +242,13 @@ For parallel structured output calls:
 ```ts
 const [security, performance] = await Promise.all([
   mr.responses.object<SecurityReview>({
-    model: "claude-sonnet-4-20250514",
+    model: "claude-sonnet-4-5",
     schema: SecuritySchema,
     system: "You are a security expert.",
     prompt: code,
   }),
   mr.responses.object<PerformanceReview>({
-    model: "claude-sonnet-4-20250514",
+    model: "claude-sonnet-4-5",
     schema: PerformanceSchema,
     system: "You are a performance expert.",
     prompt: code,
@@ -261,7 +261,7 @@ For more control (retries, custom handlers, metadata):
 ```ts
 const result = await mr.responses.structured(
   Person,
-  mr.responses.new().model("claude-sonnet-4-20250514").user("Extract: John Doe is 30").build(),
+  mr.responses.new().model("claude-sonnet-4-5").user("Extract: John Doe is 30").build(),
   { maxRetries: 2 },
 );
 
@@ -287,7 +287,7 @@ const Article = z.object({
 
 const stream = await mr.responses.streamStructured(
   Article,
-  mr.responses.new().model("claude-sonnet-4-20250514").user("Write an article about TypeScript").build(),
+  mr.responses.new().model("claude-sonnet-4-5").user("Write an article about TypeScript").build(),
 );
 
 for await (const event of stream) {
@@ -355,7 +355,7 @@ import {
 
 try {
   const response = await mr.responses.text(
-    "claude-sonnet-4-20250514",
+    "claude-sonnet-4-5",
     "You are helpful.",
     "Hello!"
   );

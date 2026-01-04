@@ -1482,7 +1482,7 @@ export interface components {
          * @enum {string}
          */
         ModelCapability: "text_generation" | "tools" | "vision" | "web_search" | "web_fetch" | "computer_use" | "code_execution" | "image_generation";
-        /** @description LLM model identifier (e.g., claude-sonnet-4-20250514, gpt-4o). */
+        /** @description LLM model identifier (e.g., claude-sonnet-4-5, gpt-4o). */
         ModelId: string;
         ModelsResponse: {
             models: components["schemas"]["Model"][];

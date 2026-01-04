@@ -100,7 +100,7 @@ export class ResponsesClient {
 	 * import { z } from 'zod';
 	 *
 	 * const review = await client.responses.object({
-	 *   model: 'claude-sonnet-4-20250514',
+	 *   model: 'claude-sonnet-4-5',
 	 *   schema: z.object({
 	 *     vulnerabilities: z.array(z.string()),
 	 *     riskLevel: z.enum(['low', 'medium', 'high']),
@@ -179,7 +179,7 @@ export class ResponsesClient {
 	 * @example
 	 * ```typescript
 	 * const result = await client.responses.objectWithMetadata({
-	 *   model: 'claude-sonnet-4-20250514',
+	 *   model: 'claude-sonnet-4-5',
 	 *   schema: ReviewSchema,
 	 *   prompt: 'Review this code...',
 	 * });

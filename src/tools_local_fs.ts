@@ -124,7 +124,7 @@ interface FSSearchArgs {
  *
  * // Use tools in a workflow
  * const response = await client.responses.create({
- *   model: "anthropic/claude-sonnet-4-20250514",
+ *   model: "anthropic/claude-sonnet-4-5",
  *   input: [{ type: "message", role: "user", content: [{ type: "text", text: "List all TypeScript files" }] }],
  *   tools: pack.getToolDefinitions(),
  * });

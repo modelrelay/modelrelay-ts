@@ -119,7 +119,7 @@ describe("ModelRelay TypeScript SDK", () => {
 			if (path.endsWith("/responses")) {
 				// biome-ignore lint/suspicious/noExplicitAny: init.body is untyped
 				const body = JSON.parse(String(init?.body as any));
-				expect(body.model).toBe("claude-sonnet-4-20250514");
+				expect(body.model).toBe("claude-sonnet-4-5");
 				expect(body.output_format?.type).toBe("json_schema");
 				expect(body.input?.[0]?.role).toBe("system");
 				expect(body.input?.[1]?.role).toBe("user");
@@ -138,7 +138,7 @@ describe("ModelRelay TypeScript SDK", () => {
 								],
 							},
 						],
-						model: "claude-sonnet-4-20250514",
+						model: "claude-sonnet-4-5",
 						stop_reason: "stop",
 						usage: { input_tokens: 10, output_tokens: 20, total_tokens: 30 },
 					}),
@@ -154,7 +154,7 @@ describe("ModelRelay TypeScript SDK", () => {
 		});
 
 		const review = await client.responses.object<z.infer<typeof ReviewSchema>>({
-			model: "claude-sonnet-4-20250514",
+			model: "claude-sonnet-4-5",
 			schema: ReviewSchema,
 			system: "You are a security expert.",
 			prompt: "Review this code: SELECT * FROM users WHERE id = $input",
@@ -1191,7 +1191,7 @@ describe("ModelRelay TypeScript SDK", () => {
 
 		const req = client.responses
 			.new()
-			.model("claude-sonnet-4-20250514")
+			.model("claude-sonnet-4-5")
 			.input([createUserMessage("What's the weather in NYC?")])
 			.build();
 
