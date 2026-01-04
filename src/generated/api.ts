@@ -4,67 +4,7 @@
  */
 
 export interface paths {
-    "/schemas/workflow_v0.schema.json": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get JSON Schema for workflow.v0
-         * @description Returns the canonical JSON Schema (draft-07) for `workflow.v0`.
-         */
-        get: operations["getWorkflowV0Schema"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/schemas/workflow_v1.schema.json": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get JSON Schema for workflow.v1
-         * @description Returns the canonical JSON Schema (draft-07) for `workflow.v1`.
-         */
-        get: operations["getWorkflowV1Schema"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/schemas/run_event_v0.schema.json": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get JSON Schema for run_event.v0
-         * @description Returns the canonical JSON Schema (draft-07) for `run_event.v0` (workflow run history events).
-         */
-        get: operations["getRunEventV0Schema"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/auth/register": {
+    "/auth/customer-token": {
         parameters: {
             query?: never;
             header?: never;
@@ -73,8 +13,13 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Register a new owner account */
-        post: operations["registerOwner"];
+        /**
+         * Mint a customer-scoped bearer token
+         * @description Used by trusted backends to mint short-lived customer-scoped bearer tokens
+         *     for data-plane access (/responses, /runs). Requires a secret API key (mr_sk_*).
+         *     The customer must already exist; use /customers endpoints to create customers first.
+         */
+        post: operations["mintCustomerToken"];
         delete?: never;
         options?: never;
         head?: never;
@@ -92,23 +37,6 @@ export interface paths {
         put?: never;
         /** Exchange credentials for tokens */
         post: operations["login"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/auth/refresh": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Refresh an access token */
-        post: operations["refreshToken"];
         delete?: never;
         options?: never;
         head?: never;
@@ -149,7 +77,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/auth/customer-token": {
+    "/auth/refresh": {
         parameters: {
             query?: never;
             header?: never;
@@ -158,13 +86,25 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /**
-         * Mint a customer-scoped bearer token
-         * @description Used by trusted backends to mint short-lived customer-scoped bearer tokens
-         *     for data-plane access (/responses, /runs). Requires a secret API key (mr_sk_*).
-         *     The customer must already exist; use /customers endpoints to create customers first.
-         */
-        post: operations["mintCustomerToken"];
+        /** Refresh an access token */
+        post: operations["refreshToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register a new owner account */
+        post: operations["registerOwner"];
         delete?: never;
         options?: never;
         head?: never;
@@ -190,122 +130,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/customers/{customer_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                customer_id: string;
-            };
-            cookie?: never;
-        };
-        /** Get a customer */
-        get: operations["getCustomer"];
-        put?: never;
-        post?: never;
-        /** Delete a customer */
-        delete: operations["deleteProjectCustomer"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/customers/{customer_id}/subscribe": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                customer_id: string;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Create a customer subscription checkout session */
-        post: operations["subscribeCustomer"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/customers/{customer_id}/subscription": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                customer_id: string;
-            };
-            cookie?: never;
-        };
-        /** Get a customer's subscription */
-        get: operations["getCustomerSubscription"];
-        put?: never;
-        post?: never;
-        /** Cancel a customer's subscription */
-        delete: operations["cancelCustomerSubscription"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/customers/{customer_id}/balance": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                customer_id: string;
-            };
-            cookie?: never;
-        };
-        /** Get a customer's PAYGO balance */
-        get: operations["getCustomerBalance"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/customers/{customer_id}/balance/history": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                customer_id: string;
-            };
-            cookie?: never;
-        };
-        /** Get a customer's PAYGO ledger history */
-        get: operations["getCustomerBalanceHistory"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/customers/{customer_id}/topup": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                customer_id: string;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Create a PAYGO top-up checkout session for a customer */
-        post: operations["createCustomerTopup"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/customers/me": {
         parameters: {
             query?: never;
@@ -319,49 +143,6 @@ export interface paths {
          *     Includes the customer's subscription and tier when available.
          */
         get: operations["getCustomerMe"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/customers/me/usage": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get the authenticated customer's usage
-         * @description Returns customer-visible usage metrics for the current billing window.
-         *     Includes request/token counts and (for paid tiers) remaining subscription credits.
-         *     Does not include any developer-private budgets (e.g., internal tier spend caps).
-         */
-        get: operations["getCustomerMeUsage"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/customers/me/subscription": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get the authenticated customer's subscription
-         * @description Returns customer-visible subscription details for the authenticated customer bearer token.
-         *     Includes tier name and subscription price; does not include developer-private usage cost accounting.
-         */
-        get: operations["getCustomerMeSubscription"];
         put?: never;
         post?: never;
         delete?: never;
@@ -398,23 +179,6 @@ export interface paths {
         get: operations["getCustomerMeBalanceHistory"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/customers/me/topup": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Create a PAYGO top-up checkout session for the authenticated customer */
-        post: operations["createCustomerMeTopup"];
         delete?: never;
         options?: never;
         head?: never;
@@ -461,7 +225,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/models": {
+    "/customers/me/subscription": {
         parameters: {
             query?: never;
             header?: never;
@@ -469,10 +233,11 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List active models
-         * @description Returns all active models with rich metadata for building model selectors.
+         * Get the authenticated customer's subscription
+         * @description Returns customer-visible subscription details for the authenticated customer bearer token.
+         *     Includes tier name and subscription price; does not include developer-private usage cost accounting.
          */
-        get: operations["listModels"];
+        get: operations["getCustomerMeSubscription"];
         put?: never;
         post?: never;
         delete?: never;
@@ -481,239 +246,155 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/projects": {
+    "/customers/me/topup": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** List projects for the authenticated owner */
-        get: operations["listProjects"];
-        put?: never;
-        /** Create a project */
-        post: operations["createProject"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/projects/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["ProjectID"];
-            };
-            cookie?: never;
-        };
-        /** Get a project */
-        get: operations["getProject"];
-        /** Update a project */
-        put: operations["updateProject"];
-        post?: never;
-        /** Delete a project */
-        delete: operations["deleteProject"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/projects/{id}/tiers": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["ProjectID"];
-            };
-            cookie?: never;
-        };
-        /** List tiers for a project */
-        get: operations["listProjectTiers"];
-        put?: never;
-        /** Create a tier */
-        post: operations["createTier"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/projects/{id}/tiers/{tier_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["ProjectID"];
-                tier_id: string;
-            };
-            cookie?: never;
-        };
         get?: never;
-        /** Update a tier */
-        put: operations["updateTier"];
-        post?: never;
-        /** Delete a tier */
-        delete: operations["deleteTier"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/projects/{id}/customers": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["ProjectID"];
-            };
-            cookie?: never;
-        };
-        /** List customers for a project */
-        get: operations["listProjectCustomers"];
         put?: never;
-        /** Create a customer */
-        post: operations["createCustomer"];
+        /** Create a PAYGO top-up checkout session for the authenticated customer */
+        post: operations["createCustomerMeTopup"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/projects/{id}/customers/{customer_id}": {
+    "/customers/me/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the authenticated customer's usage
+         * @description Returns customer-visible usage metrics for the current billing window.
+         *     Includes request/token counts and (for paid tiers) remaining subscription credits.
+         *     Does not include any developer-private budgets (e.g., internal tier spend caps).
+         */
+        get: operations["getCustomerMeUsage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/customers/{customer_id}": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                id: components["parameters"]["ProjectID"];
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        /** Get a customer */
+        get: operations["getCustomer"];
+        put?: never;
+        post?: never;
+        /** Delete a customer */
+        delete: operations["deleteProjectCustomer"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/customers/{customer_id}/balance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        /** Get a customer's PAYGO balance */
+        get: operations["getCustomerBalance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/customers/{customer_id}/balance/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        /** Get a customer's PAYGO ledger history */
+        get: operations["getCustomerBalanceHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/customers/{customer_id}/subscribe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
                 customer_id: string;
             };
             cookie?: never;
         };
         get?: never;
         put?: never;
-        post?: never;
-        /** Delete a customer */
-        delete: operations["deleteCustomer"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/projects/{id}/webhooks": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["ProjectID"];
-            };
-            cookie?: never;
-        };
-        /** List project webhooks */
-        get: operations["listProjectWebhooks"];
-        put?: never;
-        /** Create a project webhook */
-        post: operations["createProjectWebhook"];
+        /** Create a customer subscription checkout session */
+        post: operations["subscribeCustomer"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/projects/{id}/webhooks/{webhook_id}": {
+    "/customers/{customer_id}/subscription": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                id: components["parameters"]["ProjectID"];
-                webhook_id: components["parameters"]["WebhookID"];
+                customer_id: string;
             };
             cookie?: never;
         };
-        /** Get a project webhook */
-        get: operations["getProjectWebhook"];
-        /** Update a project webhook */
-        put: operations["updateProjectWebhook"];
+        /** Get a customer's subscription */
+        get: operations["getCustomerSubscription"];
+        put?: never;
         post?: never;
-        /** Delete a project webhook */
-        delete: operations["deleteProjectWebhook"];
+        /** Cancel a customer's subscription */
+        delete: operations["cancelCustomerSubscription"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/projects/{id}/webhooks/{webhook_id}/test": {
+    "/customers/{customer_id}/topup": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                id: components["parameters"]["ProjectID"];
-                webhook_id: components["parameters"]["WebhookID"];
+                customer_id: string;
             };
             cookie?: never;
         };
         get?: never;
         put?: never;
-        /** Test a webhook */
-        post: operations["testProjectWebhook"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/projects/{id}/webhooks/{webhook_id}/events": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["ProjectID"];
-                webhook_id: components["parameters"]["WebhookID"];
-            };
-            cookie?: never;
-        };
-        /** List webhook delivery events */
-        get: operations["listProjectWebhookEvents"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/responses": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Create a response via the provider-agnostic API
-         * @description Creates a model response. Auth accepts secret API keys or bearer tokens. Bearer tokens may be owner session tokens (dashboard/server) or end-user tokens; publishable keys are not allowed.
-         */
-        post: operations["createResponse"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/responses:batch": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Create multiple responses concurrently (batch) */
-        post: operations["createResponsesBatch"];
+        /** Create a PAYGO top-up checkout session for a customer */
+        post: operations["createCustomerTopup"];
         delete?: never;
         options?: never;
         head?: never;
@@ -790,78 +471,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/runs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Start a workflow run (workflow.v0 or workflow.v1)
-         * @description Starts a run for a `workflow.v0` or `workflow.v1` spec and returns a `run_id`. Auth matches `/responses` (API key or frontend bearer token). Session owner tokens from `/auth/login` are not accepted. Provide `session_id` to link the run to a session; when linked, assistant messages are appended to the session on completion.
-         */
-        post: operations["createRun"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/runs/{run_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        /**
-         * Get a derived run snapshot
-         * @description Returns a derived snapshot state for the run (folded from event history + artifacts), including outputs and an aggregated cost summary when available.
-         */
-        get: operations["getRun"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/runs/{run_id}/events": {
-        parameters: {
-            query?: {
-                /** @description Returns events where `seq > after_seq`. */
-                after_seq?: number;
-                /** @description When false, returns currently available events then closes. */
-                wait?: boolean;
-                /** @description Maximum number of events to send before closing. */
-                limit?: number;
-            };
-            header?: never;
-            path: {
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        /**
-         * Stream run events (append-only)
-         * @description Streams an append-only, totally ordered history for the run. The wire format is negotiated via `Accept`: NDJSON (`application/x-ndjson`) or Server-Sent Events (`text/event-stream`). Each line/event is a `run_event.v0` envelope; see `/schemas/run_event_v0.schema.json` for the canonical schema.
-         */
-        get: operations["streamRunEvents"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/sessions": {
+    "/models": {
         parameters: {
             query?: never;
             header?: never;
@@ -869,69 +479,133 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List sessions
-         * @description Returns a paginated list of sessions for the project.
+         * List active models
+         * @description Returns all active models with rich metadata for building model selectors.
          */
-        get: operations["listSessions"];
+        get: operations["listModels"];
         put?: never;
-        /**
-         * Create a new session
-         * @description Creates a new session for multi-turn conversation management. Sessions persist message history on the server for cross-device continuity.
-         */
-        post: operations["createSession"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/sessions/{session_id}": {
+    "/projects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List projects for the authenticated owner */
+        get: operations["listProjects"];
+        put?: never;
+        /** Create a project */
+        post: operations["createProject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{id}": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                session_id: string;
+                id: components["parameters"]["ProjectID"];
             };
             cookie?: never;
         };
-        /**
-         * Get session with messages
-         * @description Returns a session including its full message history.
-         */
-        get: operations["getSession"];
-        put?: never;
+        /** Get a project */
+        get: operations["getProject"];
+        /** Update a project */
+        put: operations["updateProject"];
         post?: never;
-        /**
-         * Delete a session
-         * @description Deletes a session and all its messages. Requires a secret API key (mr_sk_*).
-         */
-        delete: operations["deleteSession"];
+        /** Delete a project */
+        delete: operations["deleteProject"];
         options?: never;
         head?: never;
-        /**
-         * Update session metadata
-         * @description Updates session metadata. Keys with null values are removed.
-         */
-        patch: operations["updateSession"];
+        patch?: never;
         trace?: never;
     };
-    "/sessions/{session_id}/messages": {
+    "/projects/{id}/customers": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                session_id: string;
+                id: components["parameters"]["ProjectID"];
+            };
+            cookie?: never;
+        };
+        /** List customers for a project */
+        get: operations["listProjectCustomers"];
+        put?: never;
+        /** Create a customer */
+        post: operations["createCustomer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{id}/customers/{customer_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                customer_id: string;
             };
             cookie?: never;
         };
         get?: never;
         put?: never;
-        /**
-         * Append a session message
-         * @description Appends a message to an existing session.
-         */
-        post: operations["addSessionMessage"];
+        post?: never;
+        /** Delete a customer */
+        delete: operations["deleteCustomer"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{id}/tiers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+            };
+            cookie?: never;
+        };
+        /** List tiers for a project */
+        get: operations["listProjectTiers"];
+        put?: never;
+        /** Create a tier */
+        post: operations["createTier"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{id}/tiers/{tier_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                tier_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Update a tier */
+        put: operations["updateTier"];
+        post?: never;
+        /** Delete a tier */
+        delete: operations["deleteTier"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1019,6 +693,310 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{id}/webhooks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+            };
+            cookie?: never;
+        };
+        /** List project webhooks */
+        get: operations["listProjectWebhooks"];
+        put?: never;
+        /** Create a project webhook */
+        post: operations["createProjectWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{id}/webhooks/{webhook_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                webhook_id: components["parameters"]["WebhookID"];
+            };
+            cookie?: never;
+        };
+        /** Get a project webhook */
+        get: operations["getProjectWebhook"];
+        /** Update a project webhook */
+        put: operations["updateProjectWebhook"];
+        post?: never;
+        /** Delete a project webhook */
+        delete: operations["deleteProjectWebhook"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{id}/webhooks/{webhook_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                webhook_id: components["parameters"]["WebhookID"];
+            };
+            cookie?: never;
+        };
+        /** List webhook delivery events */
+        get: operations["listProjectWebhookEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{id}/webhooks/{webhook_id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                webhook_id: components["parameters"]["WebhookID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Test a webhook */
+        post: operations["testProjectWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/responses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a response via the provider-agnostic API
+         * @description Creates a model response. Auth accepts secret API keys or bearer tokens. Bearer tokens may be owner session tokens (dashboard/server) or customer tokens; publishable keys are not allowed.
+         */
+        post: operations["createResponse"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/responses:batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create multiple responses concurrently (batch) */
+        post: operations["createResponsesBatch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a workflow run (workflow.v0 or workflow.v1)
+         * @description Starts a run for a `workflow.v0` or `workflow.v1` spec and returns a `run_id`. Auth matches `/responses` (API key or frontend bearer token). Session owner tokens from `/auth/login` are not accepted. Provide `session_id` to link the run to a session; when linked, assistant messages are appended to the session on completion.
+         */
+        post: operations["createRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Get a derived run snapshot
+         * @description Returns a derived snapshot state for the run (folded from event history + artifacts), including outputs and an aggregated cost summary when available.
+         */
+        get: operations["getRun"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runs/{run_id}/events": {
+        parameters: {
+            query?: {
+                /** @description Returns events where `seq > after_seq`. */
+                after_seq?: number;
+                /** @description When false, returns currently available events then closes. */
+                wait?: boolean;
+                /** @description Maximum number of events to send before closing. */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Stream run events (append-only)
+         * @description Streams an append-only, totally ordered history for the run. The wire format is negotiated via `Accept`: NDJSON (`application/x-ndjson`) or Server-Sent Events (`text/event-stream`). Each line/event is a `run_event.v0` envelope; see `/schemas/run_event_v0.schema.json` for the canonical schema.
+         */
+        get: operations["streamRunEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/schemas/run_event_v0.schema.json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get JSON Schema for run_event.v0
+         * @description Returns the canonical JSON Schema (draft-07) for `run_event.v0` (workflow run history events).
+         */
+        get: operations["getRunEventV0Schema"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/schemas/workflow_v0.schema.json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get JSON Schema for workflow.v0
+         * @description Returns the canonical JSON Schema (draft-07) for `workflow.v0`.
+         */
+        get: operations["getWorkflowV0Schema"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/schemas/workflow_v1.schema.json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get JSON Schema for workflow.v1
+         * @description Returns the canonical JSON Schema (draft-07) for `workflow.v1`.
+         */
+        get: operations["getWorkflowV1Schema"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List sessions
+         * @description Returns a paginated list of sessions for the project.
+         */
+        get: operations["listSessions"];
+        put?: never;
+        /**
+         * Create a new session
+         * @description Creates a new session for multi-turn conversation management. Sessions persist message history on the server for cross-device continuity.
+         */
+        post: operations["createSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Get session with messages
+         * @description Returns a session including its full message history.
+         */
+        get: operations["getSession"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a session
+         * @description Deletes a session and all its messages. Requires a secret API key (mr_sk_*).
+         */
+        delete: operations["deleteSession"];
+        options?: never;
+        head?: never;
+        /**
+         * Update session metadata
+         * @description Updates session metadata. Keys with null values are removed.
+         */
+        patch: operations["updateSession"];
+        trace?: never;
+    };
     "/sessions/{session_id}/clear": {
         parameters: {
             query?: never;
@@ -1041,300 +1019,212 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/sessions/{session_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Append a session message
+         * @description Appends a message to an existing session.
+         */
+        post: operations["addSessionMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        APIError: {
+            code: string;
+            error: string;
+            message: string;
+        };
+        AuthResponse: {
+            access_token?: string;
+            refresh_token?: string;
+            tokens?: components["schemas"]["AuthTokens"];
+            user?: components["schemas"]["User"];
+        };
+        AuthTokens: {
+            access_token?: string;
+            /** Format: date-time */
+            expires_at?: string;
+            refresh_token?: string;
+        };
         /**
          * @description Billing mode for a project. 'managed' uses ModelRelay billing with tiers and subscriptions. 'byob' (Bring Your Own Billing) allows external billing.
          * @enum {string}
          */
         BillingMode: "managed" | "byob";
         /**
-         * @description Billing mode for a tier. 'subscription' uses monthly spend limits; 'paygo' uses prepaid balances.
-         * @enum {string}
-         */
-        TierBillingMode: "subscription" | "paygo";
-        AuthTokens: {
-            access_token?: string;
-            refresh_token?: string;
-            /** Format: date-time */
-            expires_at?: string;
-        };
-        AuthResponse: {
-            user?: components["schemas"]["User"];
-            tokens?: components["schemas"]["AuthTokens"];
-            access_token?: string;
-            refresh_token?: string;
-        };
-        User: {
-            /** Format: uuid */
-            id?: string;
-            /** Format: email */
-            email?: string;
-            /** Format: uuid */
-            project_id?: string;
-        };
-        Project: {
-            /** Format: uuid */
-            id?: string;
-            /** Format: uuid */
-            owner_id?: string;
-            name?: string;
-            description?: string;
-            markup_percentage?: number;
-            billing_mode?: components["schemas"]["BillingMode"];
-            /** Format: date-time */
-            created_at?: string;
-            /** Format: date-time */
-            updated_at?: string;
-        };
-        /**
-         * @description Billing interval for a tier.
-         * @enum {string}
-         */
-        PriceInterval: "month" | "year";
-        TierModel: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            tier_id: string;
-            model_id: components["schemas"]["ModelId"];
-            /** @description Human-friendly model name resolved from pricing (e.g., 'GPT-4o Mini') */
-            model_display_name: string;
-            /** @description Human-friendly description of what the model is good at */
-            description: string;
-            /** @description Workflow-critical capability flags for the model */
-            capabilities: components["schemas"]["ModelCapability"][];
-            /**
-             * Format: int32
-             * @description Maximum supported context window in tokens (if known)
-             */
-            context_window: number;
-            /**
-             * Format: int32
-             * @description Maximum supported output tokens (if known)
-             */
-            max_output_tokens: number;
-            /** @description Whether the model is deprecated */
-            deprecated: boolean;
-            /**
-             * Format: int64
-             * @description Provider input cost in cents per million tokens. Customer price is derived as cost * (1 + platformFeePercent/100).
-             */
-            model_input_cost_cents: number;
-            /**
-             * Format: int64
-             * @description Provider output cost in cents per million tokens. Customer price is derived as cost * (1 + platformFeePercent/100).
-             */
-            model_output_cost_cents: number;
-            /** @description Whether this is the default model for the tier */
-            is_default: boolean;
-            /** Format: date-time */
-            created_at: string;
-            /** Format: date-time */
-            updated_at: string;
-        };
-        /** @description Model to add to a tier. Pricing is derived from the model_pricing table. */
-        TierModelCreate: {
-            model_id: components["schemas"]["ModelId"];
-            /** @default false */
-            is_default: boolean;
-        };
-        Tier: {
-            /** Format: uuid */
-            id?: string;
-            /** Format: uuid */
-            project_id?: string;
-            tier_code?: components["schemas"]["TierCode"];
-            /** @description Human-readable tier name */
-            display_name?: string;
-            /**
-             * Format: uint64
-             * @description Monthly spend limit in cents (e.g., 2000 = $20/month). Must be non-negative.
-             */
-            spend_limit_cents?: number;
-            billing_mode?: components["schemas"]["TierBillingMode"];
-            models?: components["schemas"]["TierModel"][];
-            billing_provider?: components["schemas"]["BillingProvider"];
-            /** @description Billing provider price reference for this tier */
-            billing_price_ref?: string;
-            /**
-             * Format: uint64
-             * @description Subscription price amount in cents
-             */
-            price_amount_cents?: number;
-            /** @description Currency code for the price (e.g., 'usd') */
-            price_currency?: string;
-            price_interval?: components["schemas"]["PriceInterval"];
-            /**
-             * Format: uint32
-             * @description Number of trial days for new subscriptions
-             */
-            trial_days?: number;
-            /** Format: date-time */
-            created_at?: string;
-            /** Format: date-time */
-            updated_at?: string;
-        };
-        TierCreate: {
-            tier_code: components["schemas"]["TierCode"];
-            /** @description Human-readable tier name */
-            display_name: string;
-            /**
-             * Format: uint64
-             * @description Monthly spend limit in cents (e.g., 2000 = $20/month). Must be non-negative.
-             */
-            spend_limit_cents: number;
-            billing_mode?: components["schemas"]["TierBillingMode"];
-            models: components["schemas"]["TierModelCreate"][];
-            billing_provider?: components["schemas"]["BillingProvider"];
-            /**
-             * Format: uint64
-             * @description Subscription price amount in cents (paid tiers)
-             */
-            price_amount_cents?: number;
-            price_interval?: components["schemas"]["PriceInterval"];
-            /**
-             * Format: uint32
-             * @description Number of trial days for new subscriptions (paid tiers)
-             */
-            trial_days?: number;
-        };
-        TierUpdate: {
-            tier_code: components["schemas"]["TierCode"];
-            /** @description Human-readable tier name */
-            display_name: string;
-            /**
-             * Format: uint64
-             * @description Monthly spend limit in cents (e.g., 2000 = $20/month). Must be non-negative.
-             */
-            spend_limit_cents: number;
-            models?: components["schemas"]["TierModelCreate"][];
-            billing_provider?: components["schemas"]["BillingProvider"];
-            /**
-             * Format: uint64
-             * @description Subscription price amount in cents (paid tiers)
-             */
-            price_amount_cents?: number;
-            price_interval?: components["schemas"]["PriceInterval"];
-            /**
-             * Format: uint32
-             * @description Number of trial days for new subscriptions (paid tiers)
-             */
-            trial_days?: number;
-        };
-        /** @description Arbitrary customer metadata (max 10KB). Keys are limited to 40 characters. Values can be any JSON type. Nesting depth limited to 5 levels. */
-        CustomerMetadata: {
-            [key: string]: unknown;
-        };
-        /**
-         * @description Subscription status (active, past_due, canceled, etc.)
-         * @enum {string}
-         */
-        SubscriptionStatusKind: "active" | "trialing" | "past_due" | "canceled" | "unpaid" | "incomplete" | "incomplete_expired" | "paused";
-        /**
          * @description Billing provider backing the subscription or tier.
          * @enum {string}
          */
         BillingProvider: "stripe" | "crypto" | "app_store" | "external";
+        ChangeTierRequest: {
+            /** @description The tier code to switch to */
+            tier_code: string;
+        };
+        CheckoutSessionResponse: {
+            /** @description Stripe checkout session ID */
+            session_id: string;
+            /**
+             * Format: uri
+             * @description Checkout URL
+             */
+            url: string;
+        };
+        Citation: {
+            title?: string;
+            url?: string;
+        };
+        ContentPart: {
+            text?: string;
+            /** @enum {string} */
+            type: "text";
+        };
         Customer: {
-            /** Format: uuid */
-            id?: string;
-            /** Format: uuid */
-            project_id?: string;
-            /** @description External customer identifier from your system */
-            external_id?: string;
+            /** Format: date-time */
+            created_at?: string;
             /**
              * Format: email
              * @description Customer email address
              */
             email?: string;
-            metadata?: components["schemas"]["CustomerMetadata"];
-            /** Format: date-time */
-            created_at?: string;
-            /** Format: date-time */
-            updated_at?: string;
-        };
-        Subscription: {
+            /** @description External customer identifier from your system */
+            external_id?: string;
             /** Format: uuid */
             id?: string;
+            metadata?: components["schemas"]["CustomerMetadata"];
             /** Format: uuid */
             project_id?: string;
-            /** Format: uuid */
-            customer_id?: string;
-            /** Format: uuid */
-            tier_id?: string;
-            tier_code?: components["schemas"]["TierCode"];
-            billing_provider?: components["schemas"]["BillingProvider"];
-            /** @description Billing subscription ID from the provider */
-            billing_subscription_id?: string;
-            subscription_status?: components["schemas"]["SubscriptionStatusKind"];
-            /**
-             * Format: date-time
-             * @description Start of the current billing period
-             */
-            current_period_start?: string;
-            /**
-             * Format: date-time
-             * @description End of the current billing period
-             */
-            current_period_end?: string;
-            /** Format: date-time */
-            created_at?: string;
             /** Format: date-time */
             updated_at?: string;
         };
-        CustomerWithSubscription: {
-            customer: components["schemas"]["Customer"];
-            subscription?: components["schemas"]["Subscription"];
-            /** @description Billing provider customer ID (e.g., Stripe customer ID) */
-            billing_customer_id?: string;
+        CustomerBalanceResponse: {
+            /** Format: int64 */
+            balance_cents: number;
+            /**
+             * Format: uuid
+             * @description Billing profile UUID for wallet/balance.
+             */
+            billing_profile_id: string;
+            currency: string;
+            /**
+             * Format: uuid
+             * @description Internal customer UUID (identity).
+             */
+            customer_id: string;
+            /** Format: int64 */
+            reserved_cents: number;
+        };
+        CustomerCreate: {
+            /**
+             * Format: email
+             * @description Customer email address
+             */
+            email: string;
+            /** @description External customer identifier from your system */
+            external_id: string;
+            metadata?: components["schemas"]["CustomerMetadata"];
+        };
+        CustomerLedgerEntry: {
+            /** Format: int64 */
+            amount_cents: number;
+            /** Format: int64 */
+            balance_after_cents?: number;
+            /** Format: int64 */
+            credit_amount_cents?: number;
+            description: string;
+            direction: string;
+            /** Format: int64 */
+            gross_amount_cents?: number;
+            /** Format: uuid */
+            id: string;
+            /** Format: int64 */
+            input_tokens?: number;
+            model_id?: components["schemas"]["ModelId"];
+            /** Format: date-time */
+            occurred_at: string;
+            /** Format: int64 */
+            output_tokens?: number;
+            /** Format: int64 */
+            owner_revenue_cents?: number;
+            /** Format: int64 */
+            platform_fee_cents?: number;
+            reason: string;
+            /** Format: uuid */
+            request_id?: string;
+            stripe_checkout_session_id?: string;
+            stripe_invoice_id?: string;
+            stripe_payment_intent_id?: string;
+        };
+        CustomerLedgerResponse: {
+            entries: components["schemas"]["CustomerLedgerEntry"][];
         };
         CustomerMe: {
             customer: components["schemas"]["Customer"];
             subscription?: components["schemas"]["Subscription"];
             tier?: components["schemas"]["Tier"];
         };
+        CustomerMeCheckoutRequest: {
+            /**
+             * Format: uri
+             * @description URL to redirect to if checkout is cancelled
+             */
+            cancel_url: string;
+            /**
+             * Format: uri
+             * @description URL to redirect to after successful checkout
+             */
+            success_url: string;
+            /** @description The tier code to subscribe to */
+            tier_code: string;
+        };
         CustomerMeResponse: {
             customer: components["schemas"]["CustomerMe"];
         };
-        CustomerUsagePoint: {
+        /** @description Customer-visible subscription details for the current tier. */
+        CustomerMeSubscription: {
             /**
              * Format: date-time
-             * @description UTC day bucket
+             * @description End of the current billing period
              */
-            day: string;
-            /** Format: int64 */
-            requests: number;
-            /** Format: int64 */
-            tokens: number;
-            /** Format: int64 */
-            images?: number;
+            current_period_end?: string;
+            /**
+             * Format: date-time
+             * @description Start of the current billing period
+             */
+            current_period_start?: string;
             /**
              * Format: int64
-             * @description Credits used in this day bucket (only for paid tiers)
+             * @description Subscription price amount in cents (omitted for free tiers)
              */
-            credits_used_cents?: number;
+            price_amount_cents?: number;
+            /** @description Currency code for the price (e.g., 'usd') */
+            price_currency?: string;
+            price_interval?: components["schemas"]["PriceInterval"];
+            subscription_status?: components["schemas"]["SubscriptionStatusKind"];
+            tier_code: components["schemas"]["TierCode"];
+            /** @description Human-readable tier name */
+            tier_display_name: string;
+        };
+        CustomerMeSubscriptionResponse: {
+            subscription: components["schemas"]["CustomerMeSubscription"];
         };
         /** @description Customer-visible usage metrics for the current billing window. */
         CustomerMeUsage: {
-            /**
-             * Format: date-time
-             * @description Start of the current billing window
-             */
-            window_start: string;
-            /**
-             * Format: date-time
-             * @description End of the current billing window
-             */
-            window_end: string;
-            /** Format: int64 */
-            requests: number;
-            /** Format: int64 */
-            tokens: number;
-            /** Format: int64 */
-            images: number;
             /**
              * Format: int64
              * @description Credits granted for this billing window (only for paid tiers)
@@ -1342,21 +1232,30 @@ export interface components {
             credits_granted_cents?: number;
             /**
              * Format: int64
-             * @description Credits used so far in this billing window (only for paid tiers)
-             */
-            credits_used_cents?: number;
-            /**
-             * Format: int64
              * @description Credits remaining in this billing window (only for paid tiers)
              */
             credits_remaining_cents?: number;
+            /**
+             * Format: int64
+             * @description Credits used so far in this billing window (only for paid tiers)
+             */
+            credits_used_cents?: number;
+            daily: components["schemas"]["CustomerUsagePoint"][];
+            /** Format: int64 */
+            images: number;
+            /** @description Whether remaining credits are low (only for paid tiers) */
+            low?: boolean;
+            /** @description True when PAYGO wallet can cover subscription overages */
+            overage_enabled?: boolean;
             /**
              * Format: float
              * @description Percentage of granted credits used (only for paid tiers)
              */
             percentage_used?: number;
-            /** @description Whether remaining credits are low (only for paid tiers) */
-            low?: boolean;
+            /** Format: int64 */
+            requests: number;
+            /** Format: int64 */
+            tokens: number;
             /**
              * Format: int64
              * @description PAYGO wallet balance in cents (available when PAYGO wallet is enabled)
@@ -1367,360 +1266,953 @@ export interface components {
              * @description PAYGO wallet reserved amount in cents
              */
             wallet_reserved_cents?: number;
-            /** @description True when PAYGO wallet can cover subscription overages */
-            overage_enabled?: boolean;
-            daily: components["schemas"]["CustomerUsagePoint"][];
+            /**
+             * Format: date-time
+             * @description End of the current billing window
+             */
+            window_end: string;
+            /**
+             * Format: date-time
+             * @description Start of the current billing window
+             */
+            window_start: string;
         };
         CustomerMeUsageResponse: {
             usage: components["schemas"]["CustomerMeUsage"];
         };
-        /** @description Customer-visible subscription details for the current tier. */
-        CustomerMeSubscription: {
-            tier_code: components["schemas"]["TierCode"];
-            /** @description Human-readable tier name */
-            tier_display_name: string;
-            /**
-             * Format: int64
-             * @description Subscription price amount in cents (omitted for free tiers)
-             */
-            price_amount_cents?: number;
-            /** @description Currency code for the price (e.g., 'usd') */
-            price_currency?: string;
-            price_interval?: components["schemas"]["PriceInterval"];
-            subscription_status?: components["schemas"]["SubscriptionStatusKind"];
-            /**
-             * Format: date-time
-             * @description Start of the current billing period
-             */
-            current_period_start?: string;
-            /**
-             * Format: date-time
-             * @description End of the current billing period
-             */
-            current_period_end?: string;
+        /** @description Arbitrary customer metadata (max 10KB). Keys are limited to 40 characters. Values can be any JSON type. Nesting depth limited to 5 levels. */
+        CustomerMetadata: {
+            [key: string]: unknown;
         };
-        CustomerMeSubscriptionResponse: {
-            subscription: components["schemas"]["CustomerMeSubscription"];
-        };
-        CustomerBalanceResponse: {
-            /** Format: uuid */
+        CustomerTokenResponse: {
+            /**
+             * Format: uuid
+             * @description Billing profile UUID for managed billing customers.
+             */
+            billing_profile_id?: string;
+            /** @description External customer identifier */
+            customer_external_id: string;
+            /**
+             * Format: uuid
+             * @description Internal customer UUID (identity).
+             */
             customer_id: string;
-            /** Format: int64 */
-            balance_cents: number;
-            /** Format: int64 */
-            reserved_cents: number;
-            currency: string;
-        };
-        CustomerLedgerEntry: {
-            /** Format: uuid */
-            id: string;
-            direction: string;
-            reason: string;
-            /** Format: int64 */
-            amount_cents: number;
-            /** Format: int64 */
-            balance_after_cents?: number;
-            description: string;
-            stripe_payment_intent_id?: string;
-            stripe_invoice_id?: string;
-            stripe_checkout_session_id?: string;
-            /** Format: int64 */
-            gross_amount_cents?: number;
-            /** Format: int64 */
-            credit_amount_cents?: number;
-            /** Format: int64 */
-            owner_revenue_cents?: number;
-            /** Format: int64 */
-            platform_fee_cents?: number;
-            model_id?: components["schemas"]["ModelId"];
-            /** Format: int64 */
-            input_tokens?: number;
-            /** Format: int64 */
-            output_tokens?: number;
-            /** Format: uuid */
-            request_id?: string;
-            /** Format: date-time */
-            occurred_at: string;
-        };
-        CustomerLedgerResponse: {
-            entries: components["schemas"]["CustomerLedgerEntry"][];
-        };
-        ChangeTierRequest: {
-            /** @description The tier code to switch to */
-            tier_code: string;
-        };
-        CustomerMeCheckoutRequest: {
-            /** @description The tier code to subscribe to */
-            tier_code: string;
             /**
-             * Format: uri
-             * @description URL to redirect to after successful checkout
+             * Format: date-time
+             * @description Token expiration timestamp
              */
-            success_url: string;
+            expires_at: string;
             /**
-             * Format: uri
-             * @description URL to redirect to if checkout is cancelled
+             * Format: uint32
+             * @description Seconds until token expires
              */
-            cancel_url: string;
+            expires_in: number;
+            /**
+             * Format: uuid
+             * @description Project the token is scoped to
+             */
+            project_id: string;
+            tier_code?: components["schemas"]["TierCode"];
+            /** @description The customer bearer token */
+            token: string;
         };
         CustomerTopupRequest: {
+            /** Format: uri */
+            cancel_url: string;
             /** Format: int64 */
             credit_amount_cents: number;
             /** Format: uri */
             success_url: string;
-            /** Format: uri */
-            cancel_url: string;
         };
         CustomerTopupResponse: {
-            session_id: string;
             /** Format: uri */
             checkout_url: string;
             /** Format: int64 */
-            gross_amount_cents: number;
-            /** Format: int64 */
             credit_amount_cents: number;
+            /** Format: int64 */
+            gross_amount_cents: number;
             /** Format: int64 */
             owner_revenue_cents: number;
             /** Format: int64 */
             platform_fee_cents: number;
+            session_id: string;
             status: string;
         };
-        CustomerCreate: {
-            /** @description External customer identifier from your system */
-            external_id: string;
+        CustomerUsagePoint: {
             /**
-             * Format: email
-             * @description Customer email address
+             * Format: int64
+             * @description Credits used in this day bucket (only for paid tiers)
              */
-            email: string;
-            metadata?: components["schemas"]["CustomerMetadata"];
+            credits_used_cents?: number;
+            /**
+             * Format: date-time
+             * @description UTC day bucket
+             */
+            day: string;
+            /** Format: int64 */
+            images?: number;
+            /** Format: int64 */
+            requests: number;
+            /** Format: int64 */
+            tokens: number;
         };
-        /** @enum {string} */
-        MessageRole: "system" | "user" | "assistant" | "tool";
-        ContentPart: {
-            /** @enum {string} */
-            type: "text";
-            text?: string;
+        CustomerWithSubscription: {
+            /** @description Billing provider customer ID (e.g., Stripe customer ID) */
+            billing_customer_id?: string;
+            customer: components["schemas"]["Customer"];
+            subscription?: components["schemas"]["Subscription"];
+        };
+        /** @description A single generated image. */
+        ImageData: {
+            /** @description Base64-encoded image data (when response_format is 'b64_json') */
+            b64_json?: string;
+            /**
+             * Format: date-time
+             * @description When the image URL expires (null if pinned)
+             */
+            expires_at?: string;
+            /** @description Unique identifier for the image (used for pinning) */
+            image_id?: string;
+            /** @description MIME type of the image (e.g., 'image/png', 'image/webp') */
+            mime_type?: string;
+            /** @description URL to pin this image for permanent storage */
+            pin_url?: string;
+            /** @description URL of the generated image (when response_format is 'url') */
+            url?: string;
+        };
+        /** @description Response from pin/unpin operations. */
+        ImagePinResponse: {
+            /**
+             * Format: date-time
+             * @description When the image expires (null if pinned)
+             */
+            expires_at?: string;
+            /** @description Image ID */
+            id: string;
+            /** @description Whether the image is currently pinned */
+            pinned: boolean;
+            /** @description URL of the image */
+            url: string;
+        };
+        /** @description Request to generate images from a text prompt. */
+        ImageRequest: {
+            /** @description Image generation model ID (e.g., gemini-2.5-flash-image). Optional when using a customer token with a tier that defines a default model. */
+            model?: string;
+            /**
+             * @description Number of images to generate (1-10, default 1)
+             * @default 1
+             */
+            n: number;
+            /** @description Text description of the image to generate */
+            prompt: string;
+            response_format?: components["schemas"]["ImageResponseFormat"];
+        };
+        /** @description Response containing generated images. */
+        ImageResponse: {
+            /** @description Generated images */
+            data: components["schemas"]["ImageData"][];
+            /** @description Unique identifier for this generation request */
+            id: string;
+            /** @description Model used for generation */
+            model: string;
+            usage: components["schemas"]["ImageUsage"];
+        };
+        /**
+         * @description Output format for generated images.
+         * @default url
+         * @enum {string}
+         */
+        ImageResponseFormat: "url" | "b64_json";
+        /** @description Usage statistics for image generation. */
+        ImageUsage: {
+            /**
+             * Format: int32
+             * @description Number of images generated
+             */
+            images: number;
         };
         InputItem: {
-            /** @enum {string} */
-            type: "message";
-            role?: components["schemas"]["MessageRole"];
             content?: components["schemas"]["ContentPart"][];
-            tool_calls?: components["schemas"]["ToolCall"][];
+            role?: components["schemas"]["MessageRole"];
             tool_call_id?: components["schemas"]["ToolCallId"];
-        };
-        OutputItem: {
+            tool_calls?: components["schemas"]["ToolCall"][];
             /** @enum {string} */
             type: "message";
-            role?: components["schemas"]["MessageRole"];
-            content?: components["schemas"]["ContentPart"][];
-            tool_calls?: components["schemas"]["ToolCall"][];
+        };
+        JSONPatchOperation: {
+            from?: string;
+            /** @enum {string} */
+            op: "add" | "remove" | "replace" | "move" | "copy" | "test";
+            path: string;
+            value?: {
+                [key: string]: unknown;
+            };
         };
         JSONSchemaFormat: {
-            name: string;
             description?: string;
+            name: string;
             schema?: {
                 [key: string]: unknown;
             };
             strict?: boolean;
         };
+        /** @enum {string} */
+        MessageRole: "system" | "user" | "assistant" | "tool";
+        Model: {
+            capabilities: components["schemas"]["ModelCapability"][];
+            /** Format: int32 */
+            context_window: number;
+            deprecated: boolean;
+            deprecation_message: string;
+            description: string;
+            display_name: string;
+            /** Format: uint64 */
+            input_cost_per_million_cents: number;
+            /** Format: int32 */
+            max_output_tokens: number;
+            model_id: components["schemas"]["ModelId"];
+            /** Format: uint64 */
+            output_cost_per_million_cents: number;
+            provider: components["schemas"]["ProviderId"];
+            /** @description Training cutoff in YYYY-MM format */
+            training_cutoff: string;
+        };
+        /**
+         * @description Workflow-critical model capability identifier.
+         * @enum {string}
+         */
+        ModelCapability: "text_generation" | "tools" | "vision" | "web_search" | "web_fetch" | "computer_use" | "code_execution" | "image_generation";
+        /** @description LLM model identifier (e.g., claude-sonnet-4-20250514, gpt-4o). */
+        ModelId: string;
+        ModelsResponse: {
+            models: components["schemas"]["Model"][];
+        };
+        /**
+         * @description Events sent during streaming responses (application/x-ndjson).
+         *     Each line is a JSON object with an "event" field indicating the type.
+         */
+        NDJSONStreamEvent: {
+            /**
+             * @description Event type
+             * @enum {string}
+             */
+            event: "message_start" | "message_delta" | "message_stop" | "tool_use_start" | "tool_use_delta" | "tool_use_stop" | "ping" | "keepalive";
+            model?: components["schemas"]["ModelId"];
+            /** @description Response identifier (message_start) */
+            response_id?: string;
+            /** @description Why generation stopped (message_stop) */
+            stop_reason?: string;
+            /** @description Text content fragment (message_delta) */
+            text_delta?: string;
+            tool_call_delta?: components["schemas"]["ToolCallDelta"];
+            /** @description Completed tool calls (tool_use_stop, message_stop) */
+            tool_calls?: components["schemas"]["ToolCall"][];
+            usage?: components["schemas"]["Usage"];
+        };
+        NodeErrorV0: {
+            code?: string;
+            /** @description Raw error details from the provider */
+            detail?: string;
+            message: string;
+        };
+        /** @description Workflow node identifier. Must start with a lowercase letter and contain only lowercase letters, numbers, and underscores. */
+        NodeId: string;
+        NodeResultV0: {
+            /** Format: date-time */
+            ended_at?: string;
+            error?: components["schemas"]["NodeErrorV0"];
+            id: components["schemas"]["NodeId"];
+            output?: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            started_at?: string;
+            status: components["schemas"]["NodeStatusV0"];
+            type: components["schemas"]["NodeTypeV0"];
+        };
+        /** @enum {string} */
+        NodeStatusV0: "pending" | "running" | "waiting" | "succeeded" | "failed" | "canceled";
+        /**
+         * @description Type of workflow node.
+         * @enum {string}
+         */
+        NodeTypeV0: "llm.responses" | "route.switch" | "join.all" | "join.any" | "join.collect" | "map.fanout" | "transform.json";
+        OutboundWebhookEvent: {
+            /** Format: int32 */
+            attempt_count?: number;
+            /** Format: date-time */
+            created_at?: string;
+            error?: string;
+            event_id?: string;
+            event_type?: string;
+            /** Format: uuid */
+            id?: string;
+            /** Format: date-time */
+            last_attempt_at?: string;
+            /** Format: int32 */
+            latency_ms?: number;
+            /** Format: date-time */
+            next_attempt_at?: string;
+            payload?: Record<string, never>;
+            response_body?: string;
+            /** Format: int32 */
+            response_status?: number;
+            status?: string;
+            /** Format: date-time */
+            updated_at?: string;
+            /** Format: uuid */
+            webhook_config_id?: string;
+        };
         OutputFormat: {
+            json_schema?: components["schemas"]["JSONSchemaFormat"];
             /** @enum {string} */
             type: "text" | "json_schema";
-            json_schema?: components["schemas"]["JSONSchemaFormat"];
+        };
+        OutputItem: {
+            content?: components["schemas"]["ContentPart"][];
+            role?: components["schemas"]["MessageRole"];
+            tool_calls?: components["schemas"]["ToolCall"][];
+            /** @enum {string} */
+            type: "message";
+        };
+        /** @description SHA-256 hash of the compiled workflow plan (64 hex characters). */
+        PlanHash: string;
+        PluginAgentV0: {
+            name: string;
+            system_prompt: string;
+        };
+        PluginCommandV0: {
+            agent_refs?: string[];
+            name: string;
+            prompt: string;
+        };
+        PluginGitHubRefV0: {
+            owner?: string;
+            path?: string;
+            ref?: string;
+            repo?: string;
+        };
+        PluginManifestV0: {
+            agents?: string[];
+            commands?: string[];
+            description?: string;
+            name?: string;
+            version?: string;
+        };
+        /**
+         * @description Billing interval for a tier.
+         * @enum {string}
+         */
+        PriceInterval: "month" | "year";
+        Project: {
+            billing_mode?: components["schemas"]["BillingMode"];
+            /** Format: date-time */
+            created_at?: string;
+            description?: string;
+            /** Format: uuid */
+            id?: string;
+            markup_percentage?: number;
+            name?: string;
+            /** Format: uuid */
+            owner_id?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        /**
+         * @description LLM provider identifier.
+         * @enum {string}
+         */
+        ProviderId: "anthropic" | "openai" | "xai" | "google-ai-studio";
+        /**
+         * Format: uuid
+         * @description Unique identifier for an LLM request within a workflow run.
+         */
+        RequestId: string;
+        ResponsesBatchError: {
+            code?: string;
+            /** @description Raw error details from the provider */
+            detail?: string;
+            message: string;
+            status: number;
+        };
+        ResponsesBatchRequest: {
+            options?: {
+                abort_on_error?: boolean;
+                /** Format: uint32 */
+                max_parallelism?: number;
+            };
+            requests: components["schemas"]["ResponsesRequest"][];
+        };
+        ResponsesBatchResponse: {
+            request_id?: string;
+            results: components["schemas"]["ResponsesBatchResult"][];
+        };
+        ResponsesBatchResult: {
+            error?: components["schemas"]["ResponsesBatchError"];
+            /** Format: uint32 */
+            index: number;
+            ok: boolean;
+            response?: components["schemas"]["ResponsesResponse"];
+        };
+        ResponsesRequest: {
+            input: components["schemas"]["InputItem"][];
+            /** Format: uint32 */
+            max_output_tokens?: number;
+            model?: components["schemas"]["ModelId"];
+            output_format?: components["schemas"]["OutputFormat"];
+            provider?: components["schemas"]["ProviderId"];
+            stop?: string[];
+            temperature?: number;
+            tool_choice?: components["schemas"]["ToolChoice"];
+            tools?: components["schemas"]["Tool"][];
+        };
+        ResponsesResponse: {
+            /** @description Sources from web search results */
+            citations?: components["schemas"]["Citation"][];
+            /** @description Response identifier from the provider */
+            id: string;
+            model: components["schemas"]["ModelId"];
+            output: components["schemas"]["OutputItem"][];
+            provider?: components["schemas"]["ProviderId"];
+            /** @description Why generation stopped (stop, max_tokens, tool_use, etc.) */
+            stop_reason?: string;
+            usage: components["schemas"]["Usage"];
+        };
+        ResponsesStreamEnvelope: {
+            code?: string;
+            complete_fields?: string[];
+            content?: string;
+            delta?: string;
+            message?: string;
+            model?: components["schemas"]["ModelId"];
+            patch?: components["schemas"]["JSONPatchOperation"][];
+            payload?: {
+                [key: string]: unknown;
+            };
+            provider?: components["schemas"]["ProviderId"];
+            request_id?: string;
+            status?: number;
+            stop_reason?: string;
+            /** @enum {string} */
+            stream_mode?: "text-delta" | "structured-patch";
+            /** @enum {string} */
+            stream_version?: "v2";
+            /** @enum {string} */
+            type: "start" | "update" | "completion" | "error" | "keepalive" | "tool_use_start" | "tool_use_delta" | "tool_use_stop";
+            usage?: components["schemas"]["Usage"];
+        };
+        RunCostLineItemV0: {
+            /** Format: uint64 */
+            input_tokens: number;
+            model: components["schemas"]["ModelId"];
+            /** Format: uint64 */
+            output_tokens: number;
+            provider_id: components["schemas"]["ProviderId"];
+            /** Format: uint64 */
+            requests: number;
+            /** Format: uint64 */
+            usd_cents: number;
+        };
+        RunCostSummaryV0: {
+            line_items?: components["schemas"]["RunCostLineItemV0"][];
+            /** Format: uint64 */
+            total_usd_cents: number;
+        };
+        /**
+         * Format: uuid
+         * @description Unique identifier for a workflow run.
+         */
+        RunId: string;
+        /** @enum {string} */
+        RunStatusV0: "running" | "waiting" | "succeeded" | "failed" | "canceled";
+        RunsCreateOptionsV0: {
+            idempotency_key?: string;
+        };
+        RunsCreateRequest: {
+            /** @description Runtime inputs for the workflow. Required when the spec uses from_input references (e.g., map.fanout with items.from_input). Each key is the input name, and the value is the JSON data to provide. */
+            input?: {
+                [key: string]: unknown;
+            };
+            options?: components["schemas"]["RunsCreateOptionsV0"];
+            /**
+             * Format: uuid
+             * @description Optional session ID to link this run to a session.
+             */
+            session_id?: string;
+            spec: components["schemas"]["WorkflowSpecV0"] | components["schemas"]["WorkflowSpecV1"];
+        };
+        RunsCreateResponse: {
+            plan_hash: components["schemas"]["PlanHash"];
+            run_id: components["schemas"]["RunId"];
+            status: components["schemas"]["RunStatusV0"];
+        };
+        RunsGetResponse: {
+            cost_summary: components["schemas"]["RunCostSummaryV0"];
+            nodes?: components["schemas"]["NodeResultV0"][];
+            outputs?: {
+                [key: string]: unknown;
+            };
+            plan_hash: components["schemas"]["PlanHash"];
+            run_id: components["schemas"]["RunId"];
+            status: components["schemas"]["RunStatusV0"];
+        };
+        /** @description A pending tool call waiting for a result. */
+        RunsPendingToolCallV0: {
+            /** @description JSON-encoded arguments for the tool call */
+            arguments: string;
+            /** @description Name of the tool to be called */
+            name: components["schemas"]["ToolName"];
+            /** @description Unique identifier for this tool call */
+            tool_call_id: components["schemas"]["ToolCallId"];
+        };
+        /** @description A node with pending tool calls. */
+        RunsPendingToolsNodeV0: {
+            node_id: components["schemas"]["NodeId"];
+            request_id: components["schemas"]["RequestId"];
+            /**
+             * Format: uint64
+             * @description The step number within the node execution
+             */
+            step: number;
+            tool_calls?: components["schemas"]["RunsPendingToolCallV0"][];
+        };
+        /** @description Response containing pending tool calls for a workflow run. */
+        RunsPendingToolsResponse: {
+            pending?: components["schemas"]["RunsPendingToolsNodeV0"][];
+            run_id: components["schemas"]["RunId"];
+        };
+        /** @description Request body for creating a session. */
+        SessionCreateRequest: {
+            /**
+             * Format: uuid
+             * @description Optional customer ID to associate with the session
+             */
+            customer_id?: string;
+            /** @description Optional metadata for the session */
+            metadata?: {
+                [key: string]: unknown;
+            };
+        };
+        /** @description Paginated list of sessions. */
+        SessionListResponse: {
+            /** @description Cursor for fetching the next page (if more results exist) */
+            next_cursor?: string;
+            /** @description List of sessions */
+            sessions: components["schemas"]["SessionResponse"][];
+        };
+        /** @description Request body for appending a message to a session. */
+        SessionMessageCreateRequest: {
+            /** @description Message content parts */
+            content: {
+                [key: string]: unknown;
+            }[];
+            /** @description Message role (user, assistant, tool) */
+            role: string;
+            /**
+             * Format: uuid
+             * @description Run ID that generated this message (for assistant messages)
+             */
+            run_id?: string;
+        };
+        /** @description A message within a session. */
+        SessionMessageResponse: {
+            /** @description Message content parts */
+            content: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Format: date-time
+             * @description Message creation timestamp
+             */
+            created_at: string;
+            /**
+             * Format: uuid
+             * @description Message unique identifier
+             */
+            id: string;
+            /** @description Message role (user, assistant, tool) */
+            role: string;
+            /**
+             * Format: uuid
+             * @description Run ID that generated this message (for assistant messages)
+             */
+            run_id?: string;
+            /**
+             * Format: int32
+             * @description Sequence number within the session
+             */
+            seq: number;
+        };
+        /** @description A session resource. */
+        SessionResponse: {
+            /**
+             * Format: date-time
+             * @description Session creation timestamp
+             */
+            created_at: string;
+            /**
+             * Format: uuid
+             * @description Customer associated with the session (if any)
+             */
+            customer_id?: string;
+            /**
+             * Format: uuid
+             * @description Session unique identifier
+             */
+            id: string;
+            /**
+             * Format: int64
+             * @description Number of messages in the session
+             */
+            message_count: number;
+            /** @description Session metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /**
+             * Format: uuid
+             * @description Project the session belongs to
+             */
+            project_id: string;
+            /**
+             * Format: date-time
+             * @description Session last update timestamp
+             */
+            updated_at: string;
+        };
+        /** @description Request body for updating session metadata. Null values remove keys. */
+        SessionUpdateRequest: {
+            /** @description Metadata fields to set or remove */
+            metadata: {
+                [key: string]: unknown;
+            };
+        };
+        /** @description A session with its full message history. */
+        SessionWithMessagesResponse: components["schemas"]["SessionResponse"] & {
+            /** @description All messages in the session */
+            messages: components["schemas"]["SessionMessageResponse"][];
+        };
+        /** @description SHA-256 hash (64 hex characters). */
+        Sha256Hash: string;
+        Subscription: {
+            billing_provider?: components["schemas"]["BillingProvider"];
+            /** @description Billing subscription ID from the provider */
+            billing_subscription_id?: string;
+            /** Format: date-time */
+            created_at?: string;
+            /**
+             * Format: date-time
+             * @description End of the current billing period
+             */
+            current_period_end?: string;
+            /**
+             * Format: date-time
+             * @description Start of the current billing period
+             */
+            current_period_start?: string;
+            /** Format: uuid */
+            customer_id?: string;
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            project_id?: string;
+            subscription_status?: components["schemas"]["SubscriptionStatusKind"];
+            tier_code?: components["schemas"]["TierCode"];
+            /** Format: uuid */
+            tier_id?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        /** @description Subscription status for a customer. */
+        SubscriptionStatus: {
+            /** @description Whether the subscription is currently active */
+            active: boolean;
+            /**
+             * Format: date-time
+             * @description End of the current billing period
+             */
+            current_period_end?: string;
+            /**
+             * Format: date-time
+             * @description Start of the current billing period
+             */
+            current_period_start?: string;
+            status?: components["schemas"]["SubscriptionStatusKind"];
+            /** @description Stripe subscription ID */
+            subscription_id?: string;
+        };
+        /**
+         * @description Subscription status (active, past_due, canceled, etc.)
+         * @enum {string}
+         */
+        SubscriptionStatusKind: "active" | "trialing" | "past_due" | "canceled" | "unpaid" | "incomplete" | "incomplete_expired" | "paused";
+        Tier: {
+            billing_mode?: components["schemas"]["TierBillingMode"];
+            /** @description Billing provider price reference for this tier */
+            billing_price_ref?: string;
+            billing_provider?: components["schemas"]["BillingProvider"];
+            /** Format: date-time */
+            created_at?: string;
+            /** @description Human-readable tier name */
+            display_name?: string;
+            /** Format: uuid */
+            id?: string;
+            models?: components["schemas"]["TierModel"][];
+            /**
+             * Format: uint64
+             * @description Subscription price amount in cents
+             */
+            price_amount_cents?: number;
+            /** @description Currency code for the price (e.g., 'usd') */
+            price_currency?: string;
+            price_interval?: components["schemas"]["PriceInterval"];
+            /** Format: uuid */
+            project_id?: string;
+            /**
+             * Format: uint64
+             * @description Monthly spend limit in cents (e.g., 2000 = $20/month). Must be non-negative.
+             */
+            spend_limit_cents?: number;
+            tier_code?: components["schemas"]["TierCode"];
+            /**
+             * Format: uint32
+             * @description Number of trial days for new subscriptions
+             */
+            trial_days?: number;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        /**
+         * @description Billing mode for a tier. 'subscription' uses monthly spend limits; 'paygo' uses prepaid balances.
+         * @enum {string}
+         */
+        TierBillingMode: "subscription" | "paygo";
+        /** @description Tier code identifier (e.g., free, pro, enterprise). */
+        TierCode: string;
+        TierCreate: {
+            billing_mode?: components["schemas"]["TierBillingMode"];
+            billing_provider?: components["schemas"]["BillingProvider"];
+            /** @description Human-readable tier name */
+            display_name: string;
+            models: components["schemas"]["TierModelCreate"][];
+            /**
+             * Format: uint64
+             * @description Subscription price amount in cents (paid tiers)
+             */
+            price_amount_cents?: number;
+            price_interval?: components["schemas"]["PriceInterval"];
+            /**
+             * Format: uint64
+             * @description Monthly spend limit in cents (e.g., 2000 = $20/month). Must be non-negative.
+             */
+            spend_limit_cents: number;
+            tier_code: components["schemas"]["TierCode"];
+            /**
+             * Format: uint32
+             * @description Number of trial days for new subscriptions (paid tiers)
+             */
+            trial_days?: number;
+        };
+        TierModel: {
+            /** @description Workflow-critical capability flags for the model */
+            capabilities: components["schemas"]["ModelCapability"][];
+            /**
+             * Format: int32
+             * @description Maximum supported context window in tokens (if known)
+             */
+            context_window: number;
+            /** Format: date-time */
+            created_at: string;
+            /** @description Whether the model is deprecated */
+            deprecated: boolean;
+            /** @description Human-friendly description of what the model is good at */
+            description: string;
+            /** Format: uuid */
+            id: string;
+            /** @description Whether this is the default model for the tier */
+            is_default: boolean;
+            /**
+             * Format: int32
+             * @description Maximum supported output tokens (if known)
+             */
+            max_output_tokens: number;
+            /** @description Human-friendly model name resolved from pricing (e.g., 'GPT-4o Mini') */
+            model_display_name: string;
+            model_id: components["schemas"]["ModelId"];
+            /**
+             * Format: int64
+             * @description Provider input cost in cents per million tokens. Customer price is derived as cost * (1 + platformFeePercent/100).
+             */
+            model_input_cost_cents: number;
+            /**
+             * Format: int64
+             * @description Provider output cost in cents per million tokens. Customer price is derived as cost * (1 + platformFeePercent/100).
+             */
+            model_output_cost_cents: number;
+            /** Format: uuid */
+            tier_id: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        /** @description Model to add to a tier. Pricing is derived from the model_pricing table. */
+        TierModelCreate: {
+            /** @default false */
+            is_default: boolean;
+            model_id: components["schemas"]["ModelId"];
+        };
+        TierUpdate: {
+            billing_provider?: components["schemas"]["BillingProvider"];
+            /** @description Human-readable tier name */
+            display_name: string;
+            models?: components["schemas"]["TierModelCreate"][];
+            /**
+             * Format: uint64
+             * @description Subscription price amount in cents (paid tiers)
+             */
+            price_amount_cents?: number;
+            price_interval?: components["schemas"]["PriceInterval"];
+            /**
+             * Format: uint64
+             * @description Monthly spend limit in cents (e.g., 2000 = $20/month). Must be non-negative.
+             */
+            spend_limit_cents: number;
+            tier_code: components["schemas"]["TierCode"];
+            /**
+             * Format: uint32
+             * @description Number of trial days for new subscriptions (paid tiers)
+             */
+            trial_days?: number;
         };
         Tool: {
-            /** @enum {string} */
-            type: "function" | "web" | "x_search" | "code_execution" | "image_generation";
+            code_execution?: {
+                [key: string]: unknown;
+            };
             function?: {
-                name?: components["schemas"]["ToolName"];
                 description?: string;
+                name?: components["schemas"]["ToolName"];
                 parameters?: {
                     [key: string]: unknown;
                 };
-            };
-            web?: {
-                [key: string]: unknown;
-            };
-            x_search?: {
-                [key: string]: unknown;
-            };
-            code_execution?: {
-                [key: string]: unknown;
             };
             /** @description Configuration for server-side image generation tool */
             image_generation?: {
                 /** @description Image generation model ID (e.g., gemini-2.5-flash-image) */
                 model: string;
             };
+            /** @enum {string} */
+            type: "function" | "web" | "x_search" | "code_execution" | "image_generation";
+            web?: {
+                [key: string]: unknown;
+            };
+            x_search?: {
+                [key: string]: unknown;
+            };
         };
+        ToolCall: {
+            function?: {
+                /** @description JSON string of function arguments */
+                arguments?: string;
+                name?: components["schemas"]["ToolName"];
+            };
+            id: components["schemas"]["ToolCallId"];
+            /** @enum {string} */
+            type: "function" | "web" | "x_search" | "code_execution" | "image_generation";
+        };
+        /** @description Incremental tool call data during streaming */
+        ToolCallDelta: {
+            function?: {
+                /** @description Partial JSON string */
+                arguments?: string;
+                name?: components["schemas"]["ToolName"];
+            };
+            id?: components["schemas"]["ToolCallId"];
+            /** Format: uint32 */
+            index?: number;
+            type?: string;
+        };
+        /** @description Unique identifier for a tool call. Treated as an opaque string and must be preserved exactly. */
+        ToolCallId: string;
         ToolChoice: {
+            function?: components["schemas"]["ToolName"];
             /** @enum {string} */
             type: "auto" | "required" | "none";
-            function?: components["schemas"]["ToolName"];
         };
-        ResponsesRequest: {
-            provider?: components["schemas"]["ProviderId"];
-            model?: components["schemas"]["ModelId"];
-            input: components["schemas"]["InputItem"][];
-            output_format?: components["schemas"]["OutputFormat"];
-            /** Format: uint32 */
-            max_output_tokens?: number;
-            temperature?: number;
-            stop?: string[];
-            tools?: components["schemas"]["Tool"][];
-            tool_choice?: components["schemas"]["ToolChoice"];
-        };
-        ResponsesResponse: {
-            /** @description Response identifier from the provider */
-            id: string;
-            output: components["schemas"]["OutputItem"][];
-            model: components["schemas"]["ModelId"];
-            provider?: components["schemas"]["ProviderId"];
-            /** @description Why generation stopped (stop, max_tokens, tool_use, etc.) */
-            stop_reason?: string;
-            usage: components["schemas"]["Usage"];
-            /** @description Sources from web search results */
-            citations?: components["schemas"]["Citation"][];
-        };
-        JSONPatchOperation: {
-            /** @enum {string} */
-            op: "add" | "remove" | "replace" | "move" | "copy" | "test";
-            path: string;
-            from?: string;
-            value?: {
-                [key: string]: unknown;
-            };
-        };
-        ResponsesStreamEnvelope: {
-            /** @enum {string} */
-            type: "start" | "update" | "completion" | "error" | "keepalive" | "tool_use_start" | "tool_use_delta" | "tool_use_stop";
-            /** @enum {string} */
-            stream_mode?: "text-delta" | "structured-patch";
-            /** @enum {string} */
-            stream_version?: "v2";
-            delta?: string;
-            content?: string;
-            patch?: components["schemas"]["JSONPatchOperation"][];
-            payload?: {
-                [key: string]: unknown;
-            };
-            complete_fields?: string[];
-            code?: string;
-            message?: string;
-            status?: number;
-            request_id?: string;
-            provider?: components["schemas"]["ProviderId"];
-            model?: components["schemas"]["ModelId"];
-            stop_reason?: string;
-            usage?: components["schemas"]["Usage"];
-        };
-        ResponsesBatchRequest: {
-            requests: components["schemas"]["ResponsesRequest"][];
-            options?: {
-                /** Format: uint32 */
-                max_parallelism?: number;
-                abort_on_error?: boolean;
-            };
-        };
-        ResponsesBatchError: {
-            status: number;
-            message: string;
-            /** @description Raw error details from the provider */
-            detail?: string;
-            code?: string;
-        };
-        ResponsesBatchResult: {
-            /** Format: uint32 */
-            index: number;
-            ok: boolean;
-            response?: components["schemas"]["ResponsesResponse"];
-            error?: components["schemas"]["ResponsesBatchError"];
-        };
-        ResponsesBatchResponse: {
-            results: components["schemas"]["ResponsesBatchResult"][];
-            request_id?: string;
-        };
-        /** @description A `workflow.v0` spec. The canonical JSON Schema is available at `/schemas/workflow_v0.schema.json`. */
-        WorkflowSpecV0: {
-            [key: string]: unknown;
-        };
-        /** @description A `workflow.v1` spec. The canonical JSON Schema is available at `/schemas/workflow_v1.schema.json`. */
-        WorkflowSpecV1: {
-            [key: string]: unknown;
-        };
-        RunsCreateOptionsV0: {
-            idempotency_key?: string;
-        };
-        RunsCreateRequest: {
-            spec: components["schemas"]["WorkflowSpecV0"] | components["schemas"]["WorkflowSpecV1"];
-            /**
-             * Format: uuid
-             * @description Optional session ID to link this run to a session.
-             */
-            session_id?: string;
-            /** @description Runtime inputs for the workflow. Required when the spec uses from_input references (e.g., map.fanout with items.from_input). Each key is the input name, and the value is the JSON data to provide. */
-            input?: {
-                [key: string]: unknown;
-            };
-            options?: components["schemas"]["RunsCreateOptionsV0"];
-        };
-        /** @enum {string} */
-        RunStatusV0: "running" | "waiting" | "succeeded" | "failed" | "canceled";
-        RunsCreateResponse: {
-            run_id: components["schemas"]["RunId"];
-            status: components["schemas"]["RunStatusV0"];
-            plan_hash: components["schemas"]["PlanHash"];
-        };
-        /** @enum {string} */
-        NodeStatusV0: "pending" | "running" | "waiting" | "succeeded" | "failed" | "canceled";
-        NodeErrorV0: {
-            code?: string;
-            message: string;
-            /** @description Raw error details from the provider */
-            detail?: string;
-        };
-        NodeResultV0: {
-            id: components["schemas"]["NodeId"];
-            type: components["schemas"]["NodeTypeV0"];
-            status: components["schemas"]["NodeStatusV0"];
+        ToolHookConfig: {
+            allow_mutation?: boolean;
             /** Format: date-time */
-            started_at?: string;
+            created_at?: string;
+            enabled?: boolean;
+            /** Format: uri */
+            endpoint_url?: string;
+            /** @enum {string} */
+            fail_behavior?: "fail_closed" | "fail_open";
+            /** @enum {string} */
+            hook_type?: "pre_tool_use" | "post_tool_use" | "tool_execute";
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            project_id?: string;
+            /** Format: int32 */
+            timeout_ms?: number;
+            tools_allowlist?: string[];
             /** Format: date-time */
-            ended_at?: string;
-            output?: {
-                [key: string]: unknown;
-            };
-            error?: components["schemas"]["NodeErrorV0"];
+            updated_at?: string;
         };
-        RunCostLineItemV0: {
-            provider_id: components["schemas"]["ProviderId"];
-            model: components["schemas"]["ModelId"];
-            /** Format: uint64 */
-            requests: number;
-            /** Format: uint64 */
-            input_tokens: number;
-            /** Format: uint64 */
-            output_tokens: number;
-            /** Format: uint64 */
-            usd_cents: number;
+        ToolHookConfigInput: {
+            allow_mutation?: boolean;
+            enabled?: boolean;
+            /** Format: uri */
+            endpoint_url: string;
+            /** @enum {string} */
+            fail_behavior?: "fail_closed" | "fail_open";
+            /** @enum {string} */
+            hook_type: "pre_tool_use" | "post_tool_use" | "tool_execute";
+            /** Format: int32 */
+            timeout_ms?: number;
+            tools_allowlist?: string[];
         };
-        RunCostSummaryV0: {
-            /** Format: uint64 */
-            total_usd_cents: number;
-            line_items?: components["schemas"]["RunCostLineItemV0"][];
+        ToolHookConfigUpdate: {
+            allow_mutation?: boolean;
+            enabled?: boolean;
+            /** Format: uri */
+            endpoint_url?: string;
+            /** @enum {string} */
+            fail_behavior?: "fail_closed" | "fail_open";
+            rotate_secret?: boolean;
+            /** Format: int32 */
+            timeout_ms?: number;
+            tools_allowlist?: string[];
         };
-        RunsGetResponse: {
-            run_id: components["schemas"]["RunId"];
-            status: components["schemas"]["RunStatusV0"];
-            plan_hash: components["schemas"]["PlanHash"];
-            cost_summary: components["schemas"]["RunCostSummaryV0"];
-            nodes?: components["schemas"]["NodeResultV0"][];
-            outputs?: {
-                [key: string]: unknown;
-            };
+        ToolHookEvent: {
+            /** Format: date-time */
+            created_at?: string;
+            error?: string;
+            /** Format: uuid */
+            hook_config_id?: string;
+            /** Format: uuid */
+            id?: string;
+            /** Format: int32 */
+            latency_ms?: number;
+            request_id?: string;
+            response_body?: string;
+            /** Format: int32 */
+            response_status?: number;
+            /** @enum {string} */
+            status?: "success" | "blocked" | "timeout" | "error";
+            tool_call_id?: string;
         };
+        ToolHookTestResult: {
+            error?: string;
+            /** Format: int32 */
+            latency_ms?: number;
+            response_body?: string;
+            /** Format: int32 */
+            response_status?: number;
+            /** @enum {string} */
+            status?: "success" | "blocked" | "timeout" | "error";
+        };
+        /** @description Tool identifier. For tools.v0 client tools, use dot-separated lowercase segments (e.g. fs.search). */
+        ToolName: string;
         /** @description Token usage statistics. All fields default to 0 if not present. */
         Usage: {
             /**
@@ -1739,545 +2231,66 @@ export interface components {
              */
             total_tokens: number;
         };
-        /** @description Unique identifier for a tool call. Treated as an opaque string and must be preserved exactly. */
-        ToolCallId: string;
-        /** @description Tool identifier. For tools.v0 client tools, use dot-separated lowercase segments (e.g. fs.search). */
-        ToolName: string;
-        ToolCall: {
-            id: components["schemas"]["ToolCallId"];
-            /** @enum {string} */
-            type: "function" | "web" | "x_search" | "code_execution" | "image_generation";
-            function?: {
-                name?: components["schemas"]["ToolName"];
-                /** @description JSON string of function arguments */
-                arguments?: string;
-            };
-        };
-        Citation: {
-            url?: string;
-            title?: string;
-        };
-        CustomerTokenResponse: {
-            /** @description The customer bearer token */
-            token: string;
-            /**
-             * Format: date-time
-             * @description Token expiration timestamp
-             */
-            expires_at: string;
-            /**
-             * Format: uint32
-             * @description Seconds until token expires
-             */
-            expires_in: number;
-            /**
-             * Format: uuid
-             * @description Project the token is scoped to
-             */
-            project_id: string;
-            /**
-             * Format: uuid
-             * @description Internal customer UUID. Only present for managed billing projects; BYOB projects have end-users but not customers.
-             */
-            customer_id?: string;
-            /** @description External customer identifier */
-            customer_external_id: string;
-            tier_code?: components["schemas"]["TierCode"];
-        };
-        CheckoutSessionResponse: {
-            /** @description Stripe checkout session ID */
-            session_id: string;
-            /**
-             * Format: uri
-             * @description Checkout URL
-             */
-            url: string;
-        };
-        APIError: {
-            error: string;
-            code: string;
-            message: string;
-        };
-        /** @description Subscription status for a customer. */
-        SubscriptionStatus: {
-            /** @description Whether the subscription is currently active */
-            active: boolean;
-            /** @description Stripe subscription ID */
-            subscription_id?: string;
-            status?: components["schemas"]["SubscriptionStatusKind"];
-            /**
-             * Format: date-time
-             * @description Start of the current billing period
-             */
-            current_period_start?: string;
-            /**
-             * Format: date-time
-             * @description End of the current billing period
-             */
-            current_period_end?: string;
-        };
-        /** @description Response containing pending tool calls for a workflow run. */
-        RunsPendingToolsResponse: {
-            run_id: components["schemas"]["RunId"];
-            pending?: components["schemas"]["RunsPendingToolsNodeV0"][];
-        };
-        /** @description A node with pending tool calls. */
-        RunsPendingToolsNodeV0: {
-            node_id: components["schemas"]["NodeId"];
-            /**
-             * Format: uint64
-             * @description The step number within the node execution
-             */
-            step: number;
-            request_id: components["schemas"]["RequestId"];
-            tool_calls?: components["schemas"]["RunsPendingToolCallV0"][];
-        };
-        /** @description A pending tool call waiting for a result. */
-        RunsPendingToolCallV0: {
-            /** @description Unique identifier for this tool call */
-            tool_call_id: components["schemas"]["ToolCallId"];
-            /** @description Name of the tool to be called */
-            name: components["schemas"]["ToolName"];
-            /** @description JSON-encoded arguments for the tool call */
-            arguments: string;
-        };
-        /**
-         * @description Events sent during streaming responses (application/x-ndjson).
-         *     Each line is a JSON object with an "event" field indicating the type.
-         */
-        NDJSONStreamEvent: {
-            /**
-             * @description Event type
-             * @enum {string}
-             */
-            event: "message_start" | "message_delta" | "message_stop" | "tool_use_start" | "tool_use_delta" | "tool_use_stop" | "ping" | "keepalive";
-            /** @description Response identifier (message_start) */
-            response_id?: string;
-            model?: components["schemas"]["ModelId"];
-            /** @description Text content fragment (message_delta) */
-            text_delta?: string;
-            /** @description Why generation stopped (message_stop) */
-            stop_reason?: string;
-            usage?: components["schemas"]["Usage"];
-            /** @description Completed tool calls (tool_use_stop, message_stop) */
-            tool_calls?: components["schemas"]["ToolCall"][];
-            tool_call_delta?: components["schemas"]["ToolCallDelta"];
-        };
-        /** @description Incremental tool call data during streaming */
-        ToolCallDelta: {
-            /** Format: uint32 */
-            index?: number;
-            id?: components["schemas"]["ToolCallId"];
-            type?: string;
-            function?: {
-                name?: components["schemas"]["ToolName"];
-                /** @description Partial JSON string */
-                arguments?: string;
-            };
-        };
-        /** @description Workflow node identifier. Must start with a lowercase letter and contain only lowercase letters, numbers, and underscores. */
-        NodeId: string;
-        /** @description LLM model identifier (e.g., claude-sonnet-4-20250514, gpt-4o). */
-        ModelId: string;
-        /**
-         * @description Workflow-critical model capability identifier.
-         * @enum {string}
-         */
-        ModelCapability: "text_generation" | "tools" | "vision" | "web_search" | "web_fetch" | "computer_use" | "code_execution" | "image_generation";
-        Model: {
-            model_id: components["schemas"]["ModelId"];
-            provider: components["schemas"]["ProviderId"];
-            display_name: string;
-            description: string;
-            capabilities: components["schemas"]["ModelCapability"][];
-            /** Format: int32 */
-            context_window: number;
-            /** Format: int32 */
-            max_output_tokens: number;
-            /** @description Training cutoff in YYYY-MM format */
-            training_cutoff: string;
-            deprecated: boolean;
-            deprecation_message: string;
-            /** Format: uint64 */
-            input_cost_per_million_cents: number;
-            /** Format: uint64 */
-            output_cost_per_million_cents: number;
-        };
-        ModelsResponse: {
-            models: components["schemas"]["Model"][];
-        };
-        /**
-         * Format: uuid
-         * @description Unique identifier for a workflow run.
-         */
-        RunId: string;
-        /**
-         * Format: uuid
-         * @description Unique identifier for an LLM request within a workflow run.
-         */
-        RequestId: string;
-        /** @description SHA-256 hash of the compiled workflow plan (64 hex characters). */
-        PlanHash: string;
-        /** @description SHA-256 hash (64 hex characters). */
-        Sha256Hash: string;
-        /**
-         * @description LLM provider identifier.
-         * @enum {string}
-         */
-        ProviderId: "anthropic" | "openai" | "xai" | "google-ai-studio";
-        PluginManifestV0: {
-            name?: string;
-            description?: string;
-            version?: string;
-            commands?: string[];
-            agents?: string[];
-        };
-        PluginGitHubRefV0: {
-            owner?: string;
-            repo?: string;
-            ref?: string;
-            path?: string;
-        };
-        PluginCommandV0: {
-            name: string;
-            prompt: string;
-            agent_refs?: string[];
-        };
-        PluginAgentV0: {
-            name: string;
-            system_prompt: string;
-        };
-        WebhookConfig: {
+        User: {
+            /** Format: email */
+            email?: string;
             /** Format: uuid */
             id?: string;
             /** Format: uuid */
             project_id?: string;
-            /** Format: uri */
-            endpoint_url?: string;
-            signing_secret?: string;
-            enabled?: boolean;
-            events?: ("customer.created" | "customer.updated" | "customer.deleted" | "usage.threshold_exceeded" | "request.completed" | "billing.subscription_changed")[];
+        };
+        WebhookConfig: {
             /** Format: date-time */
             created_at?: string;
+            enabled?: boolean;
+            /** Format: uri */
+            endpoint_url?: string;
+            events?: ("customer.created" | "customer.updated" | "customer.deleted" | "usage.threshold_exceeded" | "request.completed" | "billing.subscription_changed")[];
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            project_id?: string;
+            signing_secret?: string;
             /** Format: date-time */
             updated_at?: string;
         };
         WebhookConfigInput: {
+            enabled?: boolean;
             /** Format: uri */
             endpoint_url: string;
-            enabled?: boolean;
             events: ("customer.created" | "customer.updated" | "customer.deleted" | "usage.threshold_exceeded" | "request.completed" | "billing.subscription_changed")[];
         };
         WebhookConfigUpdate: {
+            enabled?: boolean;
             /** Format: uri */
             endpoint_url: string;
-            enabled?: boolean;
             events: ("customer.created" | "customer.updated" | "customer.deleted" | "usage.threshold_exceeded" | "request.completed" | "billing.subscription_changed")[];
             rotate_secret?: boolean;
         };
-        OutboundWebhookEvent: {
-            /** Format: uuid */
-            id?: string;
-            /** Format: uuid */
-            webhook_config_id?: string;
-            event_type?: string;
-            event_id?: string;
-            payload?: Record<string, never>;
-            status?: string;
-            /** Format: int32 */
-            attempt_count?: number;
-            /** Format: date-time */
-            next_attempt_at?: string;
-            /** Format: date-time */
-            last_attempt_at?: string;
-            /** Format: int32 */
-            response_status?: number;
-            response_body?: string;
-            /** Format: int32 */
-            latency_ms?: number;
-            error?: string;
-            /** Format: date-time */
-            created_at?: string;
-            /** Format: date-time */
-            updated_at?: string;
-        };
-        /**
-         * @description Type of workflow node.
-         * @enum {string}
-         */
-        NodeTypeV0: "llm.responses" | "route.switch" | "join.all" | "join.any" | "join.collect" | "map.fanout" | "transform.json";
-        /** @description Tier code identifier (e.g., free, pro, enterprise). */
-        TierCode: string;
-        /** @description Request to generate images from a text prompt. */
-        ImageRequest: {
-            /** @description Image generation model ID (e.g., gemini-2.5-flash-image). Optional when using a customer token with a tier that defines a default model. */
-            model?: string;
-            /** @description Text description of the image to generate */
-            prompt: string;
-            /**
-             * @description Number of images to generate (1-10, default 1)
-             * @default 1
-             */
-            n: number;
-            response_format?: components["schemas"]["ImageResponseFormat"];
-        };
-        /**
-         * @description Output format for generated images.
-         * @default url
-         * @enum {string}
-         */
-        ImageResponseFormat: "url" | "b64_json";
-        /** @description Response containing generated images. */
-        ImageResponse: {
-            /** @description Unique identifier for this generation request */
-            id: string;
-            /** @description Model used for generation */
-            model: string;
-            /** @description Generated images */
-            data: components["schemas"]["ImageData"][];
-            usage: components["schemas"]["ImageUsage"];
-        };
-        /** @description A single generated image. */
-        ImageData: {
-            /** @description URL of the generated image (when response_format is 'url') */
-            url?: string;
-            /** @description Base64-encoded image data (when response_format is 'b64_json') */
-            b64_json?: string;
-            /** @description MIME type of the image (e.g., 'image/png', 'image/webp') */
-            mime_type?: string;
-            /** @description Unique identifier for the image (used for pinning) */
-            image_id?: string;
-            /**
-             * Format: date-time
-             * @description When the image URL expires (null if pinned)
-             */
-            expires_at?: string;
-            /** @description URL to pin this image for permanent storage */
-            pin_url?: string;
-        };
-        /** @description Usage statistics for image generation. */
-        ImageUsage: {
-            /**
-             * Format: int32
-             * @description Number of images generated
-             */
-            images: number;
-        };
-        /** @description Response from pin/unpin operations. */
-        ImagePinResponse: {
-            /** @description Image ID */
-            id: string;
-            /** @description Whether the image is currently pinned */
-            pinned: boolean;
-            /**
-             * Format: date-time
-             * @description When the image expires (null if pinned)
-             */
-            expires_at?: string;
-            /** @description URL of the image */
-            url: string;
-        };
-        /** @description Request body for creating a session. */
-        SessionCreateRequest: {
-            /**
-             * Format: uuid
-             * @description Optional end user ID to associate with the session
-             */
-            end_user_id?: string;
-            /** @description Optional metadata for the session */
-            metadata?: {
-                [key: string]: unknown;
-            };
-        };
-        /** @description A session resource. */
-        SessionResponse: {
-            /**
-             * Format: uuid
-             * @description Session unique identifier
-             */
-            id: string;
-            /**
-             * Format: uuid
-             * @description Project the session belongs to
-             */
-            project_id: string;
-            /**
-             * Format: uuid
-             * @description End user associated with the session (if any)
-             */
-            end_user_id?: string;
-            /** @description Session metadata */
-            metadata: {
-                [key: string]: unknown;
-            };
-            /**
-             * Format: int64
-             * @description Number of messages in the session
-             */
-            message_count: number;
-            /**
-             * Format: date-time
-             * @description Session creation timestamp
-             */
-            created_at: string;
-            /**
-             * Format: date-time
-             * @description Session last update timestamp
-             */
-            updated_at: string;
-        };
-        /** @description A message within a session. */
-        SessionMessageResponse: {
-            /**
-             * Format: uuid
-             * @description Message unique identifier
-             */
-            id: string;
-            /**
-             * Format: int32
-             * @description Sequence number within the session
-             */
-            seq: number;
-            /** @description Message role (user, assistant, tool) */
-            role: string;
-            /** @description Message content parts */
-            content: {
-                [key: string]: unknown;
-            }[];
-            /**
-             * Format: uuid
-             * @description Run ID that generated this message (for assistant messages)
-             */
-            run_id?: string;
-            /**
-             * Format: date-time
-             * @description Message creation timestamp
-             */
-            created_at: string;
-        };
-        /** @description A session with its full message history. */
-        SessionWithMessagesResponse: components["schemas"]["SessionResponse"] & {
-            /** @description All messages in the session */
-            messages: components["schemas"]["SessionMessageResponse"][];
-        };
-        /** @description Paginated list of sessions. */
-        SessionListResponse: {
-            /** @description List of sessions */
-            sessions: components["schemas"]["SessionResponse"][];
-            /** @description Cursor for fetching the next page (if more results exist) */
-            next_cursor?: string;
-        };
-        /** @description Request body for appending a message to a session. */
-        SessionMessageCreateRequest: {
-            /** @description Message role (user, assistant, tool) */
-            role: string;
-            /** @description Message content parts */
-            content: {
-                [key: string]: unknown;
-            }[];
-            /**
-             * Format: uuid
-             * @description Run ID that generated this message (for assistant messages)
-             */
-            run_id?: string;
-        };
-        ToolHookConfig: {
-            /** Format: uuid */
-            id?: string;
-            /** Format: uuid */
-            project_id?: string;
-            /** @enum {string} */
-            hook_type?: "pre_tool_use" | "post_tool_use" | "tool_execute";
-            /** Format: uri */
-            endpoint_url?: string;
-            enabled?: boolean;
-            /** Format: int32 */
-            timeout_ms?: number;
-            /** @enum {string} */
-            fail_behavior?: "fail_closed" | "fail_open";
-            tools_allowlist?: string[];
-            allow_mutation?: boolean;
-            /** Format: date-time */
-            created_at?: string;
-            /** Format: date-time */
-            updated_at?: string;
-        };
-        ToolHookConfigInput: {
-            /** @enum {string} */
-            hook_type: "pre_tool_use" | "post_tool_use" | "tool_execute";
-            /** Format: uri */
-            endpoint_url: string;
-            enabled?: boolean;
-            /** Format: int32 */
-            timeout_ms?: number;
-            /** @enum {string} */
-            fail_behavior?: "fail_closed" | "fail_open";
-            tools_allowlist?: string[];
-            allow_mutation?: boolean;
-        };
-        ToolHookConfigUpdate: {
-            /** Format: uri */
-            endpoint_url?: string;
-            enabled?: boolean;
-            /** Format: int32 */
-            timeout_ms?: number;
-            /** @enum {string} */
-            fail_behavior?: "fail_closed" | "fail_open";
-            tools_allowlist?: string[];
-            allow_mutation?: boolean;
-            rotate_secret?: boolean;
-        };
-        ToolHookEvent: {
-            /** Format: uuid */
-            id?: string;
-            /** Format: uuid */
-            hook_config_id?: string;
-            request_id?: string;
-            tool_call_id?: string;
-            /** @enum {string} */
-            status?: "success" | "blocked" | "timeout" | "error";
-            /** Format: int32 */
-            response_status?: number;
-            response_body?: string;
-            /** Format: int32 */
-            latency_ms?: number;
-            error?: string;
-            /** Format: date-time */
-            created_at?: string;
-        };
-        ToolHookTestResult: {
-            /** @enum {string} */
-            status?: "success" | "blocked" | "timeout" | "error";
-            /** Format: int32 */
-            response_status?: number;
-            response_body?: string;
-            /** Format: int32 */
-            latency_ms?: number;
-            error?: string;
-        };
         WebhookTestResult: {
+            error?: string;
+            /** Format: int32 */
+            latency_ms?: number;
+            response_body?: string;
+            /** Format: int32 */
+            response_status?: number;
             /** @enum {string} */
             status?: "delivered" | "failed";
-            /** Format: int32 */
-            response_status?: number;
-            response_body?: string;
-            /** Format: int32 */
-            latency_ms?: number;
-            error?: string;
         };
-        /** @description Request body for updating session metadata. Null values remove keys. */
-        SessionUpdateRequest: {
-            /** @description Metadata fields to set or remove */
-            metadata: {
-                [key: string]: unknown;
-            };
+        /** @description A `workflow.v0` spec. The canonical JSON Schema is available at `/schemas/workflow_v0.schema.json`. */
+        WorkflowSpecV0: {
+            [key: string]: unknown;
+        };
+        /** @description A `workflow.v1` spec. The canonical JSON Schema is available at `/schemas/workflow_v1.schema.json`. */
+        WorkflowSpecV1: {
+            [key: string]: unknown;
         };
     };
     responses: never;
     parameters: {
         ProjectID: string;
-        WebhookID: string;
         ToolHookID: string;
+        WebhookID: string;
     };
     requestBodies: never;
     headers: never;
@@ -2285,67 +2298,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    getWorkflowV0Schema: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Schema document */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/schema+json": Record<string, never>;
-                };
-            };
-        };
-    };
-    getWorkflowV1Schema: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Schema document */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/schema+json": Record<string, never>;
-                };
-            };
-        };
-    };
-    getRunEventV0Schema: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Schema document */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/schema+json": Record<string, never>;
-                };
-            };
-        };
-    };
-    registerOwner: {
+    mintCustomerToken: {
         parameters: {
             query?: never;
             header?: never;
@@ -2355,22 +2308,51 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    /** Format: email */
-                    email?: string;
-                    password?: string;
-                    billing_provider?: components["schemas"]["BillingProvider"];
+                    /** @description External customer identifier (provide exactly one of customer_id or customer_external_id) */
+                    customer_external_id?: string;
+                    /**
+                     * Format: uuid
+                     * @description Internal customer UUID (provide exactly one of customer_id or customer_external_id)
+                     */
+                    customer_id?: string;
+                    /**
+                     * Format: uint32
+                     * @description Requested token TTL in seconds (server may cap this)
+                     */
+                    ttl_seconds?: number;
                 };
             };
         };
         responses: {
-            /** @description User created */
-            201: {
+            /** @description Customer token issued */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AuthResponse"];
+                    "application/json": components["schemas"]["CustomerTokenResponse"];
                 };
+            };
+            /** @description Invalid request (missing or invalid customer selector) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid or missing secret key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Customer not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -2398,32 +2380,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AuthResponse"];
-                };
-            };
-        };
-    };
-    refreshToken: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    refresh_token?: string;
-                };
-            };
-        };
-        responses: {
-            /** @description Tokens refreshed */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AuthTokens"];
                 };
             };
         };
@@ -2474,7 +2430,7 @@ export interface operations {
             };
         };
     };
-    mintCustomerToken: {
+    refreshToken: {
         parameters: {
             query?: never;
             header?: never;
@@ -2484,51 +2440,48 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    /**
-                     * Format: uuid
-                     * @description Internal customer UUID (provide exactly one of customer_id or customer_external_id)
-                     */
-                    customer_id?: string;
-                    /** @description External customer identifier (provide exactly one of customer_id or customer_external_id) */
-                    customer_external_id?: string;
-                    /**
-                     * Format: uint32
-                     * @description Requested token TTL in seconds (server may cap this)
-                     */
-                    ttl_seconds?: number;
+                    refresh_token?: string;
                 };
             };
         };
         responses: {
-            /** @description Customer token issued */
+            /** @description Tokens refreshed */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CustomerTokenResponse"];
+                    "application/json": components["schemas"]["AuthTokens"];
                 };
             };
-            /** @description Invalid request (missing or invalid customer selector) */
-            400: {
+        };
+    };
+    registerOwner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    billing_provider?: components["schemas"]["BillingProvider"];
+                    /** Format: email */
+                    email?: string;
+                    password?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description User created */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
-            };
-            /** @description Invalid or missing secret key */
-            401: {
-                headers: {
-                    [name: string]: unknown;
+                content: {
+                    "application/json": components["schemas"]["AuthResponse"];
                 };
-                content?: never;
-            };
-            /** @description Customer not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };
@@ -2617,277 +2570,6 @@ export interface operations {
             };
         };
     };
-    getCustomer: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                customer_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Customer */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        customer?: components["schemas"]["CustomerWithSubscription"];
-                    };
-                };
-            };
-            /** @description Customer not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    deleteProjectCustomer: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                customer_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Customer deleted */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Customer not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    subscribeCustomer: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                customer_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** Format: uuid */
-                    tier_id: string;
-                    /** Format: uri */
-                    success_url: string;
-                    /** Format: uri */
-                    cancel_url: string;
-                };
-            };
-        };
-        responses: {
-            /** @description Checkout session created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CheckoutSessionResponse"];
-                };
-            };
-        };
-    };
-    getCustomerSubscription: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                customer_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Subscription details */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        subscription?: components["schemas"]["Subscription"];
-                    };
-                };
-            };
-            /** @description Subscription not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    cancelCustomerSubscription: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                customer_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Subscription canceled */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    getCustomerBalance: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                customer_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description PAYGO balance */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CustomerBalanceResponse"];
-                };
-            };
-            /** @description Subscription is not PAYGO */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Customer or subscription not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Service unavailable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    getCustomerBalanceHistory: {
-        parameters: {
-            query?: {
-                limit?: number;
-                offset?: number;
-            };
-            header?: never;
-            path: {
-                customer_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Ledger entries */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CustomerLedgerResponse"];
-                };
-            };
-            /** @description Customer not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Service unavailable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    createCustomerTopup: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                customer_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CustomerTopupRequest"];
-            };
-        };
-        responses: {
-            /** @description Checkout session created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CustomerTopupResponse"];
-                };
-            };
-            /** @description Invalid request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Customer not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Service unavailable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     getCustomerMe: {
         parameters: {
             query?: never;
@@ -2908,102 +2590,6 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    getCustomerMeUsage: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Usage summary */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CustomerMeUsageResponse"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Customer not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Failed to calculate usage */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Service unavailable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    getCustomerMeSubscription: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Subscription details */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CustomerMeSubscriptionResponse"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Customer or tier not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Internal server error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Service unavailable */
-            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3079,58 +2665,6 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["CustomerLedgerResponse"];
                 };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Customer not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Service unavailable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    createCustomerMeTopup: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CustomerTopupRequest"];
-            };
-        };
-        responses: {
-            /** @description Checkout session created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CustomerTopupResponse"];
-                };
-            };
-            /** @description Invalid request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
             /** @description Unauthorized */
             401: {
@@ -3280,32 +2814,7 @@ export interface operations {
             };
         };
     };
-    listModels: {
-        parameters: {
-            query?: {
-                /** @description Filter results to a specific provider */
-                provider?: components["schemas"]["ProviderId"];
-                /** @description Filter results to models that support a capability */
-                capability?: components["schemas"]["ModelCapability"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Models list */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ModelsResponse"];
-                };
-            };
-        };
-    };
-    listProjects: {
+    getCustomerMeSubscription: {
         parameters: {
             query?: never;
             header?: never;
@@ -3314,20 +2823,46 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Project list */
+            /** @description Subscription details */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        projects?: components["schemas"]["Project"][];
-                    };
+                    "application/json": components["schemas"]["CustomerMeSubscriptionResponse"];
                 };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Customer or tier not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
-    createProject: {
+    createCustomerMeTopup: {
         parameters: {
             query?: never;
             header?: never;
@@ -3336,97 +2871,42 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    name?: string;
-                    description?: string;
-                    markup_percentage?: number;
-                };
+                "application/json": components["schemas"]["CustomerTopupRequest"];
             };
         };
         responses: {
-            /** @description Project created */
+            /** @description Checkout session created */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        project?: components["schemas"]["Project"];
-                    };
+                    "application/json": components["schemas"]["CustomerTopupResponse"];
                 };
             };
-        };
-    };
-    getProject: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["ProjectID"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Project found */
-            200: {
+            /** @description Invalid request */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": {
-                        project?: components["schemas"]["Project"];
-                    };
-                };
+                content?: never;
             };
-        };
-    };
-    updateProject: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["ProjectID"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    name?: string;
-                    description?: string;
-                    markup_percentage?: number;
-                    billing_mode?: components["schemas"]["BillingMode"];
-                };
-            };
-        };
-        responses: {
-            /** @description Project updated */
-            200: {
+            /** @description Unauthorized */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": {
-                        project?: components["schemas"]["Project"];
-                    };
+                content?: never;
+            };
+            /** @description Customer not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
-        };
-    };
-    deleteProject: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["ProjectID"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Project deleted */
-            204: {
+            /** @description Service unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3434,76 +2914,47 @@ export interface operations {
             };
         };
     };
-    listProjectTiers: {
+    getCustomerMeUsage: {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                id: components["parameters"]["ProjectID"];
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Tier list */
+            /** @description Usage summary */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        tiers?: components["schemas"]["Tier"][];
-                    };
+                    "application/json": components["schemas"]["CustomerMeUsageResponse"];
                 };
             };
-        };
-    };
-    createTier: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["ProjectID"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TierCreate"];
-            };
-        };
-        responses: {
-            /** @description Tier created */
-            201: {
+            /** @description Unauthorized */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": {
-                        tier?: components["schemas"]["Tier"];
-                    };
+                content?: never;
+            };
+            /** @description Customer not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
                 };
+                content?: never;
             };
-        };
-    };
-    updateTier: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["ProjectID"];
-                tier_id: string;
+            /** @description Failed to calculate usage */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TierUpdate"];
-            };
-        };
-        responses: {
-            /** @description Tier updated */
-            200: {
+            /** @description Service unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3511,68 +2962,19 @@ export interface operations {
             };
         };
     };
-    deleteTier: {
+    getCustomer: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                id: components["parameters"]["ProjectID"];
-                tier_id: string;
+                customer_id: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Tier deleted */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    listProjectCustomers: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["ProjectID"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Customer list */
+            /** @description Customer */
             200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        customers?: components["schemas"]["CustomerWithSubscription"][];
-                    };
-                };
-            };
-        };
-    };
-    createCustomer: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["ProjectID"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CustomerCreate"];
-            };
-        };
-        responses: {
-            /** @description Customer created */
-            201: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3582,14 +2984,20 @@ export interface operations {
                     };
                 };
             };
+            /** @description Customer not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
-    deleteCustomer: {
+    deleteProjectCustomer: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                id: components["parameters"]["ProjectID"];
                 customer_id: string;
             };
             cookie?: never;
@@ -3603,127 +3011,173 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Customer not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
-    listProjectWebhooks: {
+    getCustomerBalance: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                id: components["parameters"]["ProjectID"];
+                customer_id: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Webhook list */
+            /** @description PAYGO balance */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        webhooks?: components["schemas"]["WebhookConfig"][];
-                    };
+                    "application/json": components["schemas"]["CustomerBalanceResponse"];
                 };
+            };
+            /** @description Subscription is not PAYGO */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Customer or subscription not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
-    createProjectWebhook: {
+    getCustomerBalanceHistory: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ledger entries */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerLedgerResponse"];
+                };
+            };
+            /** @description Customer not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    subscribeCustomer: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                id: components["parameters"]["ProjectID"];
+                customer_id: string;
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["WebhookConfigInput"];
+                "application/json": {
+                    /** Format: uri */
+                    cancel_url: string;
+                    /** Format: uri */
+                    success_url: string;
+                    /** Format: uuid */
+                    tier_id: string;
+                };
             };
         };
         responses: {
-            /** @description Webhook created */
+            /** @description Checkout session created */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        webhook?: components["schemas"]["WebhookConfig"];
-                    };
+                    "application/json": components["schemas"]["CheckoutSessionResponse"];
                 };
             };
         };
     };
-    getProjectWebhook: {
+    getCustomerSubscription: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                id: components["parameters"]["ProjectID"];
-                webhook_id: components["parameters"]["WebhookID"];
+                customer_id: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Webhook details */
+            /** @description Subscription details */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
-                        webhook?: components["schemas"]["WebhookConfig"];
+                        subscription?: components["schemas"]["Subscription"];
                     };
                 };
             };
-        };
-    };
-    updateProjectWebhook: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["ProjectID"];
-                webhook_id: components["parameters"]["WebhookID"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["WebhookConfigUpdate"];
-            };
-        };
-        responses: {
-            /** @description Webhook updated */
-            200: {
+            /** @description Subscription not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": {
-                        webhook?: components["schemas"]["WebhookConfig"];
-                    };
-                };
+                content?: never;
             };
         };
     };
-    deleteProjectWebhook: {
+    cancelCustomerSubscription: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                id: components["parameters"]["ProjectID"];
-                webhook_id: components["parameters"]["WebhookID"];
+                customer_id: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Webhook deleted */
+            /** @description Subscription canceled */
             204: {
                 headers: {
                     [name: string]: unknown;
@@ -3732,118 +3186,50 @@ export interface operations {
             };
         };
     };
-    testProjectWebhook: {
+    createCustomerTopup: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                id: components["parameters"]["ProjectID"];
-                webhook_id: components["parameters"]["WebhookID"];
+                customer_id: string;
             };
             cookie?: never;
         };
-        requestBody?: {
+        requestBody: {
             content: {
-                "application/json": {
-                    event_type?: string;
-                };
+                "application/json": components["schemas"]["CustomerTopupRequest"];
             };
         };
         responses: {
-            /** @description Webhook test result */
-            200: {
+            /** @description Checkout session created */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WebhookTestResult"];
+                    "application/json": components["schemas"]["CustomerTopupResponse"];
                 };
             };
-            /** @description Webhook test failed */
-            502: {
+            /** @description Invalid request */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-        };
-    };
-    listProjectWebhookEvents: {
-        parameters: {
-            query?: {
-                limit?: number;
-                offset?: number;
-                event_type?: string;
-                status?: string;
-            };
-            header?: never;
-            path: {
-                id: components["parameters"]["ProjectID"];
-                webhook_id: components["parameters"]["WebhookID"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Webhook events */
-            200: {
+            /** @description Customer not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": {
-                        events?: components["schemas"]["OutboundWebhookEvent"][];
-                        next_cursor?: string;
-                    };
-                };
+                content?: never;
             };
-        };
-    };
-    createResponse: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ResponsesRequest"];
-            };
-        };
-        responses: {
-            /** @description Response */
-            200: {
+            /** @description Service unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["ResponsesResponse"];
-                };
-            };
-        };
-    };
-    createResponsesBatch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ResponsesBatchRequest"];
-            };
-        };
-        responses: {
-            /** @description Batch response results */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ResponsesBatchResponse"];
-                };
+                content?: never;
             };
         };
     };
@@ -3975,7 +3361,54 @@ export interface operations {
             };
         };
     };
-    createRun: {
+    listModels: {
+        parameters: {
+            query?: {
+                /** @description Filter results to a specific provider */
+                provider?: components["schemas"]["ProviderId"];
+                /** @description Filter results to models that support a capability */
+                capability?: components["schemas"]["ModelCapability"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Models list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelsResponse"];
+                };
+            };
+        };
+    };
+    listProjects: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        projects?: components["schemas"]["Project"][];
+                    };
+                };
+            };
+        };
+    };
+    createProject: {
         parameters: {
             query?: never;
             header?: never;
@@ -3984,264 +3417,170 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["RunsCreateRequest"];
+                "application/json": {
+                    description?: string;
+                    markup_percentage?: number;
+                    name?: string;
+                };
             };
         };
         responses: {
-            /** @description Run created (or idempotent replay) */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RunsCreateResponse"];
-                };
-            };
-        };
-    };
-    getRun: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Run snapshot */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RunsGetResponse"];
-                };
-            };
-            /** @description Run not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    streamRunEvents: {
-        parameters: {
-            query?: {
-                /** @description Returns events where `seq > after_seq`. */
-                after_seq?: number;
-                /** @description When false, returns currently available events then closes. */
-                wait?: boolean;
-                /** @description Maximum number of events to send before closing. */
-                limit?: number;
-            };
-            header?: never;
-            path: {
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Event stream (NDJSON or SSE) */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {"envelope_version":"v0","seq":1,"type":"run_compiled",...}
-                     *     {"envelope_version":"v0","seq":2,"type":"run_started",...}
-                     */
-                    "application/x-ndjson": string;
-                    /**
-                     * @example event: run_started
-                     *     id: 2
-                     *     data: {"envelope_version":"v0","seq":2,"type":"run_started",...}
-                     */
-                    "text/event-stream": string;
-                };
-            };
-        };
-    };
-    listSessions: {
-        parameters: {
-            query?: {
-                /** @description Maximum number of sessions to return */
-                limit?: number;
-                /** @description Number of sessions to skip */
-                offset?: number;
-                /** @description Filter sessions by end user ID */
-                end_user_id?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Session list */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SessionListResponse"];
-                };
-            };
-            /** @description API key required */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    createSession: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SessionCreateRequest"];
-            };
-        };
-        responses: {
-            /** @description Session created */
+            /** @description Project created */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionResponse"];
+                    "application/json": {
+                        project?: components["schemas"]["Project"];
+                    };
                 };
-            };
-            /** @description Invalid request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description API key required */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };
-    getSession: {
+    getProject: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                session_id: string;
+                id: components["parameters"]["ProjectID"];
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Session with messages */
+            /** @description Project found */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionWithMessagesResponse"];
+                    "application/json": {
+                        project?: components["schemas"]["Project"];
+                    };
                 };
-            };
-            /** @description Session not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };
-    deleteSession: {
+    updateProject: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                session_id: string;
+                id: components["parameters"]["ProjectID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    billing_mode?: components["schemas"]["BillingMode"];
+                    description?: string;
+                    markup_percentage?: number;
+                    name?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Project updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        project?: components["schemas"]["Project"];
+                    };
+                };
+            };
+        };
+    };
+    deleteProject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Session deleted */
+            /** @description Project deleted */
             204: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description Secret key required for deletion */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Session not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
         };
     };
-    updateSession: {
+    listProjectCustomers: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                session_id: string;
+                id: components["parameters"]["ProjectID"];
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SessionUpdateRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
-            /** @description Session updated */
+            /** @description Customer list */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionResponse"];
+                    "application/json": {
+                        customers?: components["schemas"]["CustomerWithSubscription"][];
+                    };
                 };
             };
-            /** @description Invalid request */
-            400: {
+        };
+    };
+    createCustomer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerCreate"];
+            };
+        };
+        responses: {
+            /** @description Customer created */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
-            };
-            /** @description API key required */
-            401: {
-                headers: {
-                    [name: string]: unknown;
+                content: {
+                    "application/json": {
+                        customer?: components["schemas"]["CustomerWithSubscription"];
+                    };
                 };
-                content?: never;
             };
-            /** @description Session not found */
-            404: {
+        };
+    };
+    deleteCustomer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Customer deleted */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4249,46 +3588,97 @@ export interface operations {
             };
         };
     };
-    addSessionMessage: {
+    listProjectTiers: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                session_id: string;
+                id: components["parameters"]["ProjectID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tier list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        tiers?: components["schemas"]["Tier"][];
+                    };
+                };
+            };
+        };
+    };
+    createTier: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["SessionMessageCreateRequest"];
+                "application/json": components["schemas"]["TierCreate"];
             };
         };
         responses: {
-            /** @description Message appended */
+            /** @description Tier created */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionMessageResponse"];
+                    "application/json": {
+                        tier?: components["schemas"]["Tier"];
+                    };
                 };
             };
-            /** @description Invalid request */
-            400: {
+        };
+    };
+    updateTier: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                tier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TierUpdate"];
+            };
+        };
+        responses: {
+            /** @description Tier updated */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description API key required */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
+        };
+    };
+    deleteTier: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                tier_id: string;
             };
-            /** @description Session not found */
-            404: {
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tier deleted */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4482,6 +3872,582 @@ export interface operations {
             };
         };
     };
+    listProjectWebhooks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Webhook list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        webhooks?: components["schemas"]["WebhookConfig"][];
+                    };
+                };
+            };
+        };
+    };
+    createProjectWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebhookConfigInput"];
+            };
+        };
+        responses: {
+            /** @description Webhook created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        webhook?: components["schemas"]["WebhookConfig"];
+                    };
+                };
+            };
+        };
+    };
+    getProjectWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                webhook_id: components["parameters"]["WebhookID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Webhook details */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        webhook?: components["schemas"]["WebhookConfig"];
+                    };
+                };
+            };
+        };
+    };
+    updateProjectWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                webhook_id: components["parameters"]["WebhookID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebhookConfigUpdate"];
+            };
+        };
+        responses: {
+            /** @description Webhook updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        webhook?: components["schemas"]["WebhookConfig"];
+                    };
+                };
+            };
+        };
+    };
+    deleteProjectWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                webhook_id: components["parameters"]["WebhookID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Webhook deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listProjectWebhookEvents: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                event_type?: string;
+                status?: string;
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                webhook_id: components["parameters"]["WebhookID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Webhook events */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        events?: components["schemas"]["OutboundWebhookEvent"][];
+                        next_cursor?: string;
+                    };
+                };
+            };
+        };
+    };
+    testProjectWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                webhook_id: components["parameters"]["WebhookID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    event_type?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Webhook test result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookTestResult"];
+                };
+            };
+            /** @description Webhook test failed */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    createResponse: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResponsesRequest"];
+            };
+        };
+        responses: {
+            /** @description Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResponsesResponse"];
+                };
+            };
+        };
+    };
+    createResponsesBatch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResponsesBatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Batch response results */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResponsesBatchResponse"];
+                };
+            };
+        };
+    };
+    createRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RunsCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Run created (or idempotent replay) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunsCreateResponse"];
+                };
+            };
+        };
+    };
+    getRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Run snapshot */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunsGetResponse"];
+                };
+            };
+            /** @description Run not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    streamRunEvents: {
+        parameters: {
+            query?: {
+                /** @description Returns events where `seq > after_seq`. */
+                after_seq?: number;
+                /** @description When false, returns currently available events then closes. */
+                wait?: boolean;
+                /** @description Maximum number of events to send before closing. */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Event stream (NDJSON or SSE) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {"envelope_version":"v0","seq":1,"type":"run_compiled",...}
+                     *     {"envelope_version":"v0","seq":2,"type":"run_started",...}
+                     */
+                    "application/x-ndjson": string;
+                    /**
+                     * @example event: run_started
+                     *     id: 2
+                     *     data: {"envelope_version":"v0","seq":2,"type":"run_started",...}
+                     */
+                    "text/event-stream": string;
+                };
+            };
+        };
+    };
+    getRunEventV0Schema: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Schema document */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/schema+json": Record<string, never>;
+                };
+            };
+        };
+    };
+    getWorkflowV0Schema: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Schema document */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/schema+json": Record<string, never>;
+                };
+            };
+        };
+    };
+    getWorkflowV1Schema: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Schema document */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/schema+json": Record<string, never>;
+                };
+            };
+        };
+    };
+    listSessions: {
+        parameters: {
+            query?: {
+                /** @description Maximum number of sessions to return */
+                limit?: number;
+                /** @description Number of sessions to skip */
+                offset?: number;
+                /** @description Filter sessions by customer ID */
+                customer_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionListResponse"];
+                };
+            };
+            /** @description API key required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    createSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Session created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description API key required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session with messages */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionWithMessagesResponse"];
+                };
+            };
+            /** @description Session not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deleteSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Secret key required for deletion */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Session not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Session updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description API key required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Session not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     clearSession: {
         parameters: {
             query?: never;
@@ -4501,6 +4467,53 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["SessionResponse"];
                 };
+            };
+            /** @description API key required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Session not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    addSessionMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionMessageCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Message appended */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionMessageResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description API key required */
             401: {

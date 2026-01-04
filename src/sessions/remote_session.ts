@@ -52,7 +52,7 @@ import { asSessionId } from "./types";
 interface SessionCreateResponse {
 	id: string;
 	project_id: string;
-	end_user_id?: string;
+	customer_id?: string;
 	metadata: Record<string, unknown>;
 	message_count: number;
 	created_at: string;
@@ -115,7 +115,7 @@ export class RemoteSession implements Session {
 	private readonly defaultProvider?: ProviderId;
 	private readonly defaultTools?: Tool[];
 	private metadata: Record<string, unknown>;
-	private endUserId?: string;
+	private customerId?: string;
 	private readonly resolveModelContext: ModelContextResolver;
 
 	private messages: SessionMessage[] = [];
@@ -148,7 +148,7 @@ export class RemoteSession implements Session {
 		this.http = http;
 		this.id = asSessionId(sessionData.id);
 		this.metadata = sessionData.metadata;
-		this.endUserId = sessionData.end_user_id || options.endUserId;
+		this.customerId = sessionData.customer_id || options.customerId;
 		this.createdAt = new Date(sessionData.created_at);
 		this.updatedAt = new Date(sessionData.updated_at);
 
@@ -188,7 +188,7 @@ export class RemoteSession implements Session {
 		const response = await http.request("/sessions", {
 			method: "POST",
 			body: {
-				end_user_id: options.endUserId,
+				customer_id: options.customerId,
 				metadata: options.metadata || {},
 			},
 		});
@@ -230,13 +230,13 @@ export class RemoteSession implements Session {
 	 */
 	static async list(
 		client: ModelRelay,
-		options: { limit?: number; offset?: number; endUserId?: string } = {},
+		options: { limit?: number; offset?: number; customerId?: string } = {},
 	): Promise<{ sessions: RemoteSessionInfo[]; nextCursor?: string }> {
 		const http = getHTTPClient(client);
 		const params = new URLSearchParams();
 		if (options.limit) params.set("limit", String(options.limit));
 		if (options.offset) params.set("offset", String(options.offset));
-		if (options.endUserId) params.set("end_user_id", options.endUserId);
+		if (options.customerId) params.set("customer_id", options.customerId);
 
 		const response = await http.request(
 			`/sessions${params.toString() ? `?${params.toString()}` : ""}`,
@@ -336,7 +336,7 @@ export class RemoteSession implements Session {
 
 			// Create run
 			const run = await this.client.runs.create(spec, {
-				customerId: options.customerId || this.endUserId,
+				customerId: options.customerId || this.customerId,
 				sessionId: String(this.id),
 			});
 			this.currentRunId = run.run_id;

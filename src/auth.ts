@@ -106,6 +106,7 @@ export class AuthClient {
 			token_type: "Bearer";
 			project_id: string;
 			customer_id?: string;
+			billing_profile_id?: string;
 			customer_external_id: string;
 			tier_code?: string;
 		}>("/auth/customer-token", {
@@ -121,6 +122,7 @@ export class AuthClient {
 			tokenType: apiResp.token_type,
 			projectId: apiResp.project_id,
 			customerId: apiResp.customer_id,
+			billingProfileId: apiResp.billing_profile_id,
 			customerExternalId: apiResp.customer_external_id,
 			tierCode: apiResp.tier_code ? asTierCode(apiResp.tier_code) : undefined,
 		};

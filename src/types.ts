@@ -238,8 +238,10 @@ export interface CustomerToken {
 	expiresIn: number;
 	tokenType: TokenType;
 	projectId: string;
-	/** Only present for managed billing projects; BYOB projects have end-users but not customers. */
+	/** Identity customer ID (always present for valid customer tokens). */
 	customerId?: string;
+	/** Billing profile ID for managed billing customers. */
+	billingProfileId?: string;
 	customerExternalId: string;
 	/** Optional for BYOB (external billing) projects */
 	tierCode?: TierCode;

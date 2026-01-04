@@ -268,8 +268,8 @@ export interface RemoteSessionOptions {
 	defaultTools?: Tool[];
 	/** Session metadata (stored on server). */
 	metadata?: Record<string, unknown>;
-	/** End user ID to associate with the session. */
-	endUserId?: string;
+	/** Customer ID to associate with the session. */
+	customerId?: string;
 }
 
 /**
@@ -280,8 +280,8 @@ export interface ListSessionsOptions {
 	limit?: number;
 	/** Cursor for pagination. */
 	cursor?: string;
-	/** End user ID to filter by. */
-	endUserId?: string;
+	/** Customer ID to filter by. */
+	customerId?: string;
 }
 
 /**

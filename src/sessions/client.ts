@@ -158,7 +158,7 @@ export class SessionsClient {
 	/**
 	 * List remote sessions.
 	 *
-	 * @param options - List options (limit, cursor, endUserId)
+	 * @param options - List options (limit, cursor, customerId)
 	 * @returns Paginated list of session summaries
 	 *
 	 * @example
@@ -173,7 +173,7 @@ export class SessionsClient {
 		return RemoteSession.list(this.modelRelay, {
 			limit: options.limit,
 			offset: options.cursor ? parseInt(options.cursor, 10) : undefined,
-			endUserId: options.endUserId,
+			customerId: options.customerId,
 		});
 	}
 
