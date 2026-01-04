@@ -229,6 +229,21 @@ export interface CustomerTokenRequest {
 	ttlSeconds?: number;
 }
 
+/**
+ * Request to get or create a customer token.
+ * This upserts the customer (creating if needed) then mints a token.
+ */
+export interface GetOrCreateCustomerTokenRequest {
+	/** Your external customer identifier (required). */
+	externalId: string;
+	/** Customer email address (required for customer creation). */
+	email: string;
+	/** Optional customer metadata. */
+	metadata?: CustomerMetadata;
+	/** Optional token TTL in seconds (default: 7 days, max: 30 days). */
+	ttlSeconds?: number;
+}
+
 export interface CustomerToken {
 	token: string;
 	expiresAt: Date;

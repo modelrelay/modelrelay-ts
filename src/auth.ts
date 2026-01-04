@@ -2,8 +2,10 @@ import { ConfigError } from "./errors";
 import { parseApiKey } from "./api_keys";
 import type { HTTPClient } from "./http";
 import type {
+	CustomerMetadata,
 	CustomerToken,
 	CustomerTokenRequest,
+	GetOrCreateCustomerTokenRequest,
 	TokenProvider,
 } from "./types";
 import type { ApiKey } from "./types";
@@ -121,6 +123,57 @@ export class AuthClient {
 			customerExternalId: apiResp.customer_external_id,
 			tierCode: apiResp.tier_code ? asTierCode(apiResp.tier_code) : undefined,
 		};
+	}
+
+	/**
+	 * Get or create a customer and mint a bearer token.
+	 *
+	 * This is a convenience method that:
+	 * 1. Upserts the customer (creates if not exists)
+	 * 2. Mints a customer-scoped bearer token
+	 *
+	 * Use this when you want to ensure the customer exists before minting a token,
+	 * without needing to handle 404 errors from customerToken().
+	 *
+	 * Requires a secret key.
+	 */
+	async getOrCreateCustomerToken(request: GetOrCreateCustomerTokenRequest): Promise<CustomerToken> {
+		const externalId = request.externalId?.trim();
+		const email = request.email?.trim();
+		if (!externalId) {
+			throw new ConfigError("externalId is required");
+		}
+		if (!email) {
+			throw new ConfigError("email is required");
+		}
+		if (!this.apiKey) {
+			throw new ConfigError("Secret API key is required to get or create customer tokens");
+		}
+
+		// Step 1: Upsert the customer (PUT /customers)
+		const upsertPayload: {
+			external_id: string;
+			email: string;
+			metadata?: CustomerMetadata;
+		} = {
+			external_id: externalId,
+			email,
+		};
+		if (request.metadata) {
+			upsertPayload.metadata = request.metadata;
+		}
+
+		await this.http.json<unknown>("/customers", {
+			method: "PUT",
+			body: upsertPayload,
+			apiKey: this.apiKey,
+		});
+
+		// Step 2: Mint the customer token
+		return this.customerToken({
+			customerExternalId: externalId,
+			ttlSeconds: request.ttlSeconds,
+		});
 	}
 
 	/**
