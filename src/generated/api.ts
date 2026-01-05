@@ -285,6 +285,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/customers/by-external-id/{external_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The customer's external identifier (e.g., GitHub ID) */
+                external_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Get a customer by external_id
+         * @description Returns a customer by their external_id. Use this when you have the customer's external identifier (e.g., GitHub ID) but not their internal UUID.
+         */
+        get: operations["getCustomerByExternalId"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/customers/{customer_id}": {
         parameters: {
             query?: never;
@@ -2931,6 +2954,45 @@ export interface operations {
             };
             /** @description Service unavailable */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getCustomerByExternalId: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The customer's external identifier (e.g., GitHub ID) */
+                external_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Customer */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        customer?: components["schemas"]["CustomerWithSubscription"];
+                    };
+                };
+            };
+            /** @description external_id required */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Customer not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
