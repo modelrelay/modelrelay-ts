@@ -822,8 +822,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Start a workflow run (workflow.v0 or workflow.v1)
-         * @description Starts a run for a `workflow.v0` or `workflow.v1` spec and returns a `run_id`. Auth matches `/responses` (API key or frontend bearer token). Session owner tokens from `/auth/login` are not accepted. Provide `session_id` to link the run to a session; when linked, assistant messages are appended to the session on completion.
+         * Start a workflow run
+         * @description Starts a run for a `workflow.v1` spec and returns a `run_id`. Auth matches `/responses` (API key or frontend bearer token). Session owner tokens from `/auth/login` are not accepted. Provide `session_id` to link the run to a session; when linked, assistant messages are appended to the session on completion.
          */
         post: operations["createRun"];
         delete?: never;
@@ -895,26 +895,6 @@ export interface paths {
          * @description Returns the canonical JSON Schema (draft-07) for `run_event.v0` (workflow run history events).
          */
         get: operations["getRunEventV0Schema"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/schemas/workflow_v0.schema.json": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get JSON Schema for workflow.v0
-         * @description Returns the canonical JSON Schema (draft-07) for `workflow.v0`.
-         */
-        get: operations["getWorkflowV0Schema"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1739,7 +1719,7 @@ export interface components {
              * @description Optional session ID to link this run to a session.
              */
             session_id?: string;
-            spec: components["schemas"]["WorkflowSpecV0"] | components["schemas"]["WorkflowSpecV1"];
+            spec: components["schemas"]["WorkflowSpecV1"];
         };
         RunsCreateResponse: {
             plan_hash: components["schemas"]["PlanHash"];
@@ -2276,10 +2256,6 @@ export interface components {
             response_status?: number;
             /** @enum {string} */
             status?: "delivered" | "failed";
-        };
-        /** @description A `workflow.v0` spec. The canonical JSON Schema is available at `/schemas/workflow_v0.schema.json`. */
-        WorkflowSpecV0: {
-            [key: string]: unknown;
         };
         /** @description A `workflow.v1` spec. The canonical JSON Schema is available at `/schemas/workflow_v1.schema.json`. */
         WorkflowSpecV1: {
@@ -4207,26 +4183,6 @@ export interface operations {
         };
     };
     getRunEventV0Schema: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Schema document */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/schema+json": Record<string, never>;
-                };
-            };
-        };
-    };
-    getWorkflowV0Schema: {
         parameters: {
             query?: never;
             header?: never;
