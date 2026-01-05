@@ -872,7 +872,7 @@ export interface paths {
         };
         /**
          * Stream run events (append-only)
-         * @description Streams an append-only, totally ordered history for the run. The wire format is negotiated via `Accept`: NDJSON (`application/x-ndjson`) or Server-Sent Events (`text/event-stream`). Each line/event is a `run_event.v0` envelope; see `/schemas/run_event_v0.schema.json` for the canonical schema.
+         * @description Streams an append-only, totally ordered history for the run. The wire format is negotiated via `Accept`: NDJSON (`application/x-ndjson`) or Server-Sent Events (`text/event-stream`). Each line/event is a `run_event` envelope; see `/schemas/run_event.schema.json` for the canonical schema.
          */
         get: operations["streamRunEvents"];
         put?: never;
@@ -883,7 +883,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/schemas/run_event_v0.schema.json": {
+    "/schemas/run_event.schema.json": {
         parameters: {
             query?: never;
             header?: never;
@@ -891,8 +891,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get JSON Schema for run_event.v0
-         * @description Returns the canonical JSON Schema (draft-07) for `run_event.v0` (workflow run history events).
+         * Get JSON Schema for run_event
+         * @description Returns the canonical JSON Schema (draft-07) for `run_event` (workflow run history events).
          */
         get: operations["getRunEventV0Schema"];
         put?: never;

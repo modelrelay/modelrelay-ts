@@ -5,7 +5,7 @@ import type { ModelId, ProviderId } from "./types";
 export type NodeStatusV0 = "pending" | "running" | "waiting" | "succeeded" | "failed" | "canceled";
 
 export const RUNS_PATH = "/runs";
-export const RUN_EVENT_V0_SCHEMA_PATH = "/schemas/run_event_v0.schema.json";
+export const RUN_EVENT_V0_SCHEMA_PATH = "/schemas/run_event.schema.json";
 
 export function runByIdPath(runId: RunId): string {
 	return `${RUNS_PATH}/${encodeURIComponent(runId)}`;
