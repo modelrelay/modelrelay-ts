@@ -1215,11 +1215,6 @@ export interface components {
              * @description Credits remaining in this billing window (only for paid tiers)
              */
             credits_remaining_cents?: number;
-            /**
-             * Format: int64
-             * @description Credits used so far in this billing window (only for paid tiers)
-             */
-            credits_used_cents?: number;
             daily: components["schemas"]["CustomerUsagePoint"][];
             /** Format: int64 */
             images: number;
@@ -1236,6 +1231,16 @@ export interface components {
             requests: number;
             /** Format: int64 */
             tokens: number;
+            /**
+             * Format: int64
+             * @description Total cost incurred in this billing window (always populated)
+             */
+            total_cost_cents: number;
+            /**
+             * Format: int64
+             * @description Spending limit for this billing window (nil if no limit configured)
+             */
+            spend_limit_cents?: number;
             /**
              * Format: int64
              * @description PAYGO wallet balance in cents (available when PAYGO wallet is enabled)
@@ -1319,11 +1324,6 @@ export interface components {
             status: string;
         };
         CustomerUsagePoint: {
-            /**
-             * Format: int64
-             * @description Credits used in this day bucket (only for paid tiers)
-             */
-            credits_used_cents?: number;
             /**
              * Format: date-time
              * @description UTC day bucket
