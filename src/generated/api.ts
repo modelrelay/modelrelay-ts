@@ -835,6 +835,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/skills/compile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Compile a Claude Code skill to workflow.v1 */
+        post: operations["compileSkill"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/runs": {
         parameters: {
             query?: never;
@@ -1601,6 +1618,22 @@ export interface components {
             description?: string;
             name?: string;
             version?: string;
+        };
+        SkillSummaryV0: {
+            agents: string[];
+            description?: string;
+            name: string;
+        };
+        SkillsCompileRequest: {
+            model?: string;
+            source: string;
+        };
+        SkillsCompileResponse: {
+            /** Format: date-time */
+            compiled_at: string;
+            skill: components["schemas"]["SkillSummaryV0"];
+            source_ref: string;
+            workflow: components["schemas"]["WorkflowSpecV1"];
         };
         /**
          * @description Billing interval for a tier.
@@ -4149,6 +4182,58 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ResponsesBatchResponse"];
                 };
+            };
+        };
+    };
+    compileSkill: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SkillsCompileRequest"];
+            };
+        };
+        responses: {
+            /** @description Compiled skill */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillsCompileResponse"];
+                };
+            };
+            /** @description Invalid source format */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Skill not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Skill parse or workflow generation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description GitHub rate limited */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
