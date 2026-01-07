@@ -963,6 +963,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/schemas/workflow_v1.strict.schema.json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get strict JSON Schema for workflow.v1
+         * @description Returns the strict JSON Schema (draft-07) for `workflow.v1` structured outputs.
+         */
+        get: operations["getWorkflowV1StrictSchema"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/sessions": {
         parameters: {
             query?: never;
@@ -4350,6 +4370,26 @@ export interface operations {
         };
     };
     getWorkflowV1Schema: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Schema document */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/schema+json": Record<string, never>;
+                };
+            };
+        };
+    };
+    getWorkflowV1StrictSchema: {
         parameters: {
             query?: never;
             header?: never;
