@@ -46,7 +46,7 @@ describe("runs", () => {
 				expect(headers.get("Accept")).toBe("application/x-ndjson");
 				return buildNDJSONResponse([
 					JSON.stringify({
-						envelope_version: "v0",
+						envelope_version: "v2",
 						run_id: runId,
 						seq: 1,
 						ts: new Date().toISOString(),
@@ -54,18 +54,20 @@ describe("runs", () => {
 						plan_hash: planHash,
 					}),
 						JSON.stringify({
-							envelope_version: "v0",
+							envelope_version: "v2",
 							run_id: runId,
 							seq: 2,
 							ts: new Date().toISOString(),
 							type: "run_completed",
 							plan_hash: planHash,
-							outputs_artifact_key: "run_outputs.v0",
-							outputs_info: {
-								bytes: 0,
-								sha256:
-									"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-								included: false,
+							outputs: {
+								artifact_key: "run_outputs.v0",
+								info: {
+									bytes: 0,
+									sha256:
+										"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+									included: false,
+								},
 							},
 						}),
 					]);
@@ -94,7 +96,7 @@ describe("runs", () => {
 		const stream = await mr.runs.events(runId);
 		const types: string[] = [];
 		for await (const ev of stream) {
-			expect(ev.envelope_version).toBe("v0");
+			expect(ev.envelope_version).toBe("v2");
 			types.push(ev.type);
 		}
 		expect(types).toEqual(["run_started", "run_completed"]);

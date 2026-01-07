@@ -325,7 +325,7 @@ export class RunsClient {
 				pending: Array<
 					Omit<RunsPendingToolsResponse["pending"][number], "node_id" | "tool_calls"> & {
 						node_id: string;
-						tool_calls: Array<{ tool_call_id: string; name: string; arguments: string }>;
+						tool_calls: Array<{ tool_call: { id: string; name: string; arguments: string } }>;
 					}
 				>;
 			}

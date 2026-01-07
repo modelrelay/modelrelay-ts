@@ -70,9 +70,11 @@ describe("ToolRunner", () => {
 				request_id: "req_789",
 				pending_tool_calls: [
 					{
-						tool_call_id: "call_1",
-						name: "test.echo",
-						arguments: '{"message": "hello"}',
+						tool_call: {
+							id: "call_1",
+							name: "test.echo",
+							arguments: '{"message": "hello"}',
+						},
 					},
 				],
 			};
@@ -94,8 +96,7 @@ describe("ToolRunner", () => {
 					request_id: "req_789",
 					results: [
 						{
-							tool_call_id: "call_1",
-							name: "test.echo",
+							tool_call: { id: "call_1", name: "test.echo" },
 							output: "hello",
 						},
 					],
@@ -117,9 +118,11 @@ describe("ToolRunner", () => {
 				request_id: "req_789",
 				pending_tool_calls: [
 					{
-						tool_call_id: "call_1",
-						name: "test.fail",
-						arguments: "{}",
+						tool_call: {
+							id: "call_1",
+							name: "test.fail",
+							arguments: "{}",
+						},
 					},
 				],
 			};
@@ -140,8 +143,7 @@ describe("ToolRunner", () => {
 					request_id: "req_789",
 					results: [
 						{
-							tool_call_id: "call_1",
-							name: "test.fail",
+							tool_call: { id: "call_1", name: "test.fail" },
 							output: "Error: Tool execution failed",
 						},
 					],
@@ -168,14 +170,18 @@ describe("ToolRunner", () => {
 				request_id: "req_789",
 				pending_tool_calls: [
 					{
-						tool_call_id: "call_1",
-						name: "test.echo",
-						arguments: '{"message": "first"}',
+						tool_call: {
+							id: "call_1",
+							name: "test.echo",
+							arguments: '{"message": "first"}',
+						},
 					},
 					{
-						tool_call_id: "call_2",
-						name: "test.echo",
-						arguments: '{"message": "second"}',
+						tool_call: {
+							id: "call_2",
+							name: "test.echo",
+							arguments: '{"message": "second"}',
+						},
 					},
 				],
 			};
@@ -208,9 +214,11 @@ describe("ToolRunner", () => {
 				request_id: "req_789",
 				pending_tool_calls: [
 					{
-						tool_call_id: "call_1",
-						name: "test.echo",
-						arguments: '{"message": "test"}',
+						tool_call: {
+							id: "call_1",
+							name: "test.echo",
+							arguments: '{"message": "test"}',
+						},
 					},
 				],
 			};
@@ -243,9 +251,11 @@ describe("ToolRunner", () => {
 						request_id: "req_1",
 						pending_tool_calls: [
 							{
-								tool_call_id: "call_1",
-								name: "test.echo",
-								arguments: '{"message": "via stream"}',
+								tool_call: {
+									id: "call_1",
+									name: "test.echo",
+									arguments: '{"message": "via stream"}',
+								},
 							},
 						],
 					},
@@ -288,9 +298,11 @@ describe("ToolRunner", () => {
 						request_id: "req_1",
 						pending_tool_calls: [
 							{
-								tool_call_id: "call_1",
-								name: "test.echo",
-								arguments: "{}",
+								tool_call: {
+									id: "call_1",
+									name: "test.echo",
+									arguments: "{}",
+								},
 							},
 						],
 					},

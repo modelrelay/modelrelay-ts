@@ -253,8 +253,10 @@ export class LocalSession implements Session {
 			step: this.currentWaiting.step,
 			request_id: this.currentWaiting.request_id,
 			results: results.map((r) => ({
-				tool_call_id: r.toolCallId,
-				name: r.toolName,
+				tool_call: {
+					id: r.toolCallId,
+					name: r.toolName,
+				},
 				output: r.error
 					? `Error: ${r.error}`
 					: typeof r.result === "string"
@@ -447,10 +449,10 @@ export class LocalSession implements Session {
 					// Otherwise return waiting status for manual handling
 					return {
 						status: "waiting_for_tools",
-						pendingTools: event.waiting.pending_tool_calls.map((tc: { tool_call_id: string; name: string; arguments: string }) => ({
-							toolCallId: tc.tool_call_id,
-							name: tc.name,
-							arguments: tc.arguments,
+						pendingTools: event.waiting.pending_tool_calls.map((tc: { tool_call: { id: string; name: string; arguments: string } }) => ({
+							toolCallId: tc.tool_call.id,
+							name: tc.tool_call.name,
+							arguments: tc.tool_call.arguments,
 						})),
 						runId: this.currentRunId,
 						usage: this.currentUsage,
@@ -514,7 +516,7 @@ export class LocalSession implements Session {
 	}
 
 	private async executeTools(
-		pendingTools: Array<{ tool_call_id: string; name: string; arguments: string }>,
+		pendingTools: Array<{ tool_call: { id: string; name: string; arguments: string } }>,
 	): Promise<ToolExecutionResult[]> {
 		if (!this.toolRegistry) {
 			throw new Error("No tool registry configured");
@@ -525,19 +527,19 @@ export class LocalSession implements Session {
 		for (const pending of pendingTools) {
 			try {
 				const result = await this.toolRegistry.execute({
-					id: pending.tool_call_id,
+					id: pending.tool_call.id,
 					type: "function",
 					function: {
-						name: pending.name,
-						arguments: pending.arguments,
+						name: pending.tool_call.name,
+						arguments: pending.tool_call.arguments,
 					},
 				});
 				results.push(result);
 			} catch (err) {
 				const error = err instanceof Error ? err : new Error(String(err));
 				results.push({
-					toolCallId: pending.tool_call_id,
-					toolName: pending.name,
+					toolCallId: pending.tool_call.id,
+					toolName: pending.tool_call.name,
 					result: null,
 					error: error.message,
 				});

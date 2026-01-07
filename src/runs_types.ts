@@ -224,6 +224,11 @@ export type TokenUsageV0 = {
 	total_tokens?: number;
 };
 
+export type PayloadArtifactV0 = {
+	artifact_key: string;
+	info: PayloadInfoV0;
+};
+
 export type NodeLLMCallV0 = {
 	step: number;
 	request_id: string;
@@ -234,7 +239,13 @@ export type NodeLLMCallV0 = {
 	usage?: TokenUsageV0;
 };
 
-export type FunctionToolCallV0 = {
+export type ToolCallV0 = {
+	id: string;
+	name: string;
+	arguments?: string;
+};
+
+export type ToolCallWithArgumentsV0 = {
 	id: string;
 	name: string;
 	arguments: string;
@@ -243,21 +254,19 @@ export type FunctionToolCallV0 = {
 export type NodeToolCallV0 = {
 	step: number;
 	request_id: string;
-	tool_call: FunctionToolCallV0;
+	tool_call: ToolCallWithArgumentsV0;
 };
 
 export type NodeToolResultV0 = {
 	step: number;
 	request_id: string;
-	tool_call_id: string;
-	name: string;
+	tool_call: ToolCallV0;
 	output: string;
+	error?: string;
 };
 
 export type PendingToolCallV0 = {
-	tool_call_id: string;
-	name: string;
-	arguments: string;
+	tool_call: ToolCallWithArgumentsV0;
 };
 
 export type NodeWaitingV0 = {
@@ -268,7 +277,7 @@ export type NodeWaitingV0 = {
 };
 
 export type RunEventBaseV0 = {
-	envelope_version: "v0";
+	envelope_version: "v2";
 	run_id: RunId;
 	seq: number;
 	ts: string;
@@ -287,8 +296,7 @@ export type RunEventRunStartedV0 = RunEventBaseV0 & {
 export type RunEventRunCompletedV0 = RunEventBaseV0 & {
 	type: "run_completed";
 	plan_hash: PlanHash;
-	outputs_artifact_key: string;
-	outputs_info: PayloadInfoV0;
+	outputs: PayloadArtifactV0;
 };
 
 export type RunEventRunFailedV0 = RunEventBaseV0 & {
@@ -352,8 +360,7 @@ export type RunEventNodeOutputDeltaV0 = RunEventBaseV0 & {
 export type RunEventNodeOutputV0 = RunEventBaseV0 & {
 	type: "node_output";
 	node_id: NodeId;
-	artifact_key: string;
-	output_info: PayloadInfoV0;
+	output: PayloadArtifactV0;
 };
 
 export type RunEventV0 =
@@ -387,6 +394,13 @@ const payloadInfoSchema = z
 	})
 	.strict();
 
+const payloadArtifactSchema = z
+	.object({
+		artifact_key: z.string().min(1),
+		info: payloadInfoSchema,
+	})
+	.strict();
+
 const nodeOutputDeltaSchema = z
 	.object({
 		kind: z.string().min(1),
@@ -416,19 +430,23 @@ const nodeLLMCallSchema = z
 	})
 	.strict();
 
-const functionToolCallSchema = z
+const toolCallSchema = z
 	.object({
 		id: z.string().min(1),
 		name: z.string().min(1),
-		arguments: z.string(),
+		arguments: z.string().optional(),
 	})
 	.strict();
+
+const toolCallWithArgumentsSchema = toolCallSchema.extend({
+	arguments: z.string(),
+});
 
 const nodeToolCallSchema = z
 	.object({
 		step: z.number().int().nonnegative(),
 		request_id: z.string().min(1),
-		tool_call: functionToolCallSchema,
+		tool_call: toolCallWithArgumentsSchema,
 	})
 	.strict();
 
@@ -436,17 +454,15 @@ const nodeToolResultSchema = z
 	.object({
 		step: z.number().int().nonnegative(),
 		request_id: z.string().min(1),
-		tool_call_id: z.string().min(1),
-		name: z.string().min(1),
+		tool_call: toolCallSchema,
 		output: z.string(),
+		error: z.string().optional(),
 	})
 	.strict();
 
 const pendingToolCallSchema = z
 	.object({
-		tool_call_id: z.string().min(1),
-		name: z.string().min(1),
-		arguments: z.string(),
+		tool_call: toolCallWithArgumentsSchema,
 	})
 	.strict();
 
@@ -460,7 +476,7 @@ const nodeWaitingSchema = z
 	.strict();
 
 const baseSchema = {
-	envelope_version: z.literal("v0").optional().default("v0"),
+	envelope_version: z.literal("v2").optional().default("v2"),
 	run_id: z.string().min(1),
 	seq: z.number().int().min(1),
 	ts: z.string().min(1),
@@ -475,8 +491,7 @@ const runEventWireSchema = z
 			...baseSchema,
 			type: z.literal("run_completed"),
 			plan_hash: z.string().min(1),
-			outputs_artifact_key: z.string().min(1),
-			outputs_info: payloadInfoSchema,
+			outputs: payloadArtifactSchema,
 		})
 		.strict(),
 	z
@@ -550,25 +565,24 @@ const runEventWireSchema = z
 			...baseSchema,
 			type: z.literal("node_output"),
 			node_id: z.string().min(1),
-			artifact_key: z.string().min(1),
-			output_info: payloadInfoSchema,
+			output: payloadArtifactSchema,
 		})
 		.strict(),
 ])
 	.superRefine((v, ctx) => {
 		if (v.type === "node_output") {
-			if (v.output_info.included !== false) {
+			if (v.output.info.included !== false) {
 				ctx.addIssue({
 					code: z.ZodIssueCode.custom,
-					message: "node_output output_info.included must be false",
+					message: "node_output output.info.included must be false",
 				});
 			}
 		}
 		if (v.type === "run_completed") {
-			if (v.outputs_info.included !== false) {
+			if (v.outputs.info.included !== false) {
 				ctx.addIssue({
 					code: z.ZodIssueCode.custom,
-					message: "run_completed outputs_info.included must be false",
+					message: "run_completed outputs.info.included must be false",
 				});
 			}
 		}
@@ -589,7 +603,7 @@ export function parseRunEventV0(line: string): RunEventV0 | null {
 		}
 
 		const base = {
-			envelope_version: "v0" as const,
+			envelope_version: "v2" as const,
 			run_id: parseRunId(res.data.run_id),
 			seq: res.data.seq,
 			ts: res.data.ts,
@@ -605,8 +619,7 @@ export function parseRunEventV0(line: string): RunEventV0 | null {
 					...base,
 					type: "run_completed",
 					plan_hash: parsePlanHash(res.data.plan_hash),
-					outputs_artifact_key: res.data.outputs_artifact_key,
-					outputs_info: res.data.outputs_info,
+					outputs: res.data.outputs,
 				};
 			case "run_failed":
 				return {
@@ -653,8 +666,7 @@ export function parseRunEventV0(line: string): RunEventV0 | null {
 					...base,
 					type: "node_output",
 					node_id: parseNodeId(res.data.node_id),
-					artifact_key: res.data.artifact_key,
-					output_info: res.data.output_info,
+					output: res.data.output,
 				};
 			default:
 				throw new TransportError(`Unknown run event type: ${(res.data as any).type}`, { kind: "request" });

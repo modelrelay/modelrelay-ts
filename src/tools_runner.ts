@@ -139,9 +139,9 @@ export class ToolRunner {
 
 				// Convert PendingToolCallV0 to ToolCall shape
 				const toolCall = createToolCall(
-					pending.tool_call_id,
-					pending.name,
-					pending.arguments,
+					pending.tool_call.id,
+					pending.tool_call.name,
+					pending.tool_call.arguments,
 				);
 
 				const result = await this.registry.execute(toolCall);
@@ -154,8 +154,8 @@ export class ToolRunner {
 
 				// Create error result so the run can continue or fail gracefully
 				results.push({
-					toolCallId: pending.tool_call_id,
-					toolName: pending.name,
+					toolCallId: pending.tool_call.id,
+					toolName: pending.tool_call.name,
 					result: null,
 					error: error.message,
 				});
@@ -170,8 +170,10 @@ export class ToolRunner {
 				step: waiting.step,
 				request_id: waiting.request_id,
 				results: results.map((r) => ({
-					tool_call_id: r.toolCallId,
-					name: r.toolName,
+					tool_call: {
+						id: r.toolCallId,
+						name: r.toolName,
+					},
 					output: r.error
 						? `Error: ${r.error}`
 						: typeof r.result === "string"

@@ -1987,12 +1987,8 @@ export interface components {
             llm_response?: {
                 [key: string]: unknown;
             };
-            tool_calls?: {
-                [key: string]: unknown;
-            }[];
-            tool_results?: {
-                [key: string]: unknown;
-            }[];
+            tool_calls?: components["schemas"]["RunsPendingToolCallV0"][];
+            tool_results?: components["schemas"]["RunToolResultV0"][];
         };
         RunStepsResponse: {
             steps?: components["schemas"]["RunStepDetail"][];
@@ -2001,11 +1997,12 @@ export interface components {
             node_id: string;
             step: number;
             tool_call: {
-                [key: string]: unknown;
+                /** @description JSON-encoded arguments for the tool call */
+                arguments: string;
+                id: components["schemas"]["ToolCallId"];
+                name: components["schemas"]["ToolName"];
             };
-            tool_result?: {
-                [key: string]: unknown;
-            };
+            tool_result?: components["schemas"]["RunToolResultV0"];
         };
         Agent: {
             /** Format: uuid */
@@ -2157,18 +2154,24 @@ export interface components {
         };
         /** @description Result for a tool call executed during a run. */
         RunToolResultV0: {
-            name: components["schemas"]["ToolName"];
+            error?: string;
             output: string;
-            tool_call_id: components["schemas"]["ToolCallId"];
+            tool_call: {
+                /** @description JSON-encoded arguments for the tool call */
+                arguments?: string;
+                id: components["schemas"]["ToolCallId"];
+                name: components["schemas"]["ToolName"];
+            };
         };
         /** @description A pending tool call waiting for a result. */
         RunsPendingToolCallV0: {
-            /** @description JSON-encoded arguments for the tool call */
-            arguments: string;
-            /** @description Name of the tool to be called */
-            name: components["schemas"]["ToolName"];
-            /** @description Unique identifier for this tool call */
-            tool_call_id: components["schemas"]["ToolCallId"];
+            tool_call: {
+                /** @description JSON-encoded arguments for the tool call */
+                arguments: string;
+                id: components["schemas"]["ToolCallId"];
+                /** @description Name of the tool to be called */
+                name: components["schemas"]["ToolName"];
+            };
         };
         /** @description A node with pending tool calls. */
         RunsPendingToolsNodeV0: {
@@ -4896,14 +4899,14 @@ export interface operations {
                 };
                 content: {
                     /**
-                     * @example {"envelope_version":"v0","seq":1,"type":"run_compiled",...}
-                     *     {"envelope_version":"v0","seq":2,"type":"run_started",...}
+                     * @example {"envelope_version":"v2","seq":1,"type":"run_compiled",...}
+                     *     {"envelope_version":"v2","seq":2,"type":"run_started",...}
                      */
                     "application/x-ndjson": string;
                     /**
                      * @example event: run_started
                      *     id: 2
-                     *     data: {"envelope_version":"v0","seq":2,"type":"run_started",...}
+                     *     data: {"envelope_version":"v2","seq":2,"type":"run_started",...}
                      */
                     "text/event-stream": string;
                 };

@@ -371,8 +371,10 @@ export class RemoteSession implements Session {
 			step: this.currentWaiting.step,
 			request_id: this.currentWaiting.request_id,
 			results: results.map((r) => ({
-				tool_call_id: r.toolCallId,
-				name: r.toolName,
+				tool_call: {
+					id: r.toolCallId,
+					name: r.toolName,
+				},
 				output: r.error
 					? `Error: ${r.error}`
 					: typeof r.result === "string"
@@ -547,9 +549,9 @@ export class RemoteSession implements Session {
 							status: "waiting_for_tools",
 							pendingTools: event.waiting.pending_tool_calls.map(
 								(tc: PendingToolCallV0) => ({
-									toolCallId: tc.tool_call_id,
-									name: tc.name,
-									arguments: tc.arguments,
+									toolCallId: tc.tool_call.id,
+									name: tc.tool_call.name,
+									arguments: tc.tool_call.arguments,
 								}),
 							),
 							runId: this.currentRunId,
@@ -641,7 +643,7 @@ export class RemoteSession implements Session {
 
 		// Check if all tools are registered
 		for (const tc of toolCalls) {
-			if (!this.toolRegistry.has(tc.name)) {
+			if (!this.toolRegistry.has(tc.tool_call.name)) {
 				// Tool not found in registry - let caller handle
 				return null;
 			}
@@ -652,11 +654,11 @@ export class RemoteSession implements Session {
 
 		for (const tc of toolCalls) {
 			const toolCall: ToolCall = {
-				id: tc.tool_call_id,
+				id: tc.tool_call.id,
 				type: "function",
 				function: {
-					name: tc.name,
-					arguments: tc.arguments,
+					name: tc.tool_call.name,
+					arguments: tc.tool_call.arguments,
 				},
 			};
 

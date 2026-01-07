@@ -52,9 +52,11 @@ import type {
 	NodeToolResultV0 as _NodeToolResultV0,
 	NodeWaitingV0 as _NodeWaitingV0,
 	PendingToolCallV0 as _PendingToolCallV0,
-	FunctionToolCallV0 as _FunctionToolCallV0,
+	ToolCallV0 as _ToolCallV0,
+	ToolCallWithArgumentsV0 as _ToolCallWithArgumentsV0,
 	TokenUsageV0 as _TokenUsageV0,
 	PayloadInfoV0 as _PayloadInfoV0,
+	PayloadArtifactV0 as _PayloadArtifactV0,
 	StreamEventKind as _StreamEventKind,
 } from "../runs_types";
 
@@ -124,9 +126,11 @@ export type NodeToolCallV0 = _NodeToolCallV0;
 export type NodeToolResultV0 = _NodeToolResultV0;
 export type NodeWaitingV0 = _NodeWaitingV0;
 export type PendingToolCallV0 = _PendingToolCallV0;
-export type FunctionToolCallV0 = _FunctionToolCallV0;
+export type ToolCallV0 = _ToolCallV0;
+export type ToolCallWithArgumentsV0 = _ToolCallWithArgumentsV0;
 export type TokenUsageV0 = _TokenUsageV0;
 export type PayloadInfoV0 = _PayloadInfoV0;
+export type PayloadArtifactV0 = _PayloadArtifactV0;
 export type StreamEventKind = _StreamEventKind;
 
 // Constants

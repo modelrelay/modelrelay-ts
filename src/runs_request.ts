@@ -1,5 +1,5 @@
 import type { NodeId, PlanHash, RunId } from "./runs_ids";
-import type { RunStatusV0, WorkflowSpecV1 } from "./runs_types";
+import type { RunStatusV0, ToolCallV0, ToolCallWithArgumentsV0, WorkflowSpecV1 } from "./runs_types";
 import type { ModelId, ProviderId } from "./types";
 
 export type NodeStatusV0 = "pending" | "running" | "waiting" | "succeeded" | "failed" | "canceled";
@@ -27,7 +27,7 @@ export type RunsToolResultsRequest = {
 	node_id: NodeId;
 	step: number;
 	request_id: string;
-	results: Array<{ tool_call_id: string; name: string; output: string }>;
+	results: Array<{ tool_call: ToolCallV0; output: string }>;
 };
 
 export type RunsToolResultsResponse = {
@@ -41,7 +41,7 @@ export type RunsPendingToolsResponse = {
 		node_id: NodeId;
 		step: number;
 		request_id: string;
-		tool_calls: Array<{ tool_call_id: string; name: string; arguments: string }>;
+		tool_calls: Array<{ tool_call: ToolCallWithArgumentsV0 }>;
 	}>;
 };
 
