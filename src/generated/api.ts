@@ -1416,26 +1416,16 @@ export interface components {
         };
         /** @description Customer-visible usage metrics for the current billing window. */
         CustomerMeUsage: {
-            /**
-             * Format: int64
-             * @description Credits granted for this billing window (only for paid tiers)
-             */
-            credits_granted_cents?: number;
-            /**
-             * Format: int64
-             * @description Credits remaining in this billing window (only for paid tiers)
-             */
-            credits_remaining_cents?: number;
             daily: components["schemas"]["CustomerUsagePoint"][];
             /** Format: int64 */
             images: number;
-            /** @description Whether remaining credits are low (only for paid tiers) */
+            /** @description True when 80% or more of spend limit is used (nil if unlimited) */
             low?: boolean;
             /** @description True when PAYGO wallet can cover subscription overages */
             overage_enabled?: boolean;
             /**
              * Format: float
-             * @description Percentage of granted credits used (only for paid tiers)
+             * @description Percentage of spend limit used (nil if unlimited)
              */
             percentage_used?: number;
             /** Format: int64 */
@@ -1449,9 +1439,14 @@ export interface components {
             total_cost_cents: number;
             /**
              * Format: int64
-             * @description Spending limit for this billing window (nil if no limit configured)
+             * @description API usage budget for this billing window (nil if unlimited)
              */
             spend_limit_cents?: number;
+            /**
+             * Format: int64
+             * @description Remaining budget (spend_limit_cents minus total_cost_cents, nil if unlimited)
+             */
+            spend_remaining_cents?: number;
             /**
              * Format: int64
              * @description PAYGO wallet balance in cents (available when PAYGO wallet is enabled)
