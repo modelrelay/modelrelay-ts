@@ -976,7 +976,10 @@ export interface paths {
     };
     "/runs/{run_id}": {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Comma-separated list of additional fields to include. Supported values: steps, tool_calls. */
+                include?: string;
+            };
             header?: never;
             path: {
                 run_id: string;
@@ -1956,6 +1959,7 @@ export interface components {
             outputs?: {
                 [key: string]: unknown;
             };
+            steps?: components["schemas"]["RunNodeStepsV0"][];
             plan_hash: components["schemas"]["PlanHash"];
             run_id: components["schemas"]["RunId"];
             summary: components["schemas"]["RunSummary"];
@@ -2122,6 +2126,40 @@ export interface components {
             output?: components["schemas"]["OutputItem"][];
             usage: components["schemas"]["RunSummary"];
             steps?: components["schemas"]["RunStepDetail"][];
+        };
+        /** @description Per-step LLM call metadata. */
+        RunNodeStepLLMCallV0: {
+            model?: components["schemas"]["ModelId"];
+            provider?: components["schemas"]["ProviderId"];
+            response_id?: string;
+            stop_reason?: string;
+            usage?: components["schemas"]["Usage"];
+        };
+        /** @description Step-level execution details for a node. */
+        RunNodeStepV0: {
+            llm_call?: components["schemas"]["RunNodeStepLLMCallV0"];
+            request_id: components["schemas"]["RequestId"];
+            /** Format: uint64 */
+            step: number;
+            tool_calls?: components["schemas"]["RunsPendingToolCallV0"][];
+            tool_results?: components["schemas"]["RunToolResultV0"][];
+            waiting?: components["schemas"]["RunNodeStepWaitingV0"];
+        };
+        /** @description Waiting details for a step when client tools are pending. */
+        RunNodeStepWaitingV0: {
+            pending_tool_calls?: components["schemas"]["RunsPendingToolCallV0"][];
+            reason?: string;
+        };
+        /** @description Step history for a node in a workflow run. */
+        RunNodeStepsV0: {
+            node_id: components["schemas"]["NodeId"];
+            steps: components["schemas"]["RunNodeStepV0"][];
+        };
+        /** @description Result for a tool call executed during a run. */
+        RunToolResultV0: {
+            name: components["schemas"]["ToolName"];
+            output: string;
+            tool_call_id: components["schemas"]["ToolCallId"];
         };
         /** @description A pending tool call waiting for a result. */
         RunsPendingToolCallV0: {
@@ -4803,7 +4841,10 @@ export interface operations {
     };
     getRun: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Comma-separated list of additional fields to include. Supported values: steps, tool_calls. */
+                include?: string;
+            };
             header?: never;
             path: {
                 run_id: string;
