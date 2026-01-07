@@ -716,6 +716,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{id}/agents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+            };
+            cookie?: never;
+        };
+        /** List project agents */
+        get: operations["listProjectAgents"];
+        put?: never;
+        /** Create a project agent */
+        post: operations["createProjectAgent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{id}/agents/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                slug: string;
+            };
+            cookie?: never;
+        };
+        /** Get a project agent */
+        get: operations["getProjectAgent"];
+        put?: never;
+        post?: never;
+        /** Delete a project agent */
+        delete: operations["deleteProjectAgent"];
+        options?: never;
+        head?: never;
+        /** Update a project agent */
+        patch: operations["updateProjectAgent"];
+        trace?: never;
+    };
+    "/projects/{id}/agents/{slug}/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                slug: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run an agent */
+        post: operations["runAgent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{id}/agents/{slug}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                slug: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Test an agent */
+        post: operations["testAgent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{id}/agents/{slug}/replay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                slug: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Replay an agent */
+        post: operations["replayAgent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects/{id}/webhooks": {
         parameters: {
             query?: never;
@@ -915,6 +1017,52 @@ export interface paths {
          * @description Streams an append-only, totally ordered history for the run. The wire format is negotiated via `Accept`: NDJSON (`application/x-ndjson`) or Server-Sent Events (`text/event-stream`). Each line/event is a `run_event` envelope; see `/schemas/run_event.schema.json` for the canonical schema.
          */
         get: operations["streamRunEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runs/{run_id}/steps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * List run steps
+         * @description Returns step-level execution details for agentic loops, including per-step LLM calls and tool I/O when available.
+         */
+        get: operations["listRunSteps"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runs/{run_id}/steps/{step}/tool-calls/{tool_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+                step: number;
+                tool_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Get run tool call detail
+         * @description Returns a specific tool call detail for a given run step.
+         */
+        get: operations["getRunStepToolCall"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1810,7 +1958,170 @@ export interface components {
             };
             plan_hash: components["schemas"]["PlanHash"];
             run_id: components["schemas"]["RunId"];
+            summary: components["schemas"]["RunSummary"];
             status: components["schemas"]["RunStatusV0"];
+        };
+        RunSummary: {
+            total_steps: number;
+            total_llm_calls: number;
+            total_tool_calls: number;
+            total_input_tokens: number;
+            total_output_tokens: number;
+            total_cost_cents: number;
+        };
+        RunStepDetail: {
+            node_id: string;
+            step: number;
+            /** Format: uuid */
+            request_id?: string;
+            llm_call?: {
+                [key: string]: unknown;
+            };
+            llm_request?: {
+                [key: string]: unknown;
+            };
+            llm_response?: {
+                [key: string]: unknown;
+            };
+            tool_calls?: {
+                [key: string]: unknown;
+            }[];
+            tool_results?: {
+                [key: string]: unknown;
+            }[];
+        };
+        RunStepsResponse: {
+            steps?: components["schemas"]["RunStepDetail"][];
+        };
+        RunToolCallDetail: {
+            node_id: string;
+            step: number;
+            tool_call: {
+                [key: string]: unknown;
+            };
+            tool_result?: {
+                [key: string]: unknown;
+            };
+        };
+        Agent: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            project_id: string;
+            name: string;
+            slug: string;
+            description?: string;
+            current_revision: number;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        AgentFragmentRef: {
+            ref: string;
+            inputs?: {
+                [key: string]: string;
+            };
+        };
+        AgentToolRef: {
+            /** Format: uuid */
+            hook_id?: string;
+            definition?: components["schemas"]["Tool"];
+            fragment?: components["schemas"]["AgentFragmentRef"];
+        };
+        AgentVersion: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            agent_id: string;
+            revision: number;
+            system: string;
+            model?: string;
+            tools: components["schemas"]["AgentToolRef"][];
+            fragments?: {
+                [key: string]: unknown;
+            };
+            max_steps: number;
+            max_duration_sec: number;
+            step_timeout_sec: number;
+            /** @enum {string} */
+            tool_failure_policy: "stop" | "continue" | "retry";
+            tool_retry_count: number;
+            /** Format: date-time */
+            created_at: string;
+        };
+        AgentResource: {
+            agent: components["schemas"]["Agent"];
+            version: components["schemas"]["AgentVersion"];
+        };
+        AgentListResponse: {
+            agents?: components["schemas"]["AgentResource"][];
+        };
+        AgentResponse: {
+            agent?: components["schemas"]["AgentResource"];
+        };
+        AgentCreateRequest: {
+            name: string;
+            slug: string;
+            description?: string;
+            system?: string;
+            model?: string;
+            tools?: components["schemas"]["AgentToolRef"][];
+            fragments?: {
+                [key: string]: unknown;
+            };
+            max_steps?: number;
+            max_duration_sec?: number;
+            step_timeout_sec?: number;
+            /** @enum {string} */
+            tool_failure_policy?: "stop" | "continue" | "retry";
+            tool_retry_count?: number;
+        };
+        AgentUpdateRequest: {
+            name?: string;
+            description?: string;
+            system?: string;
+            model?: string;
+            tools?: components["schemas"]["AgentToolRef"][];
+            fragments?: {
+                [key: string]: unknown;
+            };
+            max_steps?: number;
+            max_duration_sec?: number;
+            step_timeout_sec?: number;
+            /** @enum {string} */
+            tool_failure_policy?: "stop" | "continue" | "retry";
+            tool_retry_count?: number;
+        };
+        AgentRunOptions: {
+            max_steps?: number;
+            max_duration_sec?: number;
+            step_timeout_sec?: number;
+            /** @enum {string} */
+            tool_failure_policy?: "stop" | "continue" | "retry";
+            tool_retry_count?: number;
+            model?: string;
+            stream?: boolean;
+            capture_tool_io?: boolean;
+            dry_run?: boolean;
+        };
+        AgentRunRequest: {
+            input: components["schemas"]["InputItem"][];
+            options?: components["schemas"]["AgentRunOptions"];
+            customer_id?: string;
+        };
+        AgentTestRequest: {
+            input: components["schemas"]["InputItem"][];
+            mock_tools?: {
+                [key: string]: unknown;
+            };
+            options?: components["schemas"]["AgentRunOptions"];
+        };
+        AgentRunResponse: {
+            run_id: components["schemas"]["RunId"];
+            output?: components["schemas"]["OutputItem"][];
+            usage: components["schemas"]["RunSummary"];
+            steps?: components["schemas"]["RunStepDetail"][];
         };
         /** @description A pending tool call waiting for a result. */
         RunsPendingToolCallV0: {
@@ -3963,6 +4274,215 @@ export interface operations {
             };
         };
     };
+    listProjectAgents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Agent list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentListResponse"];
+                };
+            };
+        };
+    };
+    createProjectAgent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Agent created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentResponse"];
+                };
+            };
+        };
+    };
+    getProjectAgent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Agent details */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentResponse"];
+                };
+            };
+            /** @description Agent not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deleteProjectAgent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Agent deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateProjectAgent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Agent updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentResponse"];
+                };
+            };
+        };
+    };
+    runAgent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentRunRequest"];
+            };
+        };
+        responses: {
+            /** @description Agent run result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRunResponse"];
+                    "text/event-stream": string;
+                    "application/x-ndjson": string;
+                };
+            };
+        };
+    };
+    testAgent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Agent test result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRunResponse"];
+                };
+            };
+        };
+    };
+    replayAgent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Agent replay result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRunResponse"];
+                };
+            };
+        };
+    };
     listProjectWebhooks: {
         parameters: {
             query?: never;
@@ -4346,6 +4866,59 @@ export interface operations {
                      */
                     "text/event-stream": string;
                 };
+            };
+        };
+    };
+    listRunSteps: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Run steps */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunStepsResponse"];
+                };
+            };
+        };
+    };
+    getRunStepToolCall: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+                step: number;
+                tool_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tool call detail */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunToolCallDetail"];
+                };
+            };
+            /** @description Tool call not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
