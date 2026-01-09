@@ -1791,6 +1791,8 @@ export interface components {
             name: string;
         };
         SkillsCompileRequest: {
+            /** @default 3 */
+            max_attempts: number;
             model?: string;
             source: string;
         };
