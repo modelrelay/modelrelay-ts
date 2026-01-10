@@ -98,80 +98,67 @@ const text = await mr.responses.textForCustomer({
 
 ## Workflows
 
-High-level helpers for common workflow patterns:
+Build multi-step AI pipelines with `workflowIntent()`:
 
-### Chain (Sequential)
-
-Sequential LLM calls where each step's output feeds the next step's input:
+### Sequential Chain
 
 ```ts
-import { chain, llmStep } from "@modelrelay/sdk";
+import { workflowIntent } from "@modelrelay/sdk";
 
-const summarizeReq = mr.responses
-  .new()
+const spec = workflowIntent()
+  .name("summarize-translate")
   .model("claude-sonnet-4-5")
-  .system("Summarize the input concisely.")
-  .user("The quick brown fox...")
+  .llm("summarize", (n) => n
+    .system("Summarize the input concisely.")
+    .user("{{task}}"))
+  .llm("translate", (n) => n
+    .system("Translate to French.")
+    .user("{{summarize}}"))
+  .edge("summarize", "translate")
+  .output("result", "translate")
   .build();
 
-const translateReq = mr.responses
-  .new()
-  .model("claude-sonnet-4-5")
-  .system("Translate the input to French.")
-  .user("") // Bound from previous step
-  .build();
+const { run_id } = await mr.runs.create(spec);
+```
 
-const spec = chain("summarize-translate")
-  .step(llmStep("summarize", summarizeReq))
-  .step(llmStep("translate", translateReq).withStream())
-  .outputLast("result")
+### Parallel with Aggregation
+
+```ts
+import { workflowIntent } from "@modelrelay/sdk";
+
+const spec = workflowIntent()
+  .name("multi-agent")
+  .model("claude-sonnet-4-5")
+  .llm("agent_a", (n) => n.user("Write 3 ideas for {{task}}."))
+  .llm("agent_b", (n) => n.user("Write 3 objections for {{task}}."))
+  .joinAll("join")
+  .llm("aggregate", (n) => n
+    .system("Synthesize the best answer.")
+    .user("{{join}}"))
+  .edge("agent_a", "join")
+  .edge("agent_b", "join")
+  .edge("join", "aggregate")
+  .output("result", "aggregate")
   .build();
 ```
 
-### Parallel (Fan-out with Aggregation)
-
-Concurrent LLM calls with optional aggregation:
+### Map Fan-out
 
 ```ts
-import { parallel, llmStep } from "@modelrelay/sdk";
+import { workflowIntent, LLMNodeBuilder } from "@modelrelay/sdk";
 
-const gpt4Req = mr.responses.new().model("gpt-4.1").user("Analyze this...").build();
-const claudeReq = mr.responses.new().model("claude-sonnet-4-5").user("Analyze this...").build();
-const synthesizeReq = mr.responses
-  .new()
+const spec = workflowIntent()
+  .name("fanout-example")
   .model("claude-sonnet-4-5")
-  .system("Synthesize the analyses into a unified view.")
-  .user("") // Bound from join output
-  .build();
-
-const spec = parallel("multi-model-compare")
-  .step(llmStep("gpt4", gpt4Req))
-  .step(llmStep("claude", claudeReq))
-  .aggregate("synthesize", synthesizeReq)
-  .output("result", "synthesize")
-  .build();
-```
-
-### MapReduce (Parallel Map with Reduce)
-
-Process items in parallel, then combine results:
-
-```ts
-import { mapReduce } from "@modelrelay/sdk";
-
-const combineReq = mr.responses
-  .new()
-  .model("claude-sonnet-4-5")
-  .system("Combine summaries into a cohesive overview.")
-  .user("") // Bound from join output
-  .build();
-
-const spec = mapReduce("summarize-docs")
-  .item("doc1", doc1Req)
-  .item("doc2", doc2Req)
-  .item("doc3", doc3Req)
-  .reduce("combine", combineReq)
-  .output("result", "combine")
+  .llm("generator", (n) => n.user("Generate 3 subquestions for {{task}}"))
+  .mapFanout("fanout", {
+    itemsFrom: "generator",
+    itemsPath: "/questions",
+    subnode: new LLMNodeBuilder("answer").user("Answer: {{item}}").build(),
+    maxParallelism: 4,
+  })
+  .llm("aggregate", (n) => n.user("Combine: {{fanout}}"))
+  .output("result", "aggregate")
   .build();
 ```
 

@@ -1,6 +1,5 @@
-import { ModelRelay } from "../src";
+import { ModelRelay, workflowIntent } from "../src";
 import { parseNodeId, parseOutputName } from "../src/runs_ids";
-import { workflowLite } from "../src/workflow";
 
 type DevLoginResponse = {
 	access_token: string;
@@ -90,8 +89,7 @@ function multiAgentSpec(model: string) {
 }
 
 async function runOnce(cfg: { apiBaseUrl: string; apiKey: string; spec: any; label: string }) {
-	const mr = new ModelRelay({
-		apiKey: cfg.apiKey,
+	const mr = ModelRelay.fromSecretKey(cfg.apiKey, {
 		baseUrl: cfg.apiBaseUrl,
 	});
 
