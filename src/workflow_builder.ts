@@ -1,5 +1,5 @@
 import type { InputItem, Tool } from "./types";
-import type { NodeId, OutputName } from "./runs_ids";
+import { parseNodeId, type NodeId, type OutputName } from "./runs_ids";
 import {
 	WorkflowKinds,
 	WorkflowNodeTypesLite,
@@ -114,7 +114,17 @@ export class WorkflowIntentBuilder {
 			...node,
 			depends_on: node.depends_on ? [...node.depends_on] : undefined,
 		}));
-		const byId = new Map(nodes.map((node, idx) => [node.id, idx]));
+
+		// Validate no duplicate node IDs
+		const byId = new Map<NodeId, number>();
+		for (let idx = 0; idx < nodes.length; idx++) {
+			const id = nodes[idx].id;
+			if (byId.has(id)) {
+				throw new Error(`duplicate node id "${id}"`);
+			}
+			byId.set(id, idx);
+		}
+
 		for (const edge of this.state.edges) {
 			const idx = byId.get(edge.to);
 			if (idx === undefined) {
@@ -198,7 +208,7 @@ export function workflow(): WorkflowIntentBuilder {
  * Standalone LLM node builder for use with chain() and parallel().
  */
 export function llm(id: string, configure?: (node: LLMNodeBuilder) => LLMNodeBuilder): WorkflowIntentNode {
-	const builder = new LLMNodeBuilder(id as NodeId);
+	const builder = new LLMNodeBuilder(parseNodeId(id));
 	const configured = configure ? configure(builder) : builder;
 	return configured.build();
 }
@@ -280,7 +290,7 @@ export type ParallelOptions = {
  */
 export function parallel(steps: WorkflowIntentNode[], options?: ParallelOptions): WorkflowIntentBuilder {
 	let builder = new WorkflowIntentBuilder();
-	const joinId = (options?.joinId ?? "join") as NodeId;
+	const joinId = parseNodeId(options?.joinId ?? "join");
 
 	if (options?.name) {
 		builder = builder.name(options.name);
