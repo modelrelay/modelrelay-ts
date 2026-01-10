@@ -219,4 +219,14 @@ conformanceSuite("tools.v0 conformance (local fs)", () => {
 			await assertBehavior("fs.search", c);
 		}
 	});
+
+	it("fs.edit", async () => {
+		const fixture = fixtures.tools["fs.edit"];
+		for (const c of fixture.schema_invalid) {
+			await assertSchemaInvalid("fs.edit", c);
+		}
+		for (const c of fixture.behavior) {
+			await assertBehavior("fs.edit", c);
+		}
+	});
 });

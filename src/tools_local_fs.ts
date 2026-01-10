@@ -5,6 +5,7 @@
  * - fs.read_file - Read workspace-relative files
  * - fs.list_files - List files recursively
  * - fs.search - Regex search (ripgrep or JS fallback)
+ * - fs.edit - Replace exact string matches in a file
  *
  * Safety features:
  * - Root sandbox with symlink resolution
@@ -33,6 +34,7 @@ export const ToolNames = {
 	FS_READ_FILE: "fs.read_file",
 	FS_LIST_FILES: "fs.list_files",
 	FS_SEARCH: "fs.search",
+	FS_EDIT: "fs.edit",
 } as const;
 
 /** Default size limits and caps from wire contract. */
@@ -108,6 +110,14 @@ interface FSSearchArgs {
 	query: string;
 	path?: string;
 	max_matches?: number;
+}
+
+/** Argument schema for fs.edit tool. */
+interface FSEditArgs {
+	path: string;
+	old_string: string;
+	new_string: string;
+	replace_all?: boolean;
 }
 
 // ============================================================================
@@ -245,6 +255,39 @@ export class LocalFSToolPack {
 					},
 				},
 			},
+			{
+				type: "function",
+				function: {
+					name: ToolNames.FS_EDIT,
+					description:
+						"Replace exact string matches in a file. Returns a confirmation with affected line numbers.",
+					parameters: {
+						type: "object",
+						properties: {
+							path: {
+								type: "string",
+								description:
+									"Workspace-relative path to the file (e.g., 'src/index.ts')",
+							},
+							old_string: {
+								type: "string",
+								description: "Exact string to find and replace",
+							},
+							new_string: {
+								type: "string",
+								description: "Replacement string (may be empty)",
+							},
+							replace_all: {
+								type: "boolean",
+								default: false,
+								description:
+									"Replace all occurrences (default: replace first only)",
+							},
+						},
+						required: ["path", "old_string", "new_string"],
+					},
+				},
+			},
 		];
 	}
 
@@ -257,6 +300,7 @@ export class LocalFSToolPack {
 		registry.register(ToolNames.FS_READ_FILE, this.readFile.bind(this));
 		registry.register(ToolNames.FS_LIST_FILES, this.listFiles.bind(this));
 		registry.register(ToolNames.FS_SEARCH, this.search.bind(this));
+		registry.register(ToolNames.FS_EDIT, this.editFile.bind(this));
 		return registry;
 	}
 
@@ -277,7 +321,6 @@ export class LocalFSToolPack {
 	): Promise<string> {
 		const args = this.parseArgs<Record<string, unknown>>(call, ["path"]);
 		const func = call.function!;
-
 		const relPath = this.requireString(args, "path", call);
 		const requestedMax = this.optionalPositiveInt(args, "max_bytes", call);
 
@@ -419,6 +462,56 @@ export class LocalFSToolPack {
 			);
 		}
 		return this.searchWithJS(query, absPath, maxMatches, call);
+	}
+
+	private async editFile(
+		_args: unknown,
+		call: ToolCall,
+	): Promise<string> {
+		const args = this.parseArgs<Record<string, unknown>>(call, [
+			"path",
+			"old_string",
+		]);
+		const func = call.function!;
+
+		const relPath = this.requireString(args, "path", call);
+		const oldString = this.requireString(args, "old_string", call);
+		const newString = this.requireStringAllowEmpty(args, "new_string", call);
+		const replaceAll = this.optionalBoolean(args, "replace_all", call) ?? false;
+
+		const absPath = await this.resolveAndValidatePath(relPath, call);
+
+		const stat = await fs.stat(absPath);
+		if (stat.isDirectory()) {
+			throw new Error(`fs.edit: path is a directory: ${relPath}`);
+		}
+
+		const data = await fs.readFile(absPath);
+		if (!this.isValidUtf8(data)) {
+			throw new Error(`fs.edit: file is not valid UTF-8: ${relPath}`);
+		}
+
+		const contents = data.toString("utf-8");
+		const matches = this.findOccurrences(contents, oldString);
+		if (matches.length === 0) {
+			throw new Error("fs.edit: old_string not found");
+		}
+		if (!replaceAll && matches.length > 1) {
+			throw new Error("fs.edit: old_string appears multiple times");
+		}
+
+		const appliedMatches = replaceAll ? matches : matches.slice(0, 1);
+		const updated = replaceAll
+			? contents.split(oldString).join(newString)
+			: contents.replace(oldString, newString);
+
+		await fs.writeFile(absPath, updated);
+
+		const lineSpec = this.formatLineRanges(
+			this.buildLineRanges(contents, appliedMatches, oldString.length),
+		);
+
+		return `Edited ${relPath} (replacements=${appliedMatches.length}, lines ${lineSpec})`;
 	}
 
 	// ========================================================================
@@ -788,6 +881,21 @@ export class LocalFSToolPack {
 		return value;
 	}
 
+	private requireStringAllowEmpty(
+		args: Record<string, unknown>,
+		key: string,
+		call: ToolCall,
+	): string {
+		const value = args[key];
+		if (value === undefined || value === null) {
+			this.toolArgumentError(call, `${key} is required`);
+		}
+		if (typeof value !== "string") {
+			this.toolArgumentError(call, `${key} must be a string`);
+		}
+		return value;
+	}
+
 	private optionalString(
 		args: Record<string, unknown>,
 		key: string,
@@ -823,6 +931,100 @@ export class LocalFSToolPack {
 			this.toolArgumentError(call, `${key} must be > 0`);
 		}
 		return value;
+	}
+
+	private optionalBoolean(
+		args: Record<string, unknown>,
+		key: string,
+		call: ToolCall,
+	): boolean | undefined {
+		const value = args[key];
+		if (value === undefined || value === null) {
+			return undefined;
+		}
+		if (typeof value !== "boolean") {
+			this.toolArgumentError(call, `${key} must be a boolean`);
+		}
+		return value;
+	}
+
+	private findOccurrences(haystack: string, needle: string): number[] {
+		if (needle.length === 0) {
+			return [];
+		}
+		const out: number[] = [];
+		let idx = 0;
+		for (;;) {
+			const found = haystack.indexOf(needle, idx);
+			if (found === -1) {
+				break;
+			}
+			out.push(found);
+			idx = found + needle.length;
+		}
+		return out;
+	}
+
+	private buildLineRanges(
+		source: string,
+		offsets: number[],
+		needleLength: number,
+	): Array<{ start: number; end: number }> {
+		if (offsets.length === 0) {
+			return [];
+		}
+		const newlineOffsets: number[] = [];
+		for (let i = 0; i < source.length; i++) {
+			if (source.charCodeAt(i) === 10) {
+				newlineOffsets.push(i);
+			}
+		}
+
+		return offsets.map((startIdx) => {
+			const endIdx = startIdx + Math.max(needleLength, 1) - 1;
+			return {
+				start: this.lineNumberAt(newlineOffsets, startIdx),
+				end: this.lineNumberAt(newlineOffsets, endIdx),
+			};
+		});
+	}
+
+	private lineNumberAt(newlineOffsets: number[], index: number): number {
+		let lo = 0;
+		let hi = newlineOffsets.length;
+		while (lo < hi) {
+			const mid = (lo + hi) >> 1;
+			if (newlineOffsets[mid] < index) {
+				lo = mid + 1;
+			} else {
+				hi = mid;
+			}
+		}
+		return lo + 1;
+	}
+
+	private formatLineRanges(ranges: Array<{ start: number; end: number }>): string {
+		if (ranges.length === 0) {
+			return "";
+		}
+		const merged: Array<{ start: number; end: number }> = [];
+		for (const range of ranges) {
+			const last = merged[merged.length - 1];
+			if (!last || range.start > last.end + 1) {
+				merged.push({ ...range });
+				continue;
+			}
+			if (range.end > last.end) {
+				last.end = range.end;
+			}
+		}
+		return merged
+			.map((range) =>
+				range.start === range.end
+					? `${range.start}`
+					: `${range.start}-${range.end}`,
+			)
+			.join(",");
 	}
 
 	private isValidUtf8(buffer: Buffer): boolean {

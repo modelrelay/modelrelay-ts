@@ -28,7 +28,7 @@ describe("LocalFSToolPack", () => {
 	describe("Tool Definitions", () => {
 		it("returns tool definitions for all fs.* tools", () => {
 			const defs = pack.getToolDefinitions();
-			expect(defs).toHaveLength(3);
+			expect(defs).toHaveLength(4);
 
 			const names = defs.map((t) => {
 				if (t.type === "function" && t.function) {
@@ -39,6 +39,7 @@ describe("LocalFSToolPack", () => {
 			expect(names).toContain(ToolNames.FS_READ_FILE);
 			expect(names).toContain(ToolNames.FS_LIST_FILES);
 			expect(names).toContain(ToolNames.FS_SEARCH);
+			expect(names).toContain(ToolNames.FS_EDIT);
 		});
 	});
 
@@ -49,6 +50,7 @@ describe("LocalFSToolPack", () => {
 			expect(registry.has(ToolNames.FS_READ_FILE)).toBe(true);
 			expect(registry.has(ToolNames.FS_LIST_FILES)).toBe(true);
 			expect(registry.has(ToolNames.FS_SEARCH)).toBe(true);
+			expect(registry.has(ToolNames.FS_EDIT)).toBe(true);
 		});
 
 		it("creates a standalone registry with toRegistry()", () => {
@@ -59,6 +61,7 @@ describe("LocalFSToolPack", () => {
 		it("createLocalFSTools factory returns working registry", () => {
 			const registry = createLocalFSTools({ root: tempDir });
 			expect(registry.has(ToolNames.FS_READ_FILE)).toBe(true);
+			expect(registry.has(ToolNames.FS_EDIT)).toBe(true);
 		});
 	});
 
@@ -359,6 +362,57 @@ describe("LocalFSToolPack", () => {
 			expect(ToolNames.FS_READ_FILE).toBe("fs.read_file");
 			expect(ToolNames.FS_LIST_FILES).toBe("fs.list_files");
 			expect(ToolNames.FS_SEARCH).toBe("fs.search");
+		});
+	});
+
+	describe("fs.edit", () => {
+		it("replaces a single occurrence and reports lines", async () => {
+			await fs.writeFile(
+				path.join(tempDir, "edit.txt"),
+				"alpha\nneedle\nbeta\n",
+			);
+
+			const registry = pack.toRegistry();
+			const call = createToolCall(
+				"call-1",
+				ToolNames.FS_EDIT,
+				JSON.stringify({
+					path: "edit.txt",
+					old_string: "needle",
+					new_string: "pin",
+				}),
+			);
+
+			const result = await registry.execute(call);
+			expect(result.error).toBeUndefined();
+			expect(result.result).toContain("lines 2");
+
+			const updated = await fs.readFile(
+				path.join(tempDir, "edit.txt"),
+				"utf-8",
+			);
+			expect(updated).toContain("pin");
+		});
+
+		it("errors when old_string appears multiple times without replace_all", async () => {
+			await fs.writeFile(
+				path.join(tempDir, "edit.txt"),
+				"needle\nmiddle\nneedle\n",
+			);
+
+			const registry = pack.toRegistry();
+			const call = createToolCall(
+				"call-1",
+				ToolNames.FS_EDIT,
+				JSON.stringify({
+					path: "edit.txt",
+					old_string: "needle",
+					new_string: "pin",
+				}),
+			);
+
+			const result = await registry.execute(call);
+			expect(result.error).toContain("multiple");
 		});
 	});
 });
