@@ -965,7 +965,7 @@ export interface paths {
         put?: never;
         /**
          * Start a workflow run
-         * @description Starts a run for a `workflow.v1` spec and returns a `run_id`. Auth matches `/responses` (API key or frontend bearer token). Session owner tokens from `/auth/login` are not accepted. Provide `session_id` to link the run to a session; when linked, assistant messages are appended to the session on completion.
+         * @description Starts a run for a `workflow.v1` spec and returns a `run_id`. Auth matches `/responses` (API key or frontend bearer token). Session owner tokens from `/auth/login` are not accepted. Provide `session_id` to link the run to a session; when linked, assistant messages are appended to the session on completion. The workflow spec must include resolved models for all llm.responses/route.switch nodes; /runs does not resolve tier defaults.
          */
         post: operations["createRun"];
         delete?: never;
@@ -1940,6 +1940,7 @@ export interface components {
         RunsCreateOptionsV0: {
             idempotency_key?: string;
         };
+        /** @description Create a workflow run. The workflow spec must include a resolved model for every llm.responses/route.switch node (including map.fanout subnodes); /runs does not resolve tiers or default models. */
         RunsCreateRequest: {
             /** @description Runtime inputs for the workflow. Required when the spec uses from_input references (e.g., map.fanout with items.from_input). Each key is the input name, and the value is the JSON data to provide. */
             input?: {
