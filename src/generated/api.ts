@@ -1786,7 +1786,7 @@ export interface components {
             version?: string;
         };
         SkillSummaryV0: {
-            agents: string[];
+            agents: components["schemas"]["PluginAgentV0"][];
             description?: string;
             name: string;
         };
