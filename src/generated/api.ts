@@ -1050,6 +1050,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/runs/{run_id}/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Get run tasks
+         * @description Returns the run-scoped task list written by the tasks.write tool.
+         */
+        get: operations["getRunTasks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/runs/{run_id}/steps/{step}/tool-calls/{tool_id}": {
         parameters: {
             query?: never;
@@ -1664,6 +1686,8 @@ export interface components {
              */
             event: "message_start" | "message_delta" | "message_stop" | "tool_use_start" | "tool_use_delta" | "tool_use_stop" | "ping" | "keepalive";
             model?: components["schemas"]["ModelId"];
+            /** Format: uuid */
+            session_id?: string;
             /** @description Response identifier (message_start) */
             response_id?: string;
             /** @description Why generation stopped (message_stop) */
@@ -1851,6 +1875,8 @@ export interface components {
             /** Format: uint32 */
             max_output_tokens?: number;
             model?: components["schemas"]["ModelId"];
+            /** Format: uuid */
+            session_id?: string;
             output_format?: components["schemas"]["OutputFormat"];
             provider?: components["schemas"]["ProviderId"];
             stop?: string[];
@@ -1978,6 +2004,16 @@ export interface components {
         };
         RunStepsResponse: {
             steps?: components["schemas"]["RunStepDetail"][];
+        };
+        /** @enum {string} */
+        RunTaskStatus: "pending" | "in_progress" | "completed";
+        RunTask: {
+            content: string;
+            status: components["schemas"]["RunTaskStatus"];
+            active_form?: string;
+        };
+        RunTasksResponse: {
+            tasks?: components["schemas"]["RunTask"][];
         };
         RunToolCallDetail: {
             node_id: string;
@@ -4917,6 +4953,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RunStepsResponse"];
+                };
+            };
+        };
+    };
+    getRunTasks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Run tasks */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunTasksResponse"];
                 };
             };
         };
