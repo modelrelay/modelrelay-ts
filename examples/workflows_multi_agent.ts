@@ -1,4 +1,4 @@
-import { ModelRelay, workflowIntent } from "../src";
+import { ModelRelay, parallel, llm } from "../src";
 import { parseNodeId, parseOutputName } from "../src/runs_ids";
 
 type DevLoginResponse = {
@@ -60,29 +60,16 @@ async function bootstrapSecretKey(apiBaseUrl: string): Promise<string> {
 }
 
 function multiAgentSpec(model: string) {
-	return workflowIntent()
-		.name("multi_agent_lite_example")
-		.model(model)
-		.llm(parseNodeId("agent_a"), (n) =>
-			n.system("You are Agent A.")
-				.user("Write 3 ideas for a landing page."),
-		)
-		.llm(parseNodeId("agent_b"), (n) =>
-			n.system("You are Agent B.")
-				.user("Write 3 objections a user might have."),
-		)
-		.llm(parseNodeId("agent_c"), (n) =>
-			n.system("You are Agent C.")
-				.user("Write 3 alternative headlines."),
-		)
-		.joinAll(parseNodeId("join"))
+	// Use the parallel() helper for automatic edge wiring
+	return parallel([
+		llm("agent_a", (n) => n.system("You are Agent A.").user("Write 3 ideas for a landing page.")),
+		llm("agent_b", (n) => n.system("You are Agent B.").user("Write 3 objections a user might have.")),
+		llm("agent_c", (n) => n.system("You are Agent C.").user("Write 3 alternative headlines.")),
+	], { name: "multi_agent_example", model })
 		.llm(parseNodeId("aggregate"), (n) =>
 			n.system("Synthesize the best answer from the following agent outputs (JSON).")
 				.user("{{join}}"),
 		)
-		.edge(parseNodeId("agent_a"), parseNodeId("join"))
-		.edge(parseNodeId("agent_b"), parseNodeId("join"))
-		.edge(parseNodeId("agent_c"), parseNodeId("join"))
 		.edge(parseNodeId("join"), parseNodeId("aggregate"))
 		.output(parseOutputName("result"), parseNodeId("aggregate"))
 		.build();

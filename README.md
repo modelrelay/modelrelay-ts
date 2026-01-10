@@ -98,23 +98,17 @@ const text = await mr.responses.textForCustomer({
 
 ## Workflows
 
-Build multi-step AI pipelines with `workflowIntent()`:
+Build multi-step AI pipelines with the workflow helpers.
 
 ### Sequential Chain
 
 ```ts
-import { workflowIntent } from "@modelrelay/sdk";
+import { chain, llm } from "@modelrelay/sdk";
 
-const spec = workflowIntent()
-  .name("summarize-translate")
-  .model("claude-sonnet-4-5")
-  .llm("summarize", (n) => n
-    .system("Summarize the input concisely.")
-    .user("{{task}}"))
-  .llm("translate", (n) => n
-    .system("Translate to French.")
-    .user("{{summarize}}"))
-  .edge("summarize", "translate")
+const spec = chain([
+  llm("summarize", (n) => n.system("Summarize.").user("{{task}}")),
+  llm("translate", (n) => n.system("Translate to French.").user("{{summarize}}")),
+], { name: "summarize-translate", model: "claude-sonnet-4-5" })
   .output("result", "translate")
   .build();
 
@@ -124,40 +118,14 @@ const { run_id } = await mr.runs.create(spec);
 ### Parallel with Aggregation
 
 ```ts
-import { workflowIntent } from "@modelrelay/sdk";
+import { parallel, llm } from "@modelrelay/sdk";
 
-const spec = workflowIntent()
-  .name("multi-agent")
-  .model("claude-sonnet-4-5")
-  .llm("agent_a", (n) => n.user("Write 3 ideas for {{task}}."))
-  .llm("agent_b", (n) => n.user("Write 3 objections for {{task}}."))
-  .joinAll("join")
-  .llm("aggregate", (n) => n
-    .system("Synthesize the best answer.")
-    .user("{{join}}"))
-  .edge("agent_a", "join")
-  .edge("agent_b", "join")
+const spec = parallel([
+  llm("agent_a", (n) => n.user("Write 3 ideas for {{task}}.")),
+  llm("agent_b", (n) => n.user("Write 3 objections for {{task}}.")),
+], { name: "multi-agent", model: "claude-sonnet-4-5" })
+  .llm("aggregate", (n) => n.system("Synthesize.").user("{{join}}"))
   .edge("join", "aggregate")
-  .output("result", "aggregate")
-  .build();
-```
-
-### Map Fan-out
-
-```ts
-import { workflowIntent, LLMNodeBuilder } from "@modelrelay/sdk";
-
-const spec = workflowIntent()
-  .name("fanout-example")
-  .model("claude-sonnet-4-5")
-  .llm("generator", (n) => n.user("Generate 3 subquestions for {{task}}"))
-  .mapFanout("fanout", {
-    itemsFrom: "generator",
-    itemsPath: "/questions",
-    subnode: new LLMNodeBuilder("answer").user("Answer: {{item}}").build(),
-    maxParallelism: 4,
-  })
-  .llm("aggregate", (n) => n.user("Combine: {{fanout}}"))
   .output("result", "aggregate")
   .build();
 ```

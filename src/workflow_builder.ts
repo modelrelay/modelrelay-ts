@@ -186,3 +186,121 @@ export class LLMNodeBuilder {
 export function workflowIntent(): WorkflowIntentBuilder {
 	return new WorkflowIntentBuilder();
 }
+
+/**
+ * Alias for workflowIntent() with a cleaner name.
+ */
+export function workflow(): WorkflowIntentBuilder {
+	return new WorkflowIntentBuilder();
+}
+
+/**
+ * Standalone LLM node builder for use with chain() and parallel().
+ */
+export function llm(id: string, configure?: (node: LLMNodeBuilder) => LLMNodeBuilder): WorkflowIntentNode {
+	const builder = new LLMNodeBuilder(id as NodeId);
+	const configured = configure ? configure(builder) : builder;
+	return configured.build();
+}
+
+/**
+ * Options for chain() helper.
+ */
+export type ChainOptions = {
+	/** Workflow name */
+	name?: string;
+	/** Default model for all nodes */
+	model?: string;
+};
+
+/**
+ * Creates a sequential workflow where each step depends on the previous one.
+ * Edges are automatically wired based on order.
+ *
+ * @example
+ * ```typescript
+ * const spec = chain([
+ *   llm("summarize", n => n.system("Summarize.").user("{{task}}")),
+ *   llm("translate", n => n.system("Translate to French.").user("{{summarize}}")),
+ * ], { name: "summarize-translate" })
+ *   .output("result", "translate")
+ *   .build();
+ * ```
+ */
+export function chain(steps: WorkflowIntentNode[], options?: ChainOptions): WorkflowIntentBuilder {
+	let builder = new WorkflowIntentBuilder();
+
+	if (options?.name) {
+		builder = builder.name(options.name);
+	}
+	if (options?.model) {
+		builder = builder.model(options.model);
+	}
+
+	// Add all nodes
+	for (const step of steps) {
+		builder = builder.node(step);
+	}
+
+	// Wire edges sequentially: step[0] -> step[1] -> step[2] -> ...
+	for (let i = 1; i < steps.length; i++) {
+		builder = builder.edge(steps[i - 1].id, steps[i].id);
+	}
+
+	return builder;
+}
+
+/**
+ * Options for parallel() helper.
+ */
+export type ParallelOptions = {
+	/** Workflow name */
+	name?: string;
+	/** Default model for all nodes */
+	model?: string;
+	/** ID for the join node (default: "join") */
+	joinId?: string;
+};
+
+/**
+ * Creates a parallel workflow where all steps run concurrently, then join.
+ * Edges are automatically wired to a join.all node.
+ *
+ * @example
+ * ```typescript
+ * const spec = parallel([
+ *   llm("agent_a", n => n.user("Write 3 ideas for {{task}}")),
+ *   llm("agent_b", n => n.user("Write 3 objections for {{task}}")),
+ * ], { name: "multi-agent" })
+ *   .llm("aggregate", n => n.system("Synthesize.").user("{{join}}"))
+ *   .edge("join", "aggregate")
+ *   .output("result", "aggregate")
+ *   .build();
+ * ```
+ */
+export function parallel(steps: WorkflowIntentNode[], options?: ParallelOptions): WorkflowIntentBuilder {
+	let builder = new WorkflowIntentBuilder();
+	const joinId = (options?.joinId ?? "join") as NodeId;
+
+	if (options?.name) {
+		builder = builder.name(options.name);
+	}
+	if (options?.model) {
+		builder = builder.model(options.model);
+	}
+
+	// Add all parallel nodes
+	for (const step of steps) {
+		builder = builder.node(step);
+	}
+
+	// Add join node
+	builder = builder.joinAll(joinId);
+
+	// Wire all parallel nodes to the join
+	for (const step of steps) {
+		builder = builder.edge(step.id, joinId);
+	}
+
+	return builder;
+}
