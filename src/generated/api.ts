@@ -1790,11 +1790,19 @@ export interface components {
             description?: string;
             name: string;
         };
+        /** @description Request to compile a skill into a workflow. One of source, content, or files must be provided (mutually exclusive). */
         SkillsCompileRequest: {
+            /** @description Inline skill content (single SKILL.md file). Mutually exclusive with source and files. */
+            content?: string;
+            /** @description Map of file paths to content for inline skills with multiple files (e.g., SKILL.md, agents/worker.md, commands/run.md). Mutually exclusive with source and content. */
+            files?: {
+                [key: string]: string;
+            };
             /** @default 3 */
             max_attempts: number;
             model?: string;
-            source: string;
+            /** @description GitHub URL to fetch skill from. Mutually exclusive with content and files. */
+            source?: string;
         };
         SkillsCompileResponse: {
             /** Format: date-time */
