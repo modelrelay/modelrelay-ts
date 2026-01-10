@@ -1,6 +1,6 @@
 import { ModelRelay } from "../src";
 import { parseNodeId, parseOutputName } from "../src/runs_ids";
-import { workflowV1 } from "../src/workflow";
+import { workflowLite } from "../src/workflow";
 
 type DevLoginResponse = {
 	access_token: string;
@@ -61,98 +61,25 @@ async function bootstrapSecretKey(apiBaseUrl: string): Promise<string> {
 }
 
 function multiAgentSpec(model: string) {
-	return workflowV1()
-		.name("multi_agent_v1_example")
-		.execution({
-			max_parallelism: 3,
-			node_timeout_ms: 20_000,
-			run_timeout_ms: 30_000,
-		})
-		.llmResponses(
-			parseNodeId("agent_a"),
-			{
-				model,
-				max_output_tokens: 64,
-				input: [
-					{
-						type: "message",
-						role: "system",
-						content: [{ type: "text", text: "You are Agent A." }],
-					},
-					{
-						type: "message",
-						role: "user",
-						content: [
-							{ type: "text", text: "Write 3 ideas for a landing page." },
-						],
-					},
-				],
-			},
-			{ stream: false },
+	return workflowIntent()
+		.name("multi_agent_lite_example")
+		.model(model)
+		.llm(parseNodeId("agent_a"), (n) =>
+			n.system("You are Agent A.")
+				.user("Write 3 ideas for a landing page."),
 		)
-		.llmResponses(parseNodeId("agent_b"), {
-			model,
-			max_output_tokens: 64,
-			input: [
-				{
-					type: "message",
-					role: "system",
-					content: [{ type: "text", text: "You are Agent B." }],
-				},
-				{
-					type: "message",
-					role: "user",
-					content: [
-						{ type: "text", text: "Write 3 objections a user might have." },
-					],
-				},
-			],
-		})
-		.llmResponses(parseNodeId("agent_c"), {
-			model,
-			max_output_tokens: 64,
-			input: [
-				{
-					type: "message",
-					role: "system",
-					content: [{ type: "text", text: "You are Agent C." }],
-				},
-				{
-					type: "message",
-					role: "user",
-					content: [{ type: "text", text: "Write 3 alternative headlines." }],
-				},
-			],
-		})
+		.llm(parseNodeId("agent_b"), (n) =>
+			n.system("You are Agent B.")
+				.user("Write 3 objections a user might have."),
+		)
+		.llm(parseNodeId("agent_c"), (n) =>
+			n.system("You are Agent C.")
+				.user("Write 3 alternative headlines."),
+		)
 		.joinAll(parseNodeId("join"))
-		.llmResponses(
-			parseNodeId("aggregate"),
-			{
-				model,
-				max_output_tokens: 256,
-				input: [
-					{
-						type: "message",
-						role: "system",
-						content: [
-							{
-								type: "text",
-								text: "Synthesize the best answer from the following agent outputs (JSON).",
-							},
-						],
-					},
-					{
-						type: "message",
-						role: "user",
-						content: [{ type: "text", text: "" }], // overwritten by bindings
-					},
-				],
-			},
-			{
-				bindings: [
-					{ from: parseNodeId("join"), to: "/input/1/content/0/text", encoding: "json_string" },
-				],
-			},
+		.llm(parseNodeId("aggregate"), (n) =>
+			n.system("Synthesize the best answer from the following agent outputs (JSON).")
+				.user("{{join}}"),
 		)
 		.edge(parseNodeId("agent_a"), parseNodeId("join"))
 		.edge(parseNodeId("agent_b"), parseNodeId("join"))
@@ -168,7 +95,7 @@ async function runOnce(cfg: { apiBaseUrl: string; apiKey: string; spec: any; lab
 		baseUrl: cfg.apiBaseUrl,
 	});
 
-	console.log(`[${cfg.label}] compiled workflow.v1:`);
+	console.log(`[${cfg.label}] compiled workflow:`);
 	console.log(JSON.stringify(cfg.spec, null, 2));
 
 	const { run_id } = await mr.runs.create(cfg.spec);
@@ -211,20 +138,10 @@ async function main() {
 		spec: {
 			...multiAgentSpec(modelOk),
 			nodes: multiAgentSpec(modelOk).nodes.map((n: any) =>
-				n.id === parseNodeId("agent_b") ? { ...n, input: { request: { ...n.input.request, model: modelBad } } } : n,
+				n.id === parseNodeId("agent_b") ? { ...n, model: modelBad } : n,
 			),
 		},
 		label: "partial_failure",
-	});
-
-	await runOnce({
-		apiBaseUrl,
-		apiKey,
-		spec: {
-			...multiAgentSpec(modelOk),
-			execution: { ...multiAgentSpec(modelOk).execution, run_timeout_ms: 1 },
-		},
-		label: "cancellation",
 	});
 }
 

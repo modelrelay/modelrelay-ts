@@ -1,5 +1,5 @@
-import type { WorkflowSpecV1 } from "./runs_types";
+import type { WorkflowSpecLiteV1 } from "./runs_types";
 
 export const WORKFLOWS_COMPILE_PATH = "/workflows/compile";
 
-export type WorkflowsCompileRequestV1 = WorkflowSpecV1;
+export type WorkflowsCompileRequest = WorkflowSpecLiteV1;

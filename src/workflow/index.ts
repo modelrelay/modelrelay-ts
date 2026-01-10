@@ -1,13 +1,13 @@
 /**
- * Workflow types with clean naming (no Workflow prefix).
+ * Workflow.lite.v1 types with clean naming (no Workflow prefix).
  *
  * @example
  * ```typescript
  * import { workflow } from "@modelrelay/sdk";
  *
- * const spec: workflow.SpecV1 = {
- *   kind: workflow.KindV1,
- *   nodes: [{ id: "my_node", type: workflow.NodeTypesV1.LLMResponses, input: {...} }],
+ * const spec: workflow.SpecLiteV1 = {
+ *   kind: workflow.KindIntent,
+ *   nodes: [{ id: "my_node", type: workflow.NodeTypesLite.LLM, user: "hello" }],
  *   outputs: [],
  * };
  * ```
@@ -15,18 +15,12 @@
 
 import type {
 	WorkflowKind as _WorkflowKind,
-	WorkflowSpecV1 as _WorkflowSpecV1,
-	WorkflowNodeV1 as _WorkflowNodeV1,
-	WorkflowEdgeV1 as _WorkflowEdgeV1,
-	WorkflowOutputRefV1 as _WorkflowOutputRefV1,
-	LLMResponsesBindingV1 as _LLMResponsesBindingV1,
-	LLMResponsesBindingEncodingV1 as _LLMResponsesBindingEncodingV1,
-	LLMResponsesToolLimitsV1 as _LLMResponsesToolLimitsV1,
-	ToolExecutionV1 as _ToolExecutionV1,
-	ToolExecutionModeV1 as _ToolExecutionModeV1,
-	ConditionV1 as _ConditionV1,
-	ConditionOpV1 as _ConditionOpV1,
-	ConditionSourceV1 as _ConditionSourceV1,
+	WorkflowSpecLiteV1 as _WorkflowSpecLiteV1,
+	WorkflowIntentNode as _WorkflowIntentNode,
+	WorkflowOutputRefLiteV1 as _WorkflowOutputRefLiteV1,
+	WorkflowIntentCondition as _WorkflowIntentCondition,
+	WorkflowIntentConditionOp as _WorkflowIntentConditionOp,
+	WorkflowIntentConditionSource as _WorkflowIntentConditionSource,
 	RunStatusV0 as _RunStatusV0,
 	RunEventTypeV0 as _RunEventTypeV0,
 	RunEventV0 as _RunEventV0,
@@ -60,7 +54,7 @@ import type {
 	StreamEventKind as _StreamEventKind,
 } from "../runs_types";
 
-import { WorkflowKinds, WorkflowNodeTypesV1 } from "../runs_types";
+import { WorkflowKinds, WorkflowNodeTypesLite } from "../runs_types";
 
 import type {
 	NodeId as _NodeId,
@@ -71,32 +65,22 @@ import type {
 
 import { parseNodeId, parseRunId, parsePlanHash, parseOutputName } from "../runs_ids";
 
-// Re-export ID types with cleaner names
 export type NodeId = _NodeId;
 export type OutputName = _OutputName;
 export type RunId = _RunId;
 export type PlanHash = _PlanHash;
 
-// Re-export ID parsing functions
 export { parseNodeId, parseRunId, parsePlanHash, parseOutputName };
 
 // Workflow spec types (drop Workflow prefix)
 export type Kind = _WorkflowKind;
-export type SpecV1 = _WorkflowSpecV1;
-export type NodeV1 = _WorkflowNodeV1;
-export type EdgeV1 = _WorkflowEdgeV1;
-export type OutputRefV1 = _WorkflowOutputRefV1;
+export type SpecLiteV1 = _WorkflowSpecLiteV1;
+export type IntentNode = _WorkflowIntentNode;
+export type OutputRefLiteV1 = _WorkflowOutputRefLiteV1;
 
-// Binding types
-export type BindingV1 = _LLMResponsesBindingV1;
-export type BindingEncodingV1 = _LLMResponsesBindingEncodingV1;
-export type ToolLimitsV1 = _LLMResponsesToolLimitsV1;
-export type ToolExecutionV1 = _ToolExecutionV1;
-export type ToolExecutionModeV1 = _ToolExecutionModeV1;
-
-export type ConditionV1 = _ConditionV1;
-export type ConditionOpV1 = _ConditionOpV1;
-export type ConditionSourceV1 = _ConditionSourceV1;
+export type Condition = _WorkflowIntentCondition;
+export type ConditionOp = _WorkflowIntentConditionOp;
+export type ConditionSource = _WorkflowIntentConditionSource;
 
 // Run types (drop Run prefix)
 export type StatusV0 = _RunStatusV0;
@@ -118,7 +102,6 @@ export type EventNodeWaitingV0 = _RunEventNodeWaitingV0;
 export type EventNodeOutputDeltaV0 = _RunEventNodeOutputDeltaV0;
 export type EventNodeOutputV0 = _RunEventNodeOutputV0;
 
-// Node result types
 export type NodeErrorV0 = _NodeErrorV0;
 export type NodeOutputDeltaV0 = _NodeOutputDeltaV0;
 export type NodeLLMCallV0 = _NodeLLMCallV0;
@@ -133,59 +116,16 @@ export type PayloadInfoV0 = _PayloadInfoV0;
 export type PayloadArtifactV0 = _PayloadArtifactV0;
 export type StreamEventKind = _StreamEventKind;
 
-// Constants
-export const KindV1 = WorkflowKinds.WorkflowV1;
+export const KindIntent = WorkflowKinds.WorkflowIntent;
 
-export const NodeTypesV1 = {
-	LLMResponses: WorkflowNodeTypesV1.LLMResponses,
-	RouteSwitch: WorkflowNodeTypesV1.RouteSwitch,
-	JoinAll: WorkflowNodeTypesV1.JoinAll,
-	JoinAny: WorkflowNodeTypesV1.JoinAny,
-	JoinCollect: WorkflowNodeTypesV1.JoinCollect,
-	TransformJSON: WorkflowNodeTypesV1.TransformJSON,
-	MapFanout: WorkflowNodeTypesV1.MapFanout,
+export const NodeTypesLite = {
+	LLM: WorkflowNodeTypesLite.LLM,
+	JoinAll: WorkflowNodeTypesLite.JoinAll,
+	JoinAny: WorkflowNodeTypesLite.JoinAny,
+	JoinCollect: WorkflowNodeTypesLite.JoinCollect,
+	TransformJSON: WorkflowNodeTypesLite.TransformJSON,
+	MapFanout: WorkflowNodeTypesLite.MapFanout,
 } as const;
-export type NodeTypeV1 = (typeof NodeTypesV1)[keyof typeof NodeTypesV1];
+export type NodeTypeLite = (typeof NodeTypesLite)[keyof typeof NodeTypesLite];
 
-export const BindingEncodings = {
-	JSON: "json",
-	JSONString: "json_string",
-} as const;
-
-export const ToolExecutionModes = {
-	Server: "server",
-	Client: "client",
-} as const;
-
-// Semantic JSON pointer constants for LLM responses nodes.
-// Derived from typed path builders to ensure consistency.
-export { LLM_TEXT_OUTPUT, LLM_USER_MESSAGE_TEXT } from "../workflow_builder";
-
-// Workflow builder
-export { workflowV1, WorkflowBuilderV1 } from "../workflow_builder";
-
-// v1 helpers: condition and binding factories
-export {
-	whenOutputEquals,
-	whenOutputMatches,
-	whenOutputExists,
-	whenStatusEquals,
-	whenStatusMatches,
-	whenStatusExists,
-	bindToPlaceholder,
-	bindToPointer,
-	bindFrom,
-	BindingBuilder,
-} from "./helpers_v1";
-export type { BindingOptions } from "./helpers_v1";
-
-// v1 pattern builders
-export {
-	RouterV1,
-	FanoutReduceV1,
-} from "./patterns_v1";
-export type {
-	RouterConfigV1,
-	RouterRouteV1,
-	FanoutReduceConfigV1,
-} from "./patterns_v1";
+export { workflowIntent, WorkflowIntentBuilder, LLMNodeBuilder, LLM_TEXT_OUTPUT, LLM_USER_MESSAGE_TEXT } from "../workflow_builder";

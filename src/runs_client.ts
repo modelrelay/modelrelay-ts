@@ -19,7 +19,7 @@ import {
 	runToolResultsPath,
 } from "./runs_request";
 import { RunsEventStream } from "./runs_stream";
-import type { RunEventV0, WorkflowSpecV1 } from "./runs_types";
+import type { RunEventV0, WorkflowSpecLiteV1 } from "./runs_types";
 import type { RunId } from "./runs_ids";
 import { parseNodeId, parsePlanHash, parseRunId } from "./runs_ids";
 
@@ -27,6 +27,7 @@ export type RunsCreateOptions = {
 	customerId?: string;
 	sessionId?: string;
 	idempotencyKey?: string;
+	input?: Record<string, unknown>;
 	signal?: AbortSignal;
 	headers?: Record<string, string>;
 	timeoutMs?: number;
@@ -107,7 +108,7 @@ export class RunsClient {
 	}
 
 	async create(
-		spec: WorkflowSpecV1,
+		spec: WorkflowSpecLiteV1,
 		options: RunsCreateOptions = {},
 	): Promise<RunsCreateResponse> {
 		const metrics = mergeMetrics(this.metrics, options.metrics);
@@ -122,6 +123,9 @@ export class RunsClient {
 		}
 		if (options.idempotencyKey?.trim()) {
 			payload.options = { idempotency_key: options.idempotencyKey.trim() };
+		}
+		if (options.input) {
+			payload.input = options.input;
 		}
 
 		const out = await this.http.json<

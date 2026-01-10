@@ -1,5 +1,5 @@
 import type { NodeId, PlanHash, RunId } from "./runs_ids";
-import type { RunStatusV0, ToolCallV0, ToolCallWithArgumentsV0, WorkflowSpecV1 } from "./runs_types";
+import type { RunStatusV0, ToolCallV0, ToolCallWithArgumentsV0, WorkflowSpecLiteV1 } from "./runs_types";
 import type { ModelId, ProviderId } from "./types";
 
 export type NodeStatusV0 = "pending" | "running" | "waiting" | "succeeded" | "failed" | "canceled";
@@ -46,9 +46,9 @@ export type RunsPendingToolsResponse = {
 };
 
 export type RunsCreateRequest = {
-	spec: WorkflowSpecV1;
+	spec: WorkflowSpecLiteV1;
 	session_id?: string;
-	input?: unknown; // reserved for future use
+	input?: Record<string, unknown>; // runtime workflow inputs
 	options?: {
 		idempotency_key?: string;
 	};

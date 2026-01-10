@@ -22,7 +22,7 @@ describe("runs", () => {
 			if (path.endsWith("/runs") && init?.method === "POST") {
 				// biome-ignore lint/suspicious/noExplicitAny: init.body is untyped
 				const body = JSON.parse(String(init?.body as any));
-				expect(body.spec?.kind).toBe("workflow.v1");
+				expect(body.spec?.kind).toBe("workflow");
 				return new Response(JSON.stringify({ run_id: runId, status: "running", plan_hash: planHash }), {
 					status: 200,
 					headers: { "Content-Type": "application/json" },
@@ -82,7 +82,7 @@ describe("runs", () => {
 		});
 
 		const spec = {
-			kind: WorkflowKinds.WorkflowV1,
+			kind: WorkflowKinds.WorkflowIntent,
 			nodes: [{ id: parseNodeId("a"), type: WorkflowNodeTypes.JoinAll }],
 			outputs: [{ name: parseOutputName("result"), from: parseNodeId("a") }],
 		} as const;

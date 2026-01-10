@@ -1,181 +1,75 @@
 import z from "zod";
 
 import { TransportError } from "./errors";
-import type { WireResponsesRequest } from "./responses_request";
+import type { InputItem, Tool } from "./types";
 import type { NodeId, OutputName, PlanHash, RunId } from "./runs_ids";
 import { parseNodeId, parsePlanHash, parseRunId } from "./runs_ids";
 
 export const WorkflowKinds = {
-	WorkflowV1: "workflow.v1",
+	WorkflowIntent: "workflow",
 } as const;
-export type WorkflowKindV1 = (typeof WorkflowKinds)["WorkflowV1"];
-export type WorkflowKind = WorkflowKindV1;
+export type WorkflowKindIntent = (typeof WorkflowKinds)["WorkflowIntent"];
+export type WorkflowKind = WorkflowKindIntent;
 
-export const WorkflowNodeTypesV1 = {
-	LLMResponses: "llm.responses",
-	RouteSwitch: "route.switch",
+export const WorkflowNodeTypesLite = {
+	LLM: "llm",
 	JoinAll: "join.all",
 	JoinAny: "join.any",
 	JoinCollect: "join.collect",
 	TransformJSON: "transform.json",
 	MapFanout: "map.fanout",
 } as const;
-export type WorkflowNodeTypeV1 =
-	(typeof WorkflowNodeTypesV1)[keyof typeof WorkflowNodeTypesV1];
+export type WorkflowNodeTypeLite =
+	(typeof WorkflowNodeTypesLite)[keyof typeof WorkflowNodeTypesLite];
 
-export type ConditionSourceV1 = "node_output" | "node_status";
-
-export type ConditionOpV1 = "equals" | "matches" | "exists";
-
-export type ConditionV1 = {
-	source: ConditionSourceV1;
-	op: ConditionOpV1;
-	path: string;
+export type WorkflowIntentConditionSource = "node_output" | "node_status";
+export type WorkflowIntentConditionOp = "equals" | "matches" | "exists";
+export type WorkflowIntentCondition = {
+	source: WorkflowIntentConditionSource;
+	op: WorkflowIntentConditionOp;
+	path?: string;
 	value?: unknown;
 };
 
-export type WorkflowEdgeV1 = {
-	from: NodeId;
-	to: NodeId;
-	when?: ConditionV1;
+export type WorkflowIntentTransformValue = { from: NodeId; pointer?: string };
+
+export type WorkflowIntentNode = {
+	id: NodeId;
+	type: WorkflowNodeTypeLite;
+	depends_on?: ReadonlyArray<NodeId>;
+	model?: string;
+	system?: string;
+	user?: string;
+	input?: ReadonlyArray<InputItem>;
+	stream?: boolean;
+	tools?: ReadonlyArray<string | Tool>;
+	tool_execution?: { mode: "server" | "client" | "agentic" };
+	limit?: number;
+	timeout_ms?: number;
+	predicate?: WorkflowIntentCondition;
+	items_from?: NodeId;
+	items_from_input?: string;
+	items_pointer?: string;
+	items_path?: string;
+	subnode?: WorkflowIntentNode;
+	max_parallelism?: number;
+	object?: Record<string, WorkflowIntentTransformValue>;
+	merge?: Array<WorkflowIntentTransformValue>;
 };
 
-export type WorkflowOutputRefV1 = {
+export type WorkflowOutputRefLiteV1 = {
 	name: OutputName;
 	from: NodeId;
 	pointer?: string;
 };
 
-export type WorkflowSpecV1 = {
-	kind: WorkflowKindV1;
+export type WorkflowSpecLiteV1 = {
+	kind: WorkflowKindIntent;
 	name?: string;
-	execution?: {
-		max_parallelism?: number;
-		node_timeout_ms?: number;
-		run_timeout_ms?: number;
-	};
-	nodes: ReadonlyArray<WorkflowNodeV1>;
-	edges?: ReadonlyArray<WorkflowEdgeV1>;
-	outputs: ReadonlyArray<WorkflowOutputRefV1>;
+	model?: string;
+	nodes: ReadonlyArray<WorkflowIntentNode>;
+	outputs: ReadonlyArray<WorkflowOutputRefLiteV1>;
 };
-
-export type ToolExecutionModeV1 = "server" | "client";
-
-export type ToolExecutionV1 = { mode: ToolExecutionModeV1 };
-
-export type LLMResponsesToolLimitsV1 = {
-	max_llm_calls?: number;
-	max_tool_calls_per_step?: number;
-	wait_ttl_ms?: number;
-};
-
-export type LLMResponsesBindingEncodingV1 = "json" | "json_string";
-
-export type LLMResponsesBindingV1 = {
-	from: NodeId;
-	pointer?: string;
-	to?: string;
-	to_placeholder?: string;
-	encoding?: LLMResponsesBindingEncodingV1;
-};
-
-export type LLMResponsesNodeInputV1 = {
-	request: WireResponsesRequest;
-	stream?: boolean;
-	tool_execution?: ToolExecutionV1;
-	tool_limits?: LLMResponsesToolLimitsV1;
-	bindings?: ReadonlyArray<LLMResponsesBindingV1>;
-};
-
-export type TransformJSONValueV1 = { from: NodeId; pointer?: string };
-
-export type TransformJSONNodeInputV1 = {
-	object?: Record<string, TransformJSONValueV1>;
-	merge?: Array<TransformJSONValueV1>;
-};
-
-export type JoinAnyNodeInputV1 = {
-	predicate?: ConditionV1;
-};
-
-export type JoinCollectNodeInputV1 = {
-	predicate?: ConditionV1;
-	limit?: number;
-	timeout_ms?: number;
-};
-
-export type MapFanoutItemsV1 = {
-	from: NodeId;
-	path?: string;
-};
-
-export type MapFanoutItemBindingV1 = {
-	path?: string;
-	to?: string;
-	to_placeholder?: string;
-	encoding?: LLMResponsesBindingEncodingV1;
-};
-
-export type MapFanoutSubNodeV1 =
-	| {
-			id: NodeId;
-			type: typeof WorkflowNodeTypesV1.LLMResponses;
-			input: LLMResponsesNodeInputV1;
-	  }
-	| {
-			id: NodeId;
-			type: typeof WorkflowNodeTypesV1.RouteSwitch;
-			input: LLMResponsesNodeInputV1;
-	  }
-	| {
-			id: NodeId;
-			type: typeof WorkflowNodeTypesV1.TransformJSON;
-			input: TransformJSONNodeInputV1;
-	  };
-
-export type MapFanoutNodeInputV1 = {
-	items: MapFanoutItemsV1;
-	item_bindings?: ReadonlyArray<MapFanoutItemBindingV1>;
-	subnode: MapFanoutSubNodeV1;
-	max_parallelism?: number;
-};
-
-export type WorkflowNodeV1 =
-	| {
-			id: NodeId;
-			type: typeof WorkflowNodeTypesV1.LLMResponses;
-			input: LLMResponsesNodeInputV1;
-	  }
-	| {
-			id: NodeId;
-			type: typeof WorkflowNodeTypesV1.RouteSwitch;
-			input: LLMResponsesNodeInputV1;
-	  }
-	| {
-			id: NodeId;
-			type: typeof WorkflowNodeTypesV1.JoinAll;
-			input?: Record<string, unknown>;
-	  }
-	| {
-			id: NodeId;
-			type: typeof WorkflowNodeTypesV1.JoinAny;
-			input?: JoinAnyNodeInputV1;
-	  }
-	| {
-			id: NodeId;
-			type: typeof WorkflowNodeTypesV1.JoinCollect;
-			input: JoinCollectNodeInputV1;
-	  }
-	| {
-			id: NodeId;
-			type: typeof WorkflowNodeTypesV1.TransformJSON;
-			input: TransformJSONNodeInputV1;
-	  }
-	| {
-			id: NodeId;
-			type: typeof WorkflowNodeTypesV1.MapFanout;
-			input: MapFanoutNodeInputV1;
-	  };
 
 export type RunStatusV0 = "running" | "waiting" | "succeeded" | "failed" | "canceled";
 

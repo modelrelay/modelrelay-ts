@@ -946,7 +946,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Compile a Claude Code skill to workflow.v1 */
+        /** Compile a Claude Code skill to workflow */
         post: operations["compileSkill"];
         delete?: never;
         options?: never;
@@ -965,7 +965,7 @@ export interface paths {
         put?: never;
         /**
          * Start a workflow run
-         * @description Starts a run for a `workflow.v1` spec and returns a `run_id`. Auth matches `/responses` (API key or frontend bearer token). Session owner tokens from `/auth/login` are not accepted. Provide `session_id` to link the run to a session; when linked, assistant messages are appended to the session on completion. The workflow spec must include resolved models for all llm.responses/route.switch nodes; /runs does not resolve tier defaults.
+         * @description Starts a run for a `workflow` spec and returns a `run_id`. Auth matches `/responses` (API key or frontend bearer token). Session owner tokens from `/auth/login` are not accepted. Provide `session_id` to link the run to a session; when linked, assistant messages are appended to the session on completion. The workflow spec must include resolved models for all llm.responses/route.switch nodes; /runs does not resolve tier defaults.
          */
         post: operations["createRun"];
         delete?: never;
@@ -1094,46 +1094,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/schemas/workflow_v1.schema.json": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get JSON Schema for workflow.v1
-         * @description Returns the canonical JSON Schema (draft-07) for `workflow.v1`.
-         */
-        get: operations["getWorkflowV1Schema"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/schemas/workflow_v1.strict.schema.json": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get strict JSON Schema for workflow.v1
-         * @description Returns the strict JSON Schema (draft-07) for `workflow.v1` structured outputs.
-         */
-        get: operations["getWorkflowV1StrictSchema"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/sessions": {
         parameters: {
             query?: never;
@@ -1226,6 +1186,26 @@ export interface paths {
          * @description Appends a message to an existing session.
          */
         post: operations["addSessionMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/schemas/workflow.schema.json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get JSON Schema for workflow
+         * @description Returns the canonical JSON Schema (draft-07) for `workflow`.
+         */
+        get: operations["getWorkflowSchema"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1809,7 +1789,7 @@ export interface components {
             compiled_at: string;
             skill: components["schemas"]["SkillSummaryV0"];
             source_ref: string;
-            workflow: components["schemas"]["WorkflowSpecV1"];
+            workflow: components["schemas"]["WorkflowSpec"];
         };
         /**
          * @description Billing interval for a tier.
@@ -1952,7 +1932,7 @@ export interface components {
              * @description Optional session ID to link this run to a session.
              */
             session_id?: string;
-            spec: components["schemas"]["WorkflowSpecV1"];
+            spec: components["schemas"]["WorkflowSpec"];
         };
         RunsCreateResponse: {
             plan_hash: components["schemas"]["PlanHash"];
@@ -2691,8 +2671,8 @@ export interface components {
             /** @enum {string} */
             status?: "delivered" | "failed";
         };
-        /** @description A `workflow.v1` spec. The canonical JSON Schema is available at `/schemas/workflow_v1.schema.json`. */
-        WorkflowSpecV1: {
+        /** @description A `workflow` spec. The canonical JSON Schema is available at `/schemas/workflow.schema.json`. */
+        WorkflowSpec: {
             [key: string]: unknown;
         };
     };
@@ -4992,46 +4972,6 @@ export interface operations {
             };
         };
     };
-    getWorkflowV1Schema: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Schema document */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/schema+json": Record<string, never>;
-                };
-            };
-        };
-    };
-    getWorkflowV1StrictSchema: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Schema document */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/schema+json": Record<string, never>;
-                };
-            };
-        };
-    };
     listSessions: {
         parameters: {
             query?: {
@@ -5294,6 +5234,26 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    getWorkflowSchema: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Schema document */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/schema+json": Record<string, never>;
+                };
             };
         };
     };

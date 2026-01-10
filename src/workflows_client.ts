@@ -3,7 +3,7 @@ import type { HTTPClient } from "./http";
 import type { MetricsCallbacks, TraceCallbacks } from "./types";
 import { mergeMetrics, mergeTrace } from "./types";
 import { parsePlanHash } from "./runs_ids";
-import type { WorkflowSpecV1 } from "./runs_types";
+import type { WorkflowSpecLiteV1 } from "./runs_types";
 import { WORKFLOWS_COMPILE_PATH } from "./workflows_request";
 import { CUSTOMER_ID_HEADER } from "./responses_request";
 import { APIError, ModelRelayError, WorkflowValidationError, type WorkflowValidationIssue } from "./errors";
@@ -25,13 +25,13 @@ export type WorkflowsCompileOptions = {
 	trace?: TraceCallbacks;
 };
 
-export type WorkflowsCompileResponseV1 = {
+export type WorkflowsCompileResponse = {
 	plan_json: unknown;
 	plan_hash: import("./runs_ids").PlanHash;
 };
 
-export type WorkflowsCompileV1Result =
-	| ({ ok: true } & WorkflowsCompileResponseV1)
+export type WorkflowsCompileResult =
+	| ({ ok: true } & WorkflowsCompileResponse)
 	| {
 			ok: false;
 			error_type: "validation_error";
@@ -63,10 +63,10 @@ export class WorkflowsClient {
 		this.trace = cfg.trace;
 	}
 
-	async compileV1(
-		spec: WorkflowSpecV1,
+	async compile(
+		spec: WorkflowSpecLiteV1,
 		options: WorkflowsCompileOptions = {},
-	): Promise<WorkflowsCompileV1Result> {
+	): Promise<WorkflowsCompileResult> {
 		const metrics = mergeMetrics(this.metrics, options.metrics);
 		const trace = mergeTrace(this.trace, options.trace);
 		const authHeaders = await this.auth.authForResponses();

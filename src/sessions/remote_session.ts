@@ -312,23 +312,18 @@ export class RemoteSession implements Session {
 
 			// Create workflow spec for this turn
 			const spec = {
-				kind: "workflow.v1" as const,
+				kind: "workflow" as const,
 				name: `session-${this.id}-turn-${this.nextSeq}`,
+				model: options.model || this.defaultModel,
 				nodes: [
 					{
 						id: "main" as any,
-						type: "llm.responses" as const,
-						input: {
-							request: {
-								provider: options.provider || this.defaultProvider,
-								model: options.model || this.defaultModel,
-								input,
-								tools,
-							},
-							tool_execution: this.toolRegistry
-								? { mode: "client" as const }
-								: undefined,
-						},
+						type: "llm" as const,
+						input,
+						tools,
+						tool_execution: this.toolRegistry
+							? { mode: "client" as const }
+							: undefined,
 					},
 				],
 				outputs: [{ name: "result" as any, from: "main" as any }],
