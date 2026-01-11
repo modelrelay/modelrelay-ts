@@ -28,6 +28,7 @@ export type RunsCreateOptions = {
 	sessionId?: string;
 	idempotencyKey?: string;
 	input?: Record<string, unknown>;
+	stream?: boolean;
 	signal?: AbortSignal;
 	headers?: Record<string, string>;
 	timeoutMs?: number;
@@ -126,6 +127,9 @@ export class RunsClient {
 		}
 		if (options.input) {
 			payload.input = options.input;
+		}
+		if (options.stream !== undefined) {
+			payload.stream = options.stream;
 		}
 
 		const out = await this.http.json<

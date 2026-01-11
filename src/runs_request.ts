@@ -49,6 +49,7 @@ export type RunsCreateRequest = {
 	spec: WorkflowSpecLiteV1;
 	session_id?: string;
 	input?: Record<string, unknown>; // runtime workflow inputs
+	stream?: boolean; // override all LLM nodes to stream
 	options?: {
 		idempotency_key?: string;
 	};
