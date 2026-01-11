@@ -3,7 +3,7 @@ import type { HTTPClient } from "./http";
 import type { MetricsCallbacks, TraceCallbacks } from "./types";
 import { mergeMetrics, mergeTrace } from "./types";
 import { parsePlanHash } from "./runs_ids";
-import type { WorkflowSpecLiteV1 } from "./runs_types";
+import type { WorkflowSpecIntentV1 } from "./runs_types";
 import { WORKFLOWS_COMPILE_PATH } from "./workflows_request";
 import { CUSTOMER_ID_HEADER } from "./responses_request";
 import { APIError, ModelRelayError, WorkflowValidationError, type WorkflowValidationIssue } from "./errors";
@@ -64,7 +64,7 @@ export class WorkflowsClient {
 	}
 
 	async compile(
-		spec: WorkflowSpecLiteV1,
+		spec: WorkflowSpecIntentV1,
 		options: WorkflowsCompileOptions = {},
 	): Promise<WorkflowsCompileResult> {
 		const metrics = mergeMetrics(this.metrics, options.metrics);

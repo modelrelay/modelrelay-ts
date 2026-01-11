@@ -13,4 +13,4 @@ export type {
 	WorkflowKind,
 } from "./runs_types";
 
-export { WorkflowKinds, WorkflowNodeTypesLite, WorkflowNodeTypesLite as WorkflowNodeTypes } from "./runs_types";
+export { WorkflowKinds, WorkflowNodeTypesIntent, WorkflowNodeTypesIntent as WorkflowNodeTypes } from "./runs_types";

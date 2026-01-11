@@ -1,13 +1,13 @@
 /**
- * Workflow.lite.v1 types with clean naming (no Workflow prefix).
+ * Workflow intent types with clean naming (no Workflow prefix).
  *
  * @example
  * ```typescript
  * import { workflow } from "@modelrelay/sdk";
  *
- * const spec: workflow.SpecLiteV1 = {
+ * const spec: workflow.SpecIntentV1 = {
  *   kind: workflow.KindIntent,
- *   nodes: [{ id: "my_node", type: workflow.NodeTypesLite.LLM, user: "hello" }],
+ *   nodes: [{ id: "my_node", type: workflow.NodeTypesIntent.LLM, user: "hello" }],
  *   outputs: [],
  * };
  * ```
@@ -15,9 +15,9 @@
 
 import type {
 	WorkflowKind as _WorkflowKind,
-	WorkflowSpecLiteV1 as _WorkflowSpecLiteV1,
+	WorkflowSpecIntentV1 as _WorkflowSpecIntentV1,
 	WorkflowIntentNode as _WorkflowIntentNode,
-	WorkflowOutputRefLiteV1 as _WorkflowOutputRefLiteV1,
+	WorkflowOutputRefIntentV1 as _WorkflowOutputRefIntentV1,
 	WorkflowIntentCondition as _WorkflowIntentCondition,
 	WorkflowIntentConditionOp as _WorkflowIntentConditionOp,
 	WorkflowIntentConditionSource as _WorkflowIntentConditionSource,
@@ -54,7 +54,7 @@ import type {
 	StreamEventKind as _StreamEventKind,
 } from "../runs_types";
 
-import { WorkflowKinds, WorkflowNodeTypesLite } from "../runs_types";
+import { WorkflowKinds, WorkflowNodeTypesIntent } from "../runs_types";
 
 import type {
 	NodeId as _NodeId,
@@ -74,9 +74,9 @@ export { parseNodeId, parseRunId, parsePlanHash, parseOutputName };
 
 // Workflow spec types (drop Workflow prefix)
 export type Kind = _WorkflowKind;
-export type SpecLiteV1 = _WorkflowSpecLiteV1;
+export type SpecIntentV1 = _WorkflowSpecIntentV1;
 export type IntentNode = _WorkflowIntentNode;
-export type OutputRefLiteV1 = _WorkflowOutputRefLiteV1;
+export type OutputRefIntentV1 = _WorkflowOutputRefIntentV1;
 
 export type Condition = _WorkflowIntentCondition;
 export type ConditionOp = _WorkflowIntentConditionOp;
@@ -118,14 +118,14 @@ export type StreamEventKind = _StreamEventKind;
 
 export const KindIntent = WorkflowKinds.WorkflowIntent;
 
-export const NodeTypesLite = {
-	LLM: WorkflowNodeTypesLite.LLM,
-	JoinAll: WorkflowNodeTypesLite.JoinAll,
-	JoinAny: WorkflowNodeTypesLite.JoinAny,
-	JoinCollect: WorkflowNodeTypesLite.JoinCollect,
-	TransformJSON: WorkflowNodeTypesLite.TransformJSON,
-	MapFanout: WorkflowNodeTypesLite.MapFanout,
+export const NodeTypesIntent = {
+	LLM: WorkflowNodeTypesIntent.LLM,
+	JoinAll: WorkflowNodeTypesIntent.JoinAll,
+	JoinAny: WorkflowNodeTypesIntent.JoinAny,
+	JoinCollect: WorkflowNodeTypesIntent.JoinCollect,
+	TransformJSON: WorkflowNodeTypesIntent.TransformJSON,
+	MapFanout: WorkflowNodeTypesIntent.MapFanout,
 } as const;
-export type NodeTypeLite = (typeof NodeTypesLite)[keyof typeof NodeTypesLite];
+export type NodeTypeIntent = (typeof NodeTypesIntent)[keyof typeof NodeTypesIntent];
 
 export { workflowIntent, WorkflowIntentBuilder, LLMNodeBuilder, LLM_TEXT_OUTPUT, LLM_USER_MESSAGE_TEXT } from "../workflow_builder";

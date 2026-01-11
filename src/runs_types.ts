@@ -11,7 +11,7 @@ export const WorkflowKinds = {
 export type WorkflowKindIntent = (typeof WorkflowKinds)["WorkflowIntent"];
 export type WorkflowKind = WorkflowKindIntent;
 
-export const WorkflowNodeTypesLite = {
+export const WorkflowNodeTypesIntent = {
 	LLM: "llm",
 	JoinAll: "join.all",
 	JoinAny: "join.any",
@@ -19,8 +19,8 @@ export const WorkflowNodeTypesLite = {
 	TransformJSON: "transform.json",
 	MapFanout: "map.fanout",
 } as const;
-export type WorkflowNodeTypeLite =
-	(typeof WorkflowNodeTypesLite)[keyof typeof WorkflowNodeTypesLite];
+export type WorkflowNodeTypeIntent =
+	(typeof WorkflowNodeTypesIntent)[keyof typeof WorkflowNodeTypesIntent];
 
 export type WorkflowIntentConditionSource = "node_output" | "node_status";
 export type WorkflowIntentConditionOp = "equals" | "matches" | "exists";
@@ -35,7 +35,7 @@ export type WorkflowIntentTransformValue = { from: NodeId; pointer?: string };
 
 export type WorkflowIntentNode = {
 	id: NodeId;
-	type: WorkflowNodeTypeLite;
+	type: WorkflowNodeTypeIntent;
 	depends_on?: ReadonlyArray<NodeId>;
 	model?: string;
 	system?: string;
@@ -57,18 +57,19 @@ export type WorkflowIntentNode = {
 	merge?: Array<WorkflowIntentTransformValue>;
 };
 
-export type WorkflowOutputRefLiteV1 = {
+export type WorkflowOutputRefIntentV1 = {
 	name: OutputName;
 	from: NodeId;
 	pointer?: string;
 };
 
-export type WorkflowSpecLiteV1 = {
+export type WorkflowSpecIntentV1 = {
 	kind: WorkflowKindIntent;
 	name?: string;
 	model?: string;
+	max_parallelism?: number;
 	nodes: ReadonlyArray<WorkflowIntentNode>;
-	outputs: ReadonlyArray<WorkflowOutputRefLiteV1>;
+	outputs: ReadonlyArray<WorkflowOutputRefIntentV1>;
 };
 
 export type RunStatusV0 = "running" | "waiting" | "succeeded" | "failed" | "canceled";

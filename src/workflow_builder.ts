@@ -2,10 +2,10 @@ import type { InputItem, Tool } from "./types";
 import { parseNodeId, type NodeId, type OutputName } from "./runs_ids";
 import {
 	WorkflowKinds,
-	WorkflowNodeTypesLite,
+	WorkflowNodeTypesIntent,
 	type WorkflowIntentNode,
-	type WorkflowOutputRefLiteV1,
-	type WorkflowSpecLiteV1,
+	type WorkflowOutputRefIntentV1,
+	type WorkflowSpecIntentV1,
 	type WorkflowIntentCondition,
 	type WorkflowIntentTransformValue,
 } from "./runs_types";
@@ -20,9 +20,10 @@ type WorkflowIntentEdge = { from: NodeId; to: NodeId };
 export type WorkflowIntentBuilderState = {
 	readonly name?: string;
 	readonly model?: string;
+	readonly maxParallelism?: number;
 	readonly nodes: ReadonlyArray<WorkflowIntentNode>;
 	readonly edges: ReadonlyArray<WorkflowIntentEdge>;
-	readonly outputs: ReadonlyArray<WorkflowOutputRefLiteV1>;
+	readonly outputs: ReadonlyArray<WorkflowOutputRefIntentV1>;
 };
 
 export class WorkflowIntentBuilder {
@@ -50,6 +51,10 @@ export class WorkflowIntentBuilder {
 		return this.with({ model: model.trim() });
 	}
 
+	maxParallelism(n: number): WorkflowIntentBuilder {
+		return this.with({ maxParallelism: n });
+	}
+
 	node(node: WorkflowIntentNode): WorkflowIntentBuilder {
 		return this.with({ nodes: [...this.state.nodes, node] });
 	}
@@ -61,17 +66,17 @@ export class WorkflowIntentBuilder {
 	}
 
 	joinAll(id: NodeId): WorkflowIntentBuilder {
-		return this.node({ id, type: WorkflowNodeTypesLite.JoinAll });
+		return this.node({ id, type: WorkflowNodeTypesIntent.JoinAll });
 	}
 
 	joinAny(id: NodeId, predicate?: WorkflowIntentCondition): WorkflowIntentBuilder {
-		return this.node({ id, type: WorkflowNodeTypesLite.JoinAny, predicate });
+		return this.node({ id, type: WorkflowNodeTypesIntent.JoinAny, predicate });
 	}
 
 	joinCollect(id: NodeId, options: { limit?: number; timeoutMs?: number; predicate?: WorkflowIntentCondition }): WorkflowIntentBuilder {
 		return this.node({
 			id,
-			type: WorkflowNodeTypesLite.JoinCollect,
+			type: WorkflowNodeTypesIntent.JoinCollect,
 			limit: options.limit,
 			timeout_ms: options.timeoutMs,
 			predicate: options.predicate,
@@ -81,7 +86,7 @@ export class WorkflowIntentBuilder {
 	transformJSON(id: NodeId, object?: Record<string, WorkflowIntentTransformValue>, merge?: WorkflowIntentTransformValue[]): WorkflowIntentBuilder {
 		return this.node({
 			id,
-			type: WorkflowNodeTypesLite.TransformJSON,
+			type: WorkflowNodeTypesIntent.TransformJSON,
 			object,
 			merge,
 		});
@@ -90,7 +95,7 @@ export class WorkflowIntentBuilder {
 	mapFanout(id: NodeId, options: { itemsFrom?: NodeId; itemsFromInput?: string; itemsPath?: string; subnode: WorkflowIntentNode; maxParallelism?: number }): WorkflowIntentBuilder {
 		return this.node({
 			id,
-			type: WorkflowNodeTypesLite.MapFanout,
+			type: WorkflowNodeTypesIntent.MapFanout,
 			items_from: options.itemsFrom,
 			items_from_input: options.itemsFromInput,
 			items_path: options.itemsPath,
@@ -109,7 +114,7 @@ export class WorkflowIntentBuilder {
 		});
 	}
 
-	build(): WorkflowSpecLiteV1 {
+	build(): WorkflowSpecIntentV1 {
 		const nodes = this.state.nodes.map((node) => ({
 			...node,
 			depends_on: node.depends_on ? [...node.depends_on] : undefined,
@@ -140,6 +145,7 @@ export class WorkflowIntentBuilder {
 			kind: WorkflowKinds.WorkflowIntent,
 			name: this.state.name,
 			model: this.state.model,
+			max_parallelism: this.state.maxParallelism,
 			nodes,
 			outputs: [...this.state.outputs],
 		};
@@ -150,7 +156,7 @@ export class LLMNodeBuilder {
 	private readonly node: WorkflowIntentNode;
 
 	constructor(id: NodeId) {
-		this.node = { id, type: WorkflowNodeTypesLite.LLM };
+		this.node = { id, type: WorkflowNodeTypesIntent.LLM };
 	}
 
 	system(text: string): LLMNodeBuilder {

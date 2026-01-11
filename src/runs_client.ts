@@ -19,7 +19,7 @@ import {
 	runToolResultsPath,
 } from "./runs_request";
 import { RunsEventStream } from "./runs_stream";
-import type { RunEventV0, WorkflowSpecLiteV1 } from "./runs_types";
+import type { RunEventV0, WorkflowSpecIntentV1 } from "./runs_types";
 import type { RunId } from "./runs_ids";
 import { parseNodeId, parsePlanHash, parseRunId } from "./runs_ids";
 
@@ -109,7 +109,7 @@ export class RunsClient {
 	}
 
 	async create(
-		spec: WorkflowSpecLiteV1,
+		spec: WorkflowSpecIntentV1,
 		options: RunsCreateOptions = {},
 	): Promise<RunsCreateResponse> {
 		const metrics = mergeMetrics(this.metrics, options.metrics);
