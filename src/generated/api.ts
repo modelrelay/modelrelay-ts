@@ -1006,6 +1006,8 @@ export interface paths {
                 after_seq?: number;
                 /** @description When false, returns currently available events then closes. */
                 wait?: boolean;
+                /** @description When true, inline node_output and run_completed payloads when they are <= 1MB. */
+                include_output?: boolean;
                 /** @description Maximum number of events to send before closing. */
                 limit?: number;
             };
@@ -1228,6 +1230,90 @@ export interface paths {
         get: operations["getWorkflowSchema"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runs/{run_id}/pending-tools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Get pending tool calls
+         * @description Returns pending tool calls for runs using client-side tool execution mode. When a node emits a node_waiting event, use this endpoint to retrieve the tool calls that need execution.
+         */
+        get: operations["getRunPendingTools"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runs/{run_id}/tool-results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit tool results
+         * @description Submits tool execution results to resume a waiting run. Use the values from /pending-tools to correlate the results.
+         */
+        post: operations["submitRunToolResults"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/workflows/compile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Compile a workflow spec
+         * @description Compiles a workflow spec into a canonical plan and plan hash. This validates the workflow schema and model capability constraints.
+         */
+        post: operations["compileWorkflow"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/workflows/lint": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Lint a workflow spec
+         * @description Runs strict JSON schema linting on output_format.json_schema for LLM nodes and optionally compiles the workflow. Pass compile=false to skip compilation.
+         */
+        post: operations["lintWorkflow"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2710,6 +2796,58 @@ export interface components {
         /** @description A `workflow` spec. The canonical JSON Schema is available at `/schemas/workflow.schema.json`. */
         WorkflowSpec: {
             [key: string]: unknown;
+        };
+        /** @description A lint or compile issue for a workflow spec. */
+        WorkflowIssue: {
+            /** @description Issue code */
+            code: string;
+            /** @description JSON path to the issue location (e.g., $.nodes[0].id) */
+            path: string;
+            /** @description Human-readable issue description */
+            message: string;
+        };
+        /** @description Request to submit tool execution results for a waiting run. */
+        RunsToolResultsRequest: {
+            node_id: components["schemas"]["NodeId"];
+            /**
+             * Format: int64
+             * @description Execution step from pending-tools
+             */
+            step: number;
+            request_id: components["schemas"]["RequestId"];
+            /** @description Tool execution results */
+            results: components["schemas"]["RunToolResultV0"][];
+        };
+        /** @description Response after submitting tool results. */
+        RunsToolResultsResponse: {
+            /**
+             * Format: int64
+             * @description Number of tool results accepted
+             */
+            accepted: number;
+            status: components["schemas"]["RunStatusV0"];
+        };
+        /** @description Response from compiling a workflow spec. */
+        WorkflowsCompileResponse: {
+            /** @description Canonical compiled plan JSON */
+            plan_json: Record<string, never>;
+            /** @description Hash of the compiled plan */
+            plan_hash: string;
+        };
+        /** @description Response from linting a workflow spec. */
+        WorkflowsLintResponse: {
+            /** @description Workflow kind (e.g., workflow) */
+            kind?: string;
+            /** @description Lint issues found in the spec */
+            lint_issues?: components["schemas"]["WorkflowIssue"][];
+            /** @description Compile issues (when compile is enabled) */
+            compile_issues?: components["schemas"]["WorkflowIssue"][];
+            /** @description Non-validation compile failure message */
+            compile_error?: string;
+            /** @description Compiled plan JSON (when compile succeeds) */
+            plan_json?: Record<string, never>;
+            /** @description Plan hash (when compile succeeds) */
+            plan_hash?: string;
         };
     };
     responses: never;
@@ -4903,6 +5041,8 @@ export interface operations {
                 after_seq?: number;
                 /** @description When false, returns currently available events then closes. */
                 wait?: boolean;
+                /** @description When true, inline node_output and run_completed payloads when they are <= 1MB. */
+                include_output?: boolean;
                 /** @description Maximum number of events to send before closing. */
                 limit?: number;
             };
@@ -5312,6 +5452,149 @@ export interface operations {
                 content: {
                     "application/schema+json": Record<string, never>;
                 };
+            };
+        };
+    };
+    getRunPendingTools: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pending tool calls */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunsPendingToolsResponse"];
+                };
+            };
+            /** @description Run not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    submitRunToolResults: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RunsToolResultsRequest"];
+            };
+        };
+        responses: {
+            /** @description Tool results accepted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunsToolResultsResponse"];
+                };
+            };
+            /** @description Invalid payload */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Run or pending tool calls not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Tool results conflict (wrong step/request_id) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    compileWorkflow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkflowSpec"];
+            };
+        };
+        responses: {
+            /** @description Compiled workflow */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowsCompileResponse"];
+                };
+            };
+            /** @description Invalid workflow spec or validation errors */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+        };
+    };
+    lintWorkflow: {
+        parameters: {
+            query?: {
+                /** @description Whether to compile the workflow after linting (default: true) */
+                compile?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkflowSpec"];
+            };
+        };
+        responses: {
+            /** @description Lint results */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowsLintResponse"];
+                };
+            };
+            /** @description Invalid payload */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
