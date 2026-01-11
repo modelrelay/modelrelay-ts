@@ -8,6 +8,7 @@ import {
 	RUNS_PATH,
 	RUN_EVENT_V0_SCHEMA_PATH,
 	type RunsCreateRequest,
+	type RunsCreateFromPlanRequest,
 	type RunsCreateResponse,
 	type RunsGetResponse,
 	type RunsPendingToolsResponse,
@@ -20,7 +21,7 @@ import {
 } from "./runs_request";
 import { RunsEventStream } from "./runs_stream";
 import type { RunEventV0, WorkflowSpecIntentV1 } from "./runs_types";
-import type { RunId } from "./runs_ids";
+import type { PlanHash, RunId } from "./runs_ids";
 import { parseNodeId, parsePlanHash, parseRunId } from "./runs_ids";
 
 export type RunsCreateOptions = {
@@ -119,6 +120,61 @@ export class RunsClient {
 		const headers: Record<string, string> = { ...(options.headers || {}) };
 		this.applyCustomerHeader(headers, options.customerId);
 		const payload: RunsCreateRequest = { spec };
+		if (options.sessionId?.trim()) {
+			payload.session_id = options.sessionId.trim();
+		}
+		if (options.idempotencyKey?.trim()) {
+			payload.options = { idempotency_key: options.idempotencyKey.trim() };
+		}
+		if (options.input) {
+			payload.input = options.input;
+		}
+		if (options.stream !== undefined) {
+			payload.stream = options.stream;
+		}
+
+		const out = await this.http.json<
+			Omit<RunsCreateResponse, "run_id" | "plan_hash"> & { run_id: string; plan_hash: string }
+		>(RUNS_PATH, {
+			method: "POST",
+			headers,
+			body: payload,
+			signal: options.signal,
+			apiKey: authHeaders.apiKey,
+			accessToken: authHeaders.accessToken,
+			timeoutMs: options.timeoutMs,
+			connectTimeoutMs: options.connectTimeoutMs,
+			retry: options.retry,
+			metrics,
+			trace,
+			context: { method: "POST", path: RUNS_PATH },
+		});
+		return { ...out, run_id: parseRunId(out.run_id), plan_hash: parsePlanHash(out.plan_hash) };
+	}
+
+	/**
+	 * Starts a workflow run using a precompiled plan hash.
+	 *
+	 * Use workflows.compile() to compile a workflow spec and obtain a plan_hash,
+	 * then use this method to start runs without re-compiling each time.
+	 * This is useful for workflows that are run repeatedly with the same structure
+	 * but different inputs.
+	 *
+	 * The plan_hash must have been compiled in the current server session;
+	 * if the server has restarted since compilation, the plan will not be found
+	 * and you'll need to recompile.
+	 */
+	async createFromPlan(
+		planHash: PlanHash,
+		options: RunsCreateOptions = {},
+	): Promise<RunsCreateResponse> {
+		const metrics = mergeMetrics(this.metrics, options.metrics);
+		const trace = mergeTrace(this.trace, options.trace);
+		const authHeaders = await this.auth.authForResponses();
+
+		const headers: Record<string, string> = { ...(options.headers || {}) };
+		this.applyCustomerHeader(headers, options.customerId);
+		const payload: RunsCreateFromPlanRequest = { plan_hash: planHash };
 		if (options.sessionId?.trim()) {
 			payload.session_id = options.sessionId.trim();
 		}

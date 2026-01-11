@@ -55,6 +55,16 @@ export type RunsCreateRequest = {
 	};
 };
 
+export type RunsCreateFromPlanRequest = {
+	plan_hash: PlanHash;
+	session_id?: string;
+	input?: Record<string, unknown>; // runtime workflow inputs
+	stream?: boolean; // override all LLM nodes to stream
+	options?: {
+		idempotency_key?: string;
+	};
+};
+
 export type RunsCreateResponse = {
 	run_id: RunId;
 	status: RunStatusV0;

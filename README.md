@@ -130,6 +130,22 @@ const spec = parallel([
   .build();
 ```
 
+### Precompiled Workflows
+
+For workflows that run repeatedly, compile once and reuse:
+
+```ts
+// Compile once
+const { plan_hash } = await mr.workflows.compile(spec);
+
+// Run multiple times with different inputs
+for (const task of tasks) {
+  const run = await mr.runs.createFromPlan(plan_hash, {
+    input: { task },
+  });
+}
+```
+
 ## Chat-Like Text Helpers
 
 For the most common path (**system + user → assistant text**):
