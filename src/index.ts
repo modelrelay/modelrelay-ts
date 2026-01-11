@@ -161,7 +161,6 @@ export {
 	// Tool creation
 	createFunctionTool,
 	createFunctionToolFromSchema,
-	createWebTool,
 	// Tool choice helpers
 	toolChoiceAuto,
 	toolChoiceRequired,

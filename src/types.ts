@@ -352,30 +352,15 @@ export type OutputItem = {
 
 export const ToolTypes = {
 	Function: "function",
-	Web: "web",
 	XSearch: "x_search",
 	CodeExecution: "code_execution",
 } as const;
 export type ToolType = (typeof ToolTypes)[keyof typeof ToolTypes];
 
-export const WebToolIntents = {
-	Auto: "auto",
-	SearchWeb: "search_web",
-	FetchURL: "fetch_url",
-} as const;
-export type WebToolIntent = (typeof WebToolIntents)[keyof typeof WebToolIntents];
-
 export interface FunctionTool {
 	name: string;
 	description?: string;
 	parameters?: Record<string, unknown>;
-}
-
-export interface WebSearchConfig {
-	allowedDomains?: string[];
-	excludedDomains?: string[];
-	maxUses?: number;
-	intent?: WebToolIntent;
 }
 
 export interface XSearchConfig {
@@ -393,7 +378,6 @@ export interface CodeExecConfig {
 export interface Tool {
 	type: ToolType;
 	function?: FunctionTool;
-	web?: WebSearchConfig;
 	xSearch?: XSearchConfig;
 	codeExecution?: CodeExecConfig;
 }
