@@ -401,6 +401,11 @@ export interface ToolChoice {
 export interface FunctionCall {
 	name: string;
 	arguments: string;
+	/**
+	 * Opaque signature from Gemini 3 thinking models that must be preserved
+	 * and returned with tool results. Base64-encoded.
+	 */
+	thought_signature?: string;
 }
 
 export interface ToolCall {
