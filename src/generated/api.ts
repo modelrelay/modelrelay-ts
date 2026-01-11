@@ -111,6 +111,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/account/billing/auto-topup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get auto top-up configuration for the authenticated account */
+        get: operations["getAccountAutoTopup"];
+        /** Update auto top-up configuration for the authenticated account */
+        put: operations["updateAccountAutoTopup"];
+        post?: never;
+        /** Disable auto top-up for the authenticated account */
+        delete: operations["disableAccountAutoTopup"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/account/billing/auto-topup/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a setup intent for auto top-up payment methods */
+        post: operations["createAccountAutoTopupSetup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/account/billing/auto-topup/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm auto top-up setup intent */
+        post: operations["confirmAccountAutoTopupSetup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/customers": {
         parameters: {
             query?: never;
@@ -1617,6 +1670,52 @@ export interface components {
             session_id: string;
             status: string;
         };
+        AutoTopupPaymentMethod: {
+            id: string;
+            brand: string;
+            last4: string;
+            /** Format: int64 */
+            exp_month: number;
+            /** Format: int64 */
+            exp_year: number;
+        };
+        AutoTopupLimits: {
+            /** Format: int64 */
+            min_topup_cents: number;
+            /** Format: int64 */
+            max_single_cents: number;
+            /** Format: int64 */
+            max_daily_cents: number;
+            /** Format: int64 */
+            max_monthly_cents: number;
+        };
+        AutoTopupConfigResponse: {
+            enabled: boolean;
+            /** Format: int64 */
+            threshold_cents: number;
+            /** Format: int64 */
+            amount_cents: number;
+            payment_method?: components["schemas"]["AutoTopupPaymentMethod"];
+            failure_count: number;
+            /** Format: date-time */
+            last_triggered_at?: string;
+            limits: components["schemas"]["AutoTopupLimits"];
+        };
+        AutoTopupSetupResponse: {
+            setup_intent_id: string;
+            client_secret: string;
+            status?: string;
+        };
+        AutoTopupConfigRequest: {
+            enabled: boolean;
+            /** Format: int64 */
+            threshold_cents: number;
+            /** Format: int64 */
+            amount_cents: number;
+        };
+        AutoTopupConfirmRequest: {
+            setup_intent_id: string;
+        };
         CustomerUsagePoint: {
             /**
              * Format: date-time
@@ -2038,6 +2137,8 @@ export interface components {
             input?: {
                 [key: string]: unknown;
             };
+            /** @description When true, overrides all llm.responses and route.switch nodes to stream (emit node_output_delta events). When false or omitted, uses the workflow spec defaults. */
+            stream?: boolean;
             options?: components["schemas"]["RunsCreateOptionsV0"];
             /**
              * Format: uuid
@@ -3046,6 +3147,217 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["AuthResponse"];
                 };
+            };
+        };
+    };
+    getAccountAutoTopup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Auto top-up configuration */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutoTopupConfigResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Failed to get auto top-up configuration */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Auto top-up service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateAccountAutoTopup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutoTopupConfigRequest"];
+            };
+        };
+        responses: {
+            /** @description Auto top-up configuration updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutoTopupConfigResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Auto top-up service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    disableAccountAutoTopup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Auto top-up disabled */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Failed to disable auto top-up */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Auto top-up service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    createAccountAutoTopupSetup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Setup intent created */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutoTopupSetupResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Auto top-up service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    confirmAccountAutoTopupSetup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutoTopupConfirmRequest"];
+            };
+        };
+        responses: {
+            /** @description Auto top-up payment method stored */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutoTopupConfigResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Auto top-up service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -4980,7 +5292,10 @@ export interface operations {
     };
     createRun: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description When true, override all llm.responses and route.switch nodes to stream (emit node_output_delta events). When false or omitted, uses the workflow spec defaults. */
+                stream?: boolean;
+            };
             header?: never;
             path?: never;
             cookie?: never;
