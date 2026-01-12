@@ -2236,6 +2236,7 @@ export interface components {
             steps?: components["schemas"]["RunNodeStepsV0"][];
             plan_hash: components["schemas"]["PlanHash"];
             run_id: components["schemas"]["RunId"];
+            parent_run_id?: components["schemas"]["RunId"];
             summary: components["schemas"]["RunSummary"];
             status: components["schemas"]["RunStatusV0"];
         };
