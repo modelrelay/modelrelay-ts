@@ -29,6 +29,11 @@ export type RunsCreateOptions = {
 	sessionId?: string;
 	idempotencyKey?: string;
 	input?: Record<string, unknown>;
+	modelOverride?: string;
+	modelOverrides?: {
+		nodes?: Record<string, string>;
+		fanoutSubnodes?: Array<{ parentId: string; subnodeId: string; model: string }>;
+	};
 	stream?: boolean;
 	signal?: AbortSignal;
 	headers?: Record<string, string>;
@@ -129,6 +134,23 @@ export class RunsClient {
 		if (options.input) {
 			payload.input = options.input;
 		}
+		if (options.modelOverride?.trim()) {
+			payload.model_override = options.modelOverride.trim();
+		}
+		if (options.modelOverrides) {
+			const nodes = options.modelOverrides.nodes;
+			const fanoutSubnodes = options.modelOverrides.fanoutSubnodes;
+			if ((nodes && Object.keys(nodes).length > 0) || (fanoutSubnodes && fanoutSubnodes.length > 0)) {
+				payload.model_overrides = {
+					nodes,
+					fanout_subnodes: fanoutSubnodes?.map((entry) => ({
+						parent_id: entry.parentId,
+						subnode_id: entry.subnodeId,
+						model: entry.model,
+					})),
+				};
+			}
+		}
 		if (options.stream !== undefined) {
 			payload.stream = options.stream;
 		}
@@ -183,6 +205,23 @@ export class RunsClient {
 		}
 		if (options.input) {
 			payload.input = options.input;
+		}
+		if (options.modelOverride?.trim()) {
+			payload.model_override = options.modelOverride.trim();
+		}
+		if (options.modelOverrides) {
+			const nodes = options.modelOverrides.nodes;
+			const fanoutSubnodes = options.modelOverrides.fanoutSubnodes;
+			if ((nodes && Object.keys(nodes).length > 0) || (fanoutSubnodes && fanoutSubnodes.length > 0)) {
+				payload.model_overrides = {
+					nodes,
+					fanout_subnodes: fanoutSubnodes?.map((entry) => ({
+						parent_id: entry.parentId,
+						subnode_id: entry.subnodeId,
+						model: entry.model,
+					})),
+				};
+			}
 		}
 		if (options.stream !== undefined) {
 			payload.stream = options.stream;

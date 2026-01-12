@@ -63,11 +63,20 @@ export type WorkflowOutputRefIntentV1 = {
 	pointer?: string;
 };
 
+export type WorkflowInputDeclIntentV1 = {
+	name: string;
+	type?: string; // "string", "number", "object", "array", "boolean", "null", "json"
+	required?: boolean;
+	description?: string;
+	default?: unknown;
+};
+
 export type WorkflowSpecIntentV1 = {
 	kind: WorkflowKindIntent;
 	name?: string;
 	model?: string;
 	max_parallelism?: number;
+	inputs?: ReadonlyArray<WorkflowInputDeclIntentV1>;
 	nodes: ReadonlyArray<WorkflowIntentNode>;
 	outputs: ReadonlyArray<WorkflowOutputRefIntentV1>;
 };

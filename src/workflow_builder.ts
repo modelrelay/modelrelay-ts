@@ -4,6 +4,7 @@ import {
 	WorkflowKinds,
 	WorkflowNodeTypesIntent,
 	type WorkflowIntentNode,
+	type WorkflowInputDeclIntentV1,
 	type WorkflowOutputRefIntentV1,
 	type WorkflowSpecIntentV1,
 	type WorkflowIntentCondition,
@@ -21,6 +22,7 @@ export type WorkflowIntentBuilderState = {
 	readonly name?: string;
 	readonly model?: string;
 	readonly maxParallelism?: number;
+	readonly inputs?: ReadonlyArray<WorkflowInputDeclIntentV1>;
 	readonly nodes: ReadonlyArray<WorkflowIntentNode>;
 	readonly edges: ReadonlyArray<WorkflowIntentEdge>;
 	readonly outputs: ReadonlyArray<WorkflowOutputRefIntentV1>;
@@ -53,6 +55,10 @@ export class WorkflowIntentBuilder {
 
 	maxParallelism(n: number): WorkflowIntentBuilder {
 		return this.with({ maxParallelism: n });
+	}
+
+	inputs(decls: ReadonlyArray<WorkflowInputDeclIntentV1>): WorkflowIntentBuilder {
+		return this.with({ inputs: decls });
 	}
 
 	node(node: WorkflowIntentNode): WorkflowIntentBuilder {
@@ -146,6 +152,7 @@ export class WorkflowIntentBuilder {
 			name: this.state.name,
 			model: this.state.model,
 			max_parallelism: this.state.maxParallelism,
+			inputs: this.state.inputs,
 			nodes,
 			outputs: [...this.state.outputs],
 		};

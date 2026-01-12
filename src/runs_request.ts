@@ -45,10 +45,17 @@ export type RunsPendingToolsResponse = {
 	}>;
 };
 
+export type RunsModelOverrides = {
+	nodes?: Record<string, string>;
+	fanout_subnodes?: Array<{ parent_id: string; subnode_id: string; model: string }>;
+};
+
 export type RunsCreateRequest = {
 	spec: WorkflowSpecIntentV1;
 	session_id?: string;
 	input?: Record<string, unknown>; // runtime workflow inputs
+	model_override?: string; // override all llm.responses/route.switch models
+	model_overrides?: RunsModelOverrides; // per-node override (top-level or fanout subnode)
 	stream?: boolean; // override all LLM nodes to stream
 	options?: {
 		idempotency_key?: string;
@@ -59,6 +66,8 @@ export type RunsCreateFromPlanRequest = {
 	plan_hash: PlanHash;
 	session_id?: string;
 	input?: Record<string, unknown>; // runtime workflow inputs
+	model_override?: string; // override all llm.responses/route.switch models
+	model_overrides?: RunsModelOverrides; // per-node override (top-level or fanout subnode)
 	stream?: boolean; // override all LLM nodes to stream
 	options?: {
 		idempotency_key?: string;

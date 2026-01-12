@@ -2131,11 +2131,24 @@ export interface components {
         RunsCreateOptionsV0: {
             idempotency_key?: string;
         };
-        /** @description Create a workflow run. The workflow spec must include a resolved model for every llm.responses/route.switch node (including map.fanout subnodes); /runs does not resolve tiers or default models. */
+        /** @description Create a workflow run. The workflow spec must include a resolved model for every llm.responses/route.switch node (including map.fanout subnodes); /runs does not resolve tiers or default models. Use model_override or model_overrides to override models at runtime. */
         RunsCreateRequest: {
             /** @description Runtime inputs for the workflow. Required when the spec uses from_input references (e.g., map.fanout with items.from_input). Each key is the input name, and the value is the JSON data to provide. */
             input?: {
                 [key: string]: unknown;
+            };
+            /** @description Default model override applied to all llm.responses and route.switch nodes (including map.fanout subnodes) unless overridden by model_overrides. */
+            model_override?: string;
+            /** @description Per-node model overrides. Use nodes for top-level nodes and fanout_subnodes for map.fanout subnodes. */
+            model_overrides?: {
+                nodes?: {
+                    [key: string]: string;
+                };
+                fanout_subnodes?: {
+                    parent_id: string;
+                    subnode_id: string;
+                    model: string;
+                }[];
             };
             /** @description When true, overrides all llm.responses and route.switch nodes to stream (emit node_output_delta events). When false or omitted, uses the workflow spec defaults. */
             stream?: boolean;
