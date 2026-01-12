@@ -421,7 +421,7 @@ export * from "./errors";
 export {
 	// Tool creation
 	createFunctionTool,
-	createFunctionToolFromSchema,
+	createTypedTool,
 	// Tool choice helpers
 	toolChoiceAuto,
 	toolChoiceRequired,
@@ -444,16 +444,15 @@ export {
 	getToolArgsRaw,
 	getToolArgs,
 	getAllToolCalls,
+	getTypedToolCall,
+	getTypedToolCalls,
+	parseTypedToolCall,
 	// Response text extraction
 	getAssistantText,
 	// Streaming accumulator
 	ToolCallAccumulator,
 	// Schema inference
 	zodToJsonSchema,
-	// Argument parsing
-	parseToolArgs,
-	tryParseToolArgs,
-	parseToolArgsRaw,
 	ToolArgsError,
 	// Tool registry
 	ToolRegistry,
@@ -471,7 +470,9 @@ export { ToolBuilder } from "./tool_builder";
 export type {
 	ZodLikeSchema,
 	JsonSchemaOptions,
-	Schema,
+	InferSchema,
+	TypedFunctionTool,
+	TypedToolCall,
 	ToolHandler,
 	ToolExecutionResult,
 	RetryOptions,

@@ -89,7 +89,6 @@ export function createFunctionCall(name: string, args: string): FunctionCall {
 export interface ZodLikeSchema {
 	_def: {
 		typeName: string;
-		[key: string]: unknown;
 	};
 	parse(data: unknown): unknown;
 	safeParse(data: unknown): { success: boolean; data?: unknown; error?: unknown };
@@ -104,6 +103,19 @@ export interface JsonSchemaOptions {
 	/** Target JSON Schema version. Defaults to "draft-07". */
 	target?: "draft-04" | "draft-07" | "draft-2019-09" | "draft-2020-12";
 }
+
+export type InferSchema<S extends ZodLikeSchema> =
+	S extends { parse(data: unknown): infer T } ? T : never;
+
+export type TypedFunctionTool<S extends ZodLikeSchema> = Tool & {
+	type: typeof ToolTypes.Function;
+	function: FunctionTool;
+	_schema: S;
+};
+
+export type TypedToolCall<S extends ZodLikeSchema> = Omit<ToolCall, "function"> & {
+	function: Omit<FunctionCall, "arguments"> & { arguments: InferSchema<S> };
+};
 
 /**
  * Converts a Zod schema to JSON Schema.
@@ -130,7 +142,7 @@ export function zodToJsonSchema(
 }
 
 function convertZodType(schema: ZodLikeSchema): Record<string, unknown> {
-	const def = schema._def;
+	const def = schema._def as Record<string, unknown> & { typeName: string };
 	const typeName = def.typeName;
 
 	switch (typeName) {
@@ -165,7 +177,10 @@ function convertZodType(schema: ZodLikeSchema): Record<string, unknown> {
 		case "ZodNullable":
 			return convertZodNullable(def);
 		case "ZodDefault":
-			return { ...convertZodType(def.innerType as ZodLikeSchema), default: (def.defaultValue as () => unknown)() };
+			return {
+				...convertZodType(def.innerType as ZodLikeSchema),
+				default: (def.defaultValue as () => unknown)(),
+			};
 		case "ZodEffects":
 			return convertZodType(def.schema as ZodLikeSchema);
 		case "ZodRecord":
@@ -294,10 +309,11 @@ function convertZodObject(def: Record<string, unknown>): Record<string, unknown>
 		properties[key] = convertZodType(value);
 
 		// Check if the field is required (not optional or nullable with default)
-		const valueDef = value._def;
+		const valueDef = value._def as Record<string, unknown> & { typeName: string };
 		const isOptional = valueDef.typeName === "ZodOptional" ||
 			valueDef.typeName === "ZodDefault" ||
-			(valueDef.typeName === "ZodNullable" && (valueDef.innerType as ZodLikeSchema)?._def?.typeName === "ZodDefault");
+			(valueDef.typeName === "ZodNullable" &&
+				(valueDef.innerType as ZodLikeSchema | undefined)?._def?.typeName === "ZodDefault");
 
 		if (!isOptional) {
 			required.push(key);
@@ -404,43 +420,39 @@ function convertZodTuple(def: Record<string, unknown>): Record<string, unknown> 
 }
 
 /**
- * Creates a function tool from a Zod schema.
+ * Creates a typed function tool from a Zod schema.
  *
- * This function automatically converts a Zod schema to a JSON Schema
- * and creates a tool definition. It eliminates the need to manually
- * write JSON schemas for tool parameters.
+ * The returned tool preserves the schema for typed tool call arguments,
+ * while only the JSON Schema is sent to the API.
  *
  * @example
  * ```typescript
  * import { z } from "zod";
- * import { createFunctionToolFromSchema } from "@modelrelay/sdk";
+ * import { createTypedTool } from "@modelrelay/sdk";
  *
- * const weatherParams = z.object({
- *   location: z.string().describe("City name"),
- *   unit: z.enum(["celsius", "fahrenheit"]).default("celsius"),
+ * const weatherTool = createTypedTool({
+ *   name: "get_weather",
+ *   description: "Get weather for a location",
+ *   parameters: z.object({
+ *     location: z.string().describe("City name"),
+ *     unit: z.enum(["celsius", "fahrenheit"]).default("celsius"),
+ *   }),
  * });
- *
- * const weatherTool = createFunctionToolFromSchema(
- *   "get_weather",
- *   "Get weather for a location",
- *   weatherParams
- * );
  * ```
- *
- * @param name - The tool name
- * @param description - A description of what the tool does
- * @param schema - A Zod schema defining the tool's parameters
- * @param options - Optional JSON Schema generation options
- * @returns A Tool definition with the JSON schema derived from the Zod schema
  */
-export function createFunctionToolFromSchema(
-	name: string,
-	description: string,
-	schema: ZodLikeSchema,
-	options?: JsonSchemaOptions,
-): Tool {
-	const jsonSchema = zodToJsonSchema(schema, options);
-	return createFunctionTool(name, description, jsonSchema);
+export function createTypedTool<S extends ZodLikeSchema>(def: {
+	name: string;
+	description: string;
+	parameters: S;
+	options?: JsonSchemaOptions;
+}): TypedFunctionTool<S> {
+	const jsonSchema = zodToJsonSchema(def.parameters, def.options);
+	const tool = createFunctionTool(def.name, def.description, jsonSchema) as TypedFunctionTool<S>;
+	Object.defineProperty(tool, "_schema", {
+		value: def.parameters,
+		enumerable: false,
+	});
+	return tool;
 }
 
 /**
@@ -623,7 +635,7 @@ export class ToolCallAccumulator {
 }
 
 // ============================================================================
-// Type-safe Argument Parsing
+// Typed Tool Calls
 // ============================================================================
 
 /**
@@ -652,40 +664,7 @@ export class ToolArgsError extends Error {
 	}
 }
 
-/**
- * Schema interface compatible with Zod, Yup, and similar validation libraries.
- * Any object with a `parse` method that returns the validated type works.
- */
-export interface Schema<T> {
-	parse(data: unknown): T;
-}
-
-/**
- * Parses and validates tool call arguments using a schema.
- *
- * Works with any schema library that has a `parse` method (Zod, Yup, etc.).
- * Throws a descriptive ToolArgsError if parsing or validation fails.
- *
- * @example
- * ```typescript
- * import { z } from "zod";
- *
- * const WeatherArgs = z.object({
- *   location: z.string(),
- *   unit: z.enum(["celsius", "fahrenheit"]).default("celsius"),
- * });
- *
- * // In your tool handler:
- * const args = parseToolArgs(toolCall, WeatherArgs);
- * // args is typed as { location: string; unit: "celsius" | "fahrenheit" }
- * ```
- *
- * @param call - The tool call containing arguments to parse
- * @param schema - A schema with a `parse` method (Zod, Yup, etc.)
- * @returns The parsed and validated arguments with proper types
- * @throws {ToolArgsError} If JSON parsing or schema validation fails
- */
-export function parseToolArgs<T>(call: ToolCall, schema: Schema<T>): T {
+function parseToolArgsWithSchema<T>(call: ToolCall, schema: { parse(data: unknown): T }): T {
 	const toolName = call.function?.name ?? "unknown";
 	const rawArgs = call.function?.arguments ?? "";
 
@@ -737,72 +716,71 @@ export function parseToolArgs<T>(call: ToolCall, schema: Schema<T>): T {
 }
 
 /**
- * Attempts to parse tool arguments, returning a result object instead of throwing.
- *
- * @example
- * ```typescript
- * const result = tryParseToolArgs(toolCall, WeatherArgs);
- * if (result.success) {
- *   console.log(result.data.location);
- * } else {
- *   console.error(result.error.message);
- * }
- * ```
- *
- * @param call - The tool call containing arguments to parse
- * @param schema - A schema with a `parse` method
- * @returns An object with either { success: true, data: T } or { success: false, error: ToolArgsError }
+ * Parse a tool call into a typed tool call using the tool's schema.
  */
-export function tryParseToolArgs<T>(
+export function parseTypedToolCall<S extends ZodLikeSchema>(
 	call: ToolCall,
-	schema: Schema<T>,
-): { success: true; data: T } | { success: false; error: ToolArgsError } {
-	try {
-		const data = parseToolArgs(call, schema);
-		return { success: true, data };
-	} catch (err) {
-		if (err instanceof ToolArgsError) {
-			return { success: false, error: err };
-		}
-		// Wrap unexpected errors
-		const toolName = call.function?.name ?? "unknown";
-		const rawArgs = call.function?.arguments ?? "";
-		return {
-			success: false,
-			error: new ToolArgsError(
-				err instanceof Error ? err.message : String(err),
-				call.id,
-				toolName,
-				rawArgs,
-			),
-		};
+	tool: TypedFunctionTool<S>,
+): TypedToolCall<S> {
+	if (!call.function) {
+		throw new ToolArgsError(
+			"Tool call missing function",
+			call.id,
+			tool.function.name,
+			"",
+		);
 	}
+	if (call.function.name !== tool.function.name) {
+		throw new ToolArgsError(
+			`Expected tool '${tool.function.name}', got '${call.function.name}'`,
+			call.id,
+			tool.function.name,
+			call.function.arguments ?? "",
+		);
+	}
+	const parsed = parseToolArgsWithSchema(call, tool._schema) as InferSchema<S>;
+	return {
+		...call,
+		function: {
+			...call.function,
+			arguments: parsed,
+		},
+	};
 }
 
 /**
- * Parses raw JSON arguments without schema validation.
- * Useful when you want JSON parsing error handling but not schema validation.
- *
- * @param call - The tool call containing arguments to parse
- * @returns The parsed JSON as an unknown type
- * @throws {ToolArgsError} If JSON parsing fails
+ * Get the first typed tool call for a specific tool from a response.
  */
-export function parseToolArgsRaw(call: ToolCall): unknown {
-	const toolName = call.function?.name ?? "unknown";
-	const rawArgs = call.function?.arguments ?? "";
-
-	try {
-		return rawArgs ? JSON.parse(rawArgs) : {};
-	} catch (err) {
-		const message =
-			err instanceof Error ? err.message : "Invalid JSON in arguments";
-		throw new ToolArgsError(
-			`Failed to parse arguments for tool '${toolName}': ${message}`,
-			call.id,
-			toolName,
-			rawArgs,
-		);
+export function getTypedToolCall<S extends ZodLikeSchema>(
+	response: Response,
+	tool: TypedFunctionTool<S>,
+): TypedToolCall<S> | undefined {
+	for (const item of response.output || []) {
+		for (const call of item?.toolCalls || []) {
+			if (call.function?.name === tool.function.name) {
+				return parseTypedToolCall(call, tool);
+			}
+		}
 	}
+	return undefined;
+}
+
+/**
+ * Get all typed tool calls for a specific tool from a response.
+ */
+export function getTypedToolCalls<S extends ZodLikeSchema>(
+	response: Response,
+	tool: TypedFunctionTool<S>,
+): TypedToolCall<S>[] {
+	const result: TypedToolCall<S>[] = [];
+	for (const item of response.output || []) {
+		for (const call of item?.toolCalls || []) {
+			if (call.function?.name === tool.function.name) {
+				result.push(parseTypedToolCall(call, tool));
+			}
+		}
+	}
+	return result;
 }
 
 // ============================================================================
@@ -839,7 +817,6 @@ export function getToolArgsRaw(call: ToolCall): string {
  * Get parsed arguments from a tool call.
  *
  * Returns the parsed JSON object, or an empty object if parsing fails.
- * For error handling, use parseToolArgsRaw instead.
  *
  * @example
  * ```typescript

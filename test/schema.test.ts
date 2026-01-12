@@ -1,23 +1,20 @@
 import { describe, expect, it } from "vitest";
 import z from "zod";
-import {
-	createFunctionToolFromSchema,
-	zodToJsonSchema,
-	type ZodLikeSchema,
-} from "../src/tools";
+import { createToolCall, createTypedTool, getTypedToolCall, ToolArgsError, zodToJsonSchema } from "../src/tools";
 import { ConfigError } from "../src/errors";
+import type { Response, ModelId } from "../src/types";
 
 describe("Schema Inference", () => {
 	describe("zodToJsonSchema", () => {
 		it("converts string schema", () => {
 			const schema = z.string();
-			const jsonSchema = zodToJsonSchema(schema as unknown as ZodLikeSchema);
+			const jsonSchema = zodToJsonSchema(schema);
 			expect(jsonSchema).toEqual({ type: "string" });
 		});
 
 		it("converts string with constraints", () => {
 			const schema = z.string().min(1).max(100).email();
-			const jsonSchema = zodToJsonSchema(schema as unknown as ZodLikeSchema);
+			const jsonSchema = zodToJsonSchema(schema);
 			expect(jsonSchema).toEqual({
 				type: "string",
 				minLength: 1,
@@ -28,13 +25,13 @@ describe("Schema Inference", () => {
 
 		it("converts number schema", () => {
 			const schema = z.number();
-			const jsonSchema = zodToJsonSchema(schema as unknown as ZodLikeSchema);
+			const jsonSchema = zodToJsonSchema(schema);
 			expect(jsonSchema).toEqual({ type: "number" });
 		});
 
 		it("converts integer schema", () => {
 			const schema = z.number().int().min(0).max(100);
-			const jsonSchema = zodToJsonSchema(schema as unknown as ZodLikeSchema);
+			const jsonSchema = zodToJsonSchema(schema);
 			expect(jsonSchema).toEqual({
 				type: "integer",
 				minimum: 0,
@@ -44,13 +41,13 @@ describe("Schema Inference", () => {
 
 		it("converts boolean schema", () => {
 			const schema = z.boolean();
-			const jsonSchema = zodToJsonSchema(schema as unknown as ZodLikeSchema);
+			const jsonSchema = zodToJsonSchema(schema);
 			expect(jsonSchema).toEqual({ type: "boolean" });
 		});
 
 		it("converts array schema", () => {
 			const schema = z.array(z.string());
-			const jsonSchema = zodToJsonSchema(schema as unknown as ZodLikeSchema);
+			const jsonSchema = zodToJsonSchema(schema);
 			expect(jsonSchema).toEqual({
 				type: "array",
 				items: { type: "string" },
@@ -62,7 +59,7 @@ describe("Schema Inference", () => {
 				name: z.string(),
 				age: z.number(),
 			});
-			const jsonSchema = zodToJsonSchema(schema as unknown as ZodLikeSchema);
+			const jsonSchema = zodToJsonSchema(schema);
 			expect(jsonSchema).toEqual({
 				type: "object",
 				properties: {
@@ -78,7 +75,7 @@ describe("Schema Inference", () => {
 				required: z.string(),
 				optional: z.string().optional(),
 			});
-			const jsonSchema = zodToJsonSchema(schema as unknown as ZodLikeSchema);
+			const jsonSchema = zodToJsonSchema(schema);
 			expect(jsonSchema).toEqual({
 				type: "object",
 				properties: {
@@ -93,7 +90,7 @@ describe("Schema Inference", () => {
 			const schema = z.object({
 				unit: z.string().default("celsius"),
 			});
-			const jsonSchema = zodToJsonSchema(schema as unknown as ZodLikeSchema);
+			const jsonSchema = zodToJsonSchema(schema);
 			expect(jsonSchema.type).toBe("object");
 			expect(jsonSchema.properties).toEqual({
 				unit: { type: "string", default: "celsius" },
@@ -104,7 +101,7 @@ describe("Schema Inference", () => {
 
 		it("converts enum schema", () => {
 			const schema = z.enum(["celsius", "fahrenheit"]);
-			const jsonSchema = zodToJsonSchema(schema as unknown as ZodLikeSchema);
+			const jsonSchema = zodToJsonSchema(schema);
 			expect(jsonSchema).toEqual({
 				type: "string",
 				enum: ["celsius", "fahrenheit"],
@@ -113,7 +110,7 @@ describe("Schema Inference", () => {
 
 		it("handles union types", () => {
 			const schema = z.union([z.string(), z.number()]);
-			const jsonSchema = zodToJsonSchema(schema as unknown as ZodLikeSchema);
+			const jsonSchema = zodToJsonSchema(schema);
 			expect(jsonSchema).toEqual({
 				anyOf: [{ type: "string" }, { type: "number" }],
 			});
@@ -121,7 +118,7 @@ describe("Schema Inference", () => {
 
 		it("handles nullable types", () => {
 			const schema = z.string().nullable();
-			const jsonSchema = zodToJsonSchema(schema as unknown as ZodLikeSchema);
+			const jsonSchema = zodToJsonSchema(schema);
 			expect(jsonSchema).toEqual({
 				anyOf: [{ type: "string" }, { type: "null" }],
 			});
@@ -129,7 +126,7 @@ describe("Schema Inference", () => {
 
 		it("handles literal types", () => {
 			const schema = z.literal("fixed");
-			const jsonSchema = zodToJsonSchema(schema as unknown as ZodLikeSchema);
+			const jsonSchema = zodToJsonSchema(schema);
 			expect(jsonSchema).toEqual({ const: "fixed" });
 		});
 
@@ -144,7 +141,7 @@ describe("Schema Inference", () => {
 
 		it("includes $schema when requested", () => {
 			const schema = z.string();
-			const jsonSchema = zodToJsonSchema(schema as unknown as ZodLikeSchema, {
+			const jsonSchema = zodToJsonSchema(schema, {
 				includeSchema: true,
 			});
 			expect(jsonSchema.$schema).toBe(
@@ -154,7 +151,7 @@ describe("Schema Inference", () => {
 
 		it("handles record types", () => {
 			const schema = z.record(z.string(), z.number());
-			const jsonSchema = zodToJsonSchema(schema as unknown as ZodLikeSchema);
+			const jsonSchema = zodToJsonSchema(schema);
 			expect(jsonSchema).toEqual({
 				type: "object",
 				additionalProperties: { type: "number" },
@@ -163,24 +160,24 @@ describe("Schema Inference", () => {
 
 		it("throws on unsupported schema types", () => {
 			const schema = z.date();
-			expect(() => zodToJsonSchema(schema as unknown as ZodLikeSchema)).toThrowError(
+			expect(() => zodToJsonSchema(schema)).toThrowError(
 				ConfigError,
 			);
 		});
 	});
 
-	describe("createFunctionToolFromSchema", () => {
+	describe("createTypedTool", () => {
 		it("creates a function tool from a Zod schema", () => {
 			const schema = z.object({
 				location: z.string().describe("City name"),
 				unit: z.enum(["celsius", "fahrenheit"]).default("celsius"),
 			});
 
-			const tool = createFunctionToolFromSchema(
-				"get_weather",
-				"Get weather for a location",
-				schema as unknown as ZodLikeSchema,
-			);
+			const tool = createTypedTool({
+				name: "get_weather",
+				description: "Get weather for a location",
+				parameters: schema,
+			});
 
 			expect(tool.type).toBe("function");
 			expect(tool.function?.name).toBe("get_weather");
@@ -199,6 +196,17 @@ describe("Schema Inference", () => {
 			});
 		});
 
+		it("keeps schema metadata out of JSON serialization", () => {
+			const tool = createTypedTool({
+				name: "read_file",
+				description: "Read a file",
+				parameters: z.object({ path: z.string() }),
+			});
+
+			expect(Object.keys(tool)).not.toContain("_schema");
+			expect(JSON.stringify(tool)).not.toContain("_schema");
+		});
+
 		it("handles complex nested schemas", () => {
 			const addressSchema = z.object({
 				street: z.string(),
@@ -214,11 +222,11 @@ describe("Schema Inference", () => {
 				tags: z.array(z.string()),
 			});
 
-			const tool = createFunctionToolFromSchema(
-				"create_user",
-				"Create a new user",
-				userSchema as unknown as ZodLikeSchema,
-			);
+			const tool = createTypedTool({
+				name: "create_user",
+				description: "Create a new user",
+				parameters: userSchema,
+			});
 
 			expect(tool.function?.parameters).toEqual({
 				type: "object",
@@ -248,11 +256,11 @@ describe("Schema Inference", () => {
 				siteFilter: z.string().optional().describe("Limit results to a specific domain"),
 			});
 
-			const tool = createFunctionToolFromSchema(
-				"search_web",
-				"Search the web for information",
-				schema as unknown as ZodLikeSchema,
-			);
+			const tool = createTypedTool({
+				name: "search_web",
+				description: "Search the web for information",
+				parameters: schema,
+			});
 
 			expect(tool.type).toBe("function");
 			expect(tool.function?.name).toBe("search_web");
@@ -273,6 +281,64 @@ describe("Schema Inference", () => {
 				},
 				required: ["query"],
 			});
+		});
+	});
+
+	describe("getTypedToolCall", () => {
+		it("returns typed arguments from the tool definition", () => {
+			const tool = createTypedTool({
+				name: "read_file",
+				description: "Read a file",
+				parameters: z.object({ path: z.string() }),
+			});
+
+			const call = createToolCall(
+				"call-1",
+				"read_file",
+				JSON.stringify({ path: "/tmp/example.txt" }),
+			);
+
+			const response: Response = {
+				id: "resp-1",
+				output: [
+					{
+						type: "message",
+						role: "assistant",
+						content: [],
+						toolCalls: [call],
+					},
+				],
+				model: "test-model" as ModelId,
+				usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+			};
+
+			const typed = getTypedToolCall(response, tool);
+			expect(typed?.function.arguments.path).toBe("/tmp/example.txt");
+		});
+
+		it("throws ToolArgsError when arguments are invalid", () => {
+			const tool = createTypedTool({
+				name: "read_file",
+				description: "Read a file",
+				parameters: z.object({ path: z.string() }),
+			});
+
+			const call = createToolCall("call-2", "read_file", JSON.stringify({ path: 123 }));
+			const response: Response = {
+				id: "resp-2",
+				output: [
+					{
+						type: "message",
+						role: "assistant",
+						content: [],
+						toolCalls: [call],
+					},
+				],
+				model: "test-model" as ModelId,
+				usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+			};
+
+			expect(() => getTypedToolCall(response, tool)).toThrowError(ToolArgsError);
 		});
 	});
 });

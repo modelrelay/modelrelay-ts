@@ -7,8 +7,10 @@ import {
 	ModelRelay,
 	asModelId,
 	createFunctionTool,
+	createTypedTool,
 	hasToolCalls,
 	firstToolCall,
+	parseTypedToolCall,
 	toolResultMessage,
 	assistantMessageWithToolCalls,
 	ToolRegistry,
@@ -22,17 +24,13 @@ declare function getWeather(location: string): Promise<{ temp: number; condition
 async function basicToolUseExample() {
 	const mr = ModelRelay.fromSecretKey(process.env.MODELRELAY_API_KEY!);
 
-	const weatherTool = createFunctionTool(
-		"get_weather",
-		"Get current weather for a location",
-		{
-			type: "object",
-			properties: {
-				location: { type: "string", description: "City name" },
-			},
-			required: ["location"],
-		}
-	);
+	const weatherTool = createTypedTool({
+		name: "get_weather",
+		description: "Get current weather for a location",
+		parameters: z.object({
+			location: z.string().describe("City name"),
+		}),
+	});
 
 	const response = await mr.responses.create(
 		mr.responses
@@ -46,14 +44,12 @@ async function basicToolUseExample() {
 	if (hasToolCalls(response)) {
 		const call = firstToolCall(response);
 		if (call) {
-			console.log(call.function?.name);       // "get_weather"
-			console.log(call.function?.arguments);  // '{"location":"Paris"}'
-
-			// Parse the JSON arguments
-			const args = JSON.parse(call.function?.arguments || "{}");
+			const typedCall = parseTypedToolCall(call, weatherTool);
+			console.log(typedCall.function.name);       // "get_weather"
+			console.log(typedCall.function.arguments);  // { location: "Paris" }
 
 			// Execute tool and continue conversation
-			const weatherData = await getWeather(args.location);
+			const weatherData = await getWeather(typedCall.function.arguments.location);
 
 			// Build follow-up request with tool result
 			const followUp = await mr.responses.create(

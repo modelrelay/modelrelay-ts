@@ -7,7 +7,7 @@
 
 import type { Tool, ToolCall } from "./types";
 import {
-	createFunctionToolFromSchema,
+	createTypedTool,
 	ToolRegistry,
 	ToolArgsError,
 	type ZodLikeSchema,
@@ -15,25 +15,12 @@ import {
 } from "./tools";
 
 /**
- * Schema interface that's compatible with both our ZodLikeSchema and actual Zod types.
- *
- * Zod's internal types don't have an explicit index signature on `_def`,
- * which causes TypeScript to reject them when assigned to `ZodLikeSchema`.
- * This interface is more permissive to accept actual Zod schemas.
- */
-interface AnySchema {
-	_def: { typeName: string };
-	parse(data: unknown): unknown;
-	safeParse(data: unknown): { success: boolean; data?: unknown; error?: unknown };
-}
-
-/**
  * Internal representation of a tool with its schema and handler.
  */
 interface ToolEntry {
 	name: string;
 	description: string;
-	schema: AnySchema;
+	schema: ZodLikeSchema;
 	handler: ToolHandler;
 	tool: Tool;
 }
@@ -123,16 +110,13 @@ export class ToolBuilder {
 	 * );
 	 * ```
 	 */
-	add<S extends AnySchema, R>(
+	add<S extends ZodLikeSchema, R>(
 		name: string,
 		description: string,
 		schema: S,
 		handler: (args: S extends { parse(data: unknown): infer T } ? T : unknown, call: ToolCall) => R | Promise<R>,
 	): this {
-		// Cast to ZodLikeSchema for createFunctionToolFromSchema
-		// This is safe because AnySchema has the same structure as ZodLikeSchema
-		// but without the index signature requirement that Zod's types don't satisfy
-		const tool = createFunctionToolFromSchema(name, description, schema as unknown as ZodLikeSchema);
+		const tool = createTypedTool({ name, description, parameters: schema });
 		this.entries.push({
 			name,
 			description,
