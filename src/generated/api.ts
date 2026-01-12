@@ -3002,6 +3002,8 @@ export interface operations {
                      * @description Requested token TTL in seconds (server may cap this)
                      */
                     ttl_seconds?: number;
+                    /** @description Tier code for the customer. Required when creating a subscription for new customers. Customers with an existing subscription can omit this field. */
+                    tier_code?: string;
                 };
             };
         };

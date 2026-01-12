@@ -227,6 +227,11 @@ export interface CustomerTokenRequest {
 	customerId?: string;
 	customerExternalId?: string;
 	ttlSeconds?: number;
+	/**
+	 * Tier code for customers without an existing subscription.
+	 * When provided, a billing profile is created for the customer with this tier.
+	 */
+	tierCode?: TierCode;
 }
 
 /**
@@ -242,6 +247,11 @@ export interface GetOrCreateCustomerTokenRequest {
 	metadata?: CustomerMetadata;
 	/** Optional token TTL in seconds (default: 7 days, max: 30 days). */
 	ttlSeconds?: number;
+	/**
+	 * Tier code for customers without an existing subscription.
+	 * When provided, a billing profile is created for the customer with this tier.
+	 */
+	tierCode?: TierCode;
 }
 
 export interface CustomerToken {

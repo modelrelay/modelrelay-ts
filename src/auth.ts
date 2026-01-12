@@ -95,6 +95,9 @@ export class AuthClient {
 		if (typeof request.ttlSeconds === "number") {
 			payload.ttl_seconds = request.ttlSeconds;
 		}
+		if (request.tierCode) {
+			payload.tier_code = request.tierCode;
+		}
 
 		const apiResp = await this.http.json<{
 			token: string;
@@ -173,6 +176,7 @@ export class AuthClient {
 		return this.customerToken({
 			customerExternalId: externalId,
 			ttlSeconds: request.ttlSeconds,
+			tierCode: request.tierCode,
 		});
 	}
 
