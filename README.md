@@ -4,6 +4,61 @@
 bun add @modelrelay/sdk
 ```
 
+## Convenience API
+
+The simplest way to get started. Three methods cover the most common use cases:
+
+### Ask — Get a Quick Answer
+
+```typescript
+import { ModelRelay } from "@modelrelay/sdk";
+
+const mr = ModelRelay.fromSecretKey(process.env.MODELRELAY_API_KEY!);
+
+const answer = await mr.ask("claude-sonnet-4-5", "What is 2 + 2?");
+console.log(answer); // "4"
+```
+
+### Chat — Full Response with Metadata
+
+```typescript
+const response = await mr.chat("claude-sonnet-4-5", "Explain quantum computing", {
+  system: "You are a physics professor",
+});
+
+console.log(response.output);
+console.log("Tokens:", response.usage.totalTokens);
+```
+
+### Agent — Agentic Tool Loops
+
+Run an agent that automatically executes tools until completion:
+
+```typescript
+import { z } from "zod";
+
+const tools = mr
+  .tools()
+  .add(
+    "read_file",
+    "Read a file from the filesystem",
+    z.object({ path: z.string().describe("File path to read") }),
+    async (args) => {
+      const content = await fs.readFile(args.path, "utf-8");
+      return content;
+    }
+  );
+
+const result = await mr.agent("claude-sonnet-4-5", {
+  tools,
+  prompt: "Read config.json and summarize it",
+  system: "You are a helpful file assistant",
+});
+
+console.log(result.output);
+console.log("Tool calls:", result.usage.toolCalls);
+```
+
 ## Token Providers (Automatic Bearer Auth)
 
 Use token providers when you want the SDK to automatically obtain/refresh **bearer tokens** for data-plane calls like `/responses` and `/runs`.

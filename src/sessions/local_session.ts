@@ -75,6 +75,7 @@ export class LocalSession implements Session {
 	private readonly defaultModel?: ModelId;
 	private readonly defaultProvider?: ProviderId;
 	private readonly defaultTools?: Tool[];
+	private readonly systemPrompt?: string;
 	private readonly metadata: Record<string, unknown>;
 	private readonly resolveModelContext: ModelContextResolver;
 
@@ -109,6 +110,7 @@ export class LocalSession implements Session {
 		this.defaultModel = options.defaultModel;
 		this.defaultProvider = options.defaultProvider;
 		this.defaultTools = options.defaultTools;
+		this.systemPrompt = options.systemPrompt;
 		this.metadata = options.metadata || {};
 		this.resolveModelContext = createModelContextResolver(client);
 
@@ -377,12 +379,24 @@ export class LocalSession implements Session {
 	}
 
 	private async buildInput(options: SessionRunOptions): Promise<InputItem[]> {
-		return buildSessionInputWithContext(
+		const input = await buildSessionInputWithContext(
 			this.messages,
 			options,
 			this.defaultModel,
 			this.resolveModelContext,
 		);
+
+		// Prepend system message if configured
+		if (this.systemPrompt) {
+			const systemMessage: InputItem = {
+				type: "message",
+				role: "system",
+				content: [{ type: "text", text: this.systemPrompt }],
+			};
+			return [systemMessage, ...input];
+		}
+
+		return input;
 	}
 
 	private async processRunEvents(signal?: AbortSignal): Promise<SessionRunResult> {

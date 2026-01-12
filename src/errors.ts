@@ -257,6 +257,26 @@ export class PathEscapeError extends ModelRelayError {
 	}
 }
 
+// ============================================================================
+// Agent Errors
+// ============================================================================
+
+/**
+ * Error thrown when the agent exceeds its maximum turn limit without completing.
+ * This means the model kept requesting tool calls for more turns than allowed.
+ */
+export class AgentMaxTurnsError extends ModelRelayError {
+	readonly maxTurns: number;
+
+	constructor(maxTurns: number) {
+		super(`agent exceeded maximum turns (${maxTurns}) without completing`, {
+			category: "config",
+			status: 400,
+		});
+		this.maxTurns = maxTurns;
+	}
+}
+
 // Package-level helper functions for checking error types.
 
 export async function parseErrorResponse(

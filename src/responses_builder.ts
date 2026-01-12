@@ -1,14 +1,18 @@
 import { ConfigError } from "./errors";
-import type {
-	InputItem,
-	MetricsCallbacks,
-	ModelId,
-	OutputFormat,
-	ProviderId,
-	RetryConfig,
-	Tool,
-	ToolChoice,
-	TraceCallbacks,
+import {
+	asModelId,
+	asProviderId,
+	type InputItem,
+	type MetricsCallbacks,
+	type ModelId,
+	type OutputFormat,
+	type ProviderId,
+	type Response,
+	type RetryConfig,
+	type Tool,
+	type ToolCall,
+	type ToolChoice,
+	type TraceCallbacks,
 } from "./types";
 import type {
 	ResponsesRequest,
@@ -16,6 +20,11 @@ import type {
 	WireResponsesRequest,
 } from "./responses_request";
 import { makeResponsesRequest } from "./responses_request";
+import {
+	assistantMessageWithToolCalls,
+	getAssistantText,
+	toolResultMessage,
+} from "./tools";
 
 export class ResponseBuilder {
 	private readonly body: Partial<WireResponsesRequest>;
@@ -41,14 +50,34 @@ export class ResponseBuilder {
 		);
 	}
 
-	/** @returns A new builder with the provider set. */
-	provider(provider: ProviderId): ResponseBuilder {
-		return this.with({ body: { provider } });
+	/**
+	 * Set the provider for this request.
+	 *
+	 * Accepts either a string or ProviderId for convenience.
+	 *
+	 * @example
+	 * ```typescript
+	 * .provider("anthropic")  // String works
+	 * .provider(asProviderId("anthropic"))  // ProviderId also works
+	 * ```
+	 */
+	provider(provider: string | ProviderId): ResponseBuilder {
+		return this.with({ body: { provider: asProviderId(provider as string) } });
 	}
 
-	/** @returns A new builder with the model set. */
-	model(model: ModelId): ResponseBuilder {
-		return this.with({ body: { model } });
+	/**
+	 * Set the model for this request.
+	 *
+	 * Accepts either a string or ModelId for convenience.
+	 *
+	 * @example
+	 * ```typescript
+	 * .model("claude-sonnet-4-5")  // String works
+	 * .model(asModelId("claude-sonnet-4-5"))  // ModelId also works
+	 * ```
+	 */
+	model(model: string | ModelId): ResponseBuilder {
+		return this.with({ body: { model: asModelId(model as string) } });
 	}
 
 	/** @returns A new builder with session-scoped tool state. */
@@ -241,6 +270,129 @@ export class ResponseBuilder {
 	/** @returns A new builder with the abort signal set. */
 	signal(signal: AbortSignal): ResponseBuilder {
 		return this.with({ options: { signal } });
+	}
+
+	// =========================================================================
+	// Conversation Continuation Helpers
+	// =========================================================================
+
+	/**
+	 * Add an assistant message with tool calls from a previous response.
+	 *
+	 * This is useful for continuing a conversation after handling tool calls.
+	 *
+	 * @example
+	 * ```typescript
+	 * const response = await mr.responses.create(request);
+	 * if (hasToolCalls(response)) {
+	 *   const toolCalls = response.output[0].toolCalls!;
+	 *   const results = await registry.executeAll(toolCalls);
+	 *
+	 *   const followUp = await mr.responses.create(
+	 *     mr.responses.new()
+	 *       .model("claude-sonnet-4-5")
+	 *       .user("What's the weather in Paris?")
+	 *       .assistantToolCalls(toolCalls)
+	 *       .toolResults(results.map(r => ({ id: r.toolCallId, result: r.result })))
+	 *       .build()
+	 *   );
+	 * }
+	 * ```
+	 */
+	assistantToolCalls(toolCalls: ToolCall[], content?: string): ResponseBuilder {
+		return this.item(assistantMessageWithToolCalls(content ?? "", toolCalls));
+	}
+
+	/**
+	 * Add tool results to the conversation.
+	 *
+	 * @example
+	 * ```typescript
+	 * .toolResults([
+	 *   { id: "call_123", result: { temp: 72 } },
+	 *   { id: "call_456", result: "File contents here" },
+	 * ])
+	 * ```
+	 */
+	toolResults(
+		results: Array<{ id: string; result: unknown }>,
+	): ResponseBuilder {
+		let builder: ResponseBuilder = this;
+		for (const r of results) {
+			const content =
+				typeof r.result === "string" ? r.result : JSON.stringify(r.result);
+			builder = builder.item(toolResultMessage(r.id, content));
+		}
+		return builder;
+	}
+
+	/**
+	 * Add a single tool result to the conversation.
+	 *
+	 * @example
+	 * ```typescript
+	 * .toolResult("call_123", { temp: 72, unit: "fahrenheit" })
+	 * ```
+	 */
+	toolResult(toolCallId: string, result: unknown): ResponseBuilder {
+		const content =
+			typeof result === "string" ? result : JSON.stringify(result);
+		return this.item(toolResultMessage(toolCallId, content));
+	}
+
+	/**
+	 * Continue from a previous response that contains tool calls.
+	 *
+	 * This is the most ergonomic way to continue a conversation after handling tools.
+	 * It automatically adds the assistant's tool call message and your tool results.
+	 *
+	 * @example
+	 * ```typescript
+	 * const response = await mr.responses.create(request);
+	 *
+	 * if (hasToolCalls(response)) {
+	 *   const toolCalls = response.output[0].toolCalls!;
+	 *   const results = await registry.executeAll(toolCalls);
+	 *
+	 *   const followUp = await mr.responses.create(
+	 *     mr.responses.new()
+	 *       .model("claude-sonnet-4-5")
+	 *       .tools(myTools)
+	 *       .user("What's the weather in Paris?")
+	 *       .continueFrom(response, results.map(r => ({
+	 *         id: r.toolCallId,
+	 *         result: r.result,
+	 *       })))
+	 *       .build()
+	 *   );
+	 * }
+	 * ```
+	 */
+	continueFrom(
+		response: Response,
+		toolResults: Array<{ id: string; result: unknown }>,
+	): ResponseBuilder {
+		// Extract tool calls from the response
+		const toolCalls: ToolCall[] = [];
+		for (const item of response.output || []) {
+			if (item.toolCalls) {
+				toolCalls.push(...item.toolCalls);
+			}
+		}
+
+		if (toolCalls.length === 0) {
+			throw new ConfigError(
+				"continueFrom requires a response with tool calls",
+			);
+		}
+
+		// Extract assistant text to preserve in the conversation history
+		const assistantText = getAssistantText(response);
+
+		// Add assistant message with tool calls and text, then add tool results
+		return this.assistantToolCalls(toolCalls, assistantText).toolResults(
+			toolResults,
+		);
 	}
 
 	/** @returns A finalized, immutable request payload. */

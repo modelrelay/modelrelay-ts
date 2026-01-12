@@ -240,6 +240,8 @@ export interface LocalSessionOptions {
 	defaultProvider?: ProviderId;
 	/** Default tools for runs (merged with per-run tools). */
 	defaultTools?: Tool[];
+	/** System prompt to prepend to all conversations. */
+	systemPrompt?: string;
 	/** Persistence mode (default: 'memory'). */
 	persistence?: LocalSessionPersistence;
 	/** Storage path for file/sqlite persistence (default: ~/.modelrelay/sessions/). */

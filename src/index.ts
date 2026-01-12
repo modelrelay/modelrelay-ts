@@ -5,16 +5,32 @@ import { WorkflowsClient } from "./workflows_client";
 import { ImagesClient } from "./images";
 import { SessionsClient } from "./sessions/client";
 import { TiersClient } from "./tiers";
-import { ConfigError } from "./errors";
+import { ConfigError, AgentMaxTurnsError } from "./errors";
 import { HTTPClient } from "./http";
 import { parseApiKey, parseSecretKey } from "./api_keys";
 import { CustomerResponsesClient, CustomerScopedModelRelay } from "./customer_scoped";
 import {
 	DEFAULT_BASE_URL,
 	DEFAULT_CLIENT_HEADER,
+	asModelId,
 	type ModelRelayOptions,
 	type ModelRelayKeyOptions,
+	type ModelId,
+	type Response,
 } from "./types";
+import type { ResponsesRequestOptions } from "./responses_request";
+import type { ToolRegistry } from "./tools";
+import {
+	getAllToolCalls,
+	getAssistantText,
+	assistantMessageWithToolCalls,
+	toolResultMessage,
+	createSystemMessage,
+	createUserMessage,
+} from "./tools";
+import { ToolBuilder } from "./tool_builder";
+import { extractAssistantText } from "./responses_normalize";
+import type { InputItem, Tool } from "./types";
 
 export class ModelRelay {
 	readonly responses: ResponsesClient;
@@ -90,6 +106,241 @@ export class ModelRelay {
 
 	forCustomer(customerId: string): CustomerScopedModelRelay {
 		return new CustomerScopedModelRelay(this.responses, customerId, this.baseUrl);
+	}
+
+	// =========================================================================
+	// Convenience Methods (Simple Case Simple)
+	// =========================================================================
+
+	/** Default maximum turns for agent loops. */
+	static readonly DEFAULT_MAX_TURNS = 100;
+
+	/**
+	 * Use this for maxTurns to disable the turn limit.
+	 * Use with caution as this can lead to infinite loops and runaway API costs.
+	 */
+	static readonly NO_TURN_LIMIT = Number.MAX_SAFE_INTEGER;
+
+	/**
+	 * Simple chat completion with system and user prompt.
+	 *
+	 * Returns the full Response object for access to usage, model, etc.
+	 *
+	 * @example
+	 * ```typescript
+	 * const response = await mr.chat("claude-sonnet-4-5", "Hello!");
+	 * console.log(response.output);
+	 * console.log(response.usage);
+	 * ```
+	 *
+	 * @example With system prompt
+	 * ```typescript
+	 * const response = await mr.chat("claude-sonnet-4-5", "Explain quantum computing", {
+	 *   system: "You are a physics professor",
+	 * });
+	 * ```
+	 */
+	async chat(
+		model: string | ModelId,
+		prompt: string,
+		options: {
+			system?: string;
+			customerId?: string;
+		} & ResponsesRequestOptions = {},
+	): Promise<Response> {
+		const { system, customerId, ...reqOptions } = options;
+		let builder = this.responses.new().model(asModelId(model as string));
+		if (system) {
+			builder = builder.system(system);
+		}
+		builder = builder.user(prompt);
+		if (customerId) {
+			builder = builder.customerId(customerId);
+		}
+		return this.responses.create(builder.build(), reqOptions);
+	}
+
+	/**
+	 * Simple prompt that returns just the text response.
+	 *
+	 * The most ergonomic way to get a quick answer.
+	 *
+	 * @example
+	 * ```typescript
+	 * const answer = await mr.ask("claude-sonnet-4-5", "What is 2 + 2?");
+	 * console.log(answer); // "4"
+	 * ```
+	 *
+	 * @example With system prompt
+	 * ```typescript
+	 * const haiku = await mr.ask("claude-sonnet-4-5", "Write about the ocean", {
+	 *   system: "You are a poet who only writes haikus",
+	 * });
+	 * ```
+	 */
+	async ask(
+		model: string | ModelId,
+		prompt: string,
+		options: {
+			system?: string;
+			customerId?: string;
+		} & ResponsesRequestOptions = {},
+	): Promise<string> {
+		const response = await this.chat(model, prompt, options);
+		return extractAssistantText(response.output);
+	}
+
+	/**
+	 * Run an agentic tool loop to completion.
+	 *
+	 * Runs API calls in a loop until the model stops calling tools
+	 * or maxTurns is reached.
+	 *
+	 * @example
+	 * ```typescript
+	 * import { z } from "zod";
+	 *
+	 * const tools = mr.tools()
+	 *   .add("read_file", "Read a file", z.object({ path: z.string() }), async (args) => {
+	 *     return fs.readFile(args.path, "utf-8");
+	 *   })
+	 *   .add("write_file", "Write a file", z.object({ path: z.string(), content: z.string() }), async (args) => {
+	 *     await fs.writeFile(args.path, args.content);
+	 *     return "File written successfully";
+	 *   });
+	 *
+	 * const result = await mr.agent("claude-sonnet-4-5", {
+	 *   tools,
+	 *   prompt: "Read config.json and add a version field",
+	 * });
+	 *
+	 * console.log(result.output);  // Final text response
+	 * console.log(result.usage);   // Total tokens used
+	 * ```
+	 *
+	 * @example With system prompt and maxTurns
+	 * ```typescript
+	 * const result = await mr.agent("claude-sonnet-4-5", {
+	 *   tools,
+	 *   prompt: "Refactor the auth module",
+	 *   system: "You are a senior TypeScript developer",
+	 *   maxTurns: 50, // or ModelRelay.NO_TURN_LIMIT for unlimited
+	 * });
+	 * ```
+	 */
+	async agent(
+		model: string | ModelId,
+		options: {
+			tools: ToolBuilder;
+			prompt: string;
+			system?: string;
+			maxTurns?: number;
+		},
+	): Promise<{
+		output: string;
+		usage: {
+			inputTokens: number;
+			outputTokens: number;
+			totalTokens: number;
+			llmCalls: number;
+			toolCalls: number;
+		};
+		response: Response;
+	}> {
+		const { definitions, registry } = options.tools.build();
+		const maxTurns = options.maxTurns ?? ModelRelay.DEFAULT_MAX_TURNS;
+		const modelId = asModelId(model as string);
+
+		const usage = {
+			inputTokens: 0,
+			outputTokens: 0,
+			totalTokens: 0,
+			llmCalls: 0,
+			toolCalls: 0,
+		};
+
+		// Build initial input
+		const input: InputItem[] = [];
+		if (options.system) {
+			input.push(createSystemMessage(options.system));
+		}
+		input.push(createUserMessage(options.prompt));
+
+		for (let turn = 0; turn < maxTurns; turn++) {
+			// Build and send request
+			let builder = this.responses.new().model(modelId).input(input);
+			if (definitions.length > 0) {
+				builder = builder.tools(definitions);
+			}
+			const response = await this.responses.create(builder.build());
+
+			// Accumulate usage
+			usage.llmCalls++;
+			usage.inputTokens += response.usage.inputTokens;
+			usage.outputTokens += response.usage.outputTokens;
+			usage.totalTokens += response.usage.totalTokens;
+
+			// Check for tool calls
+			const toolCalls = getAllToolCalls(response);
+			if (toolCalls.length === 0) {
+				// No tool calls, we're done
+				return {
+					output: getAssistantText(response),
+					usage,
+					response,
+				};
+			}
+
+			// Execute tool calls
+			usage.toolCalls += toolCalls.length;
+
+			// Add assistant message with tool calls to history
+			const assistantText = getAssistantText(response);
+			input.push(assistantMessageWithToolCalls(assistantText, toolCalls));
+
+			// Execute tools and add results
+			const results = await registry.executeAll(toolCalls);
+			for (const result of results) {
+				const content = result.error
+					? `Error: ${result.error}`
+					: typeof result.result === "string"
+						? result.result
+						: JSON.stringify(result.result);
+				input.push(toolResultMessage(result.toolCallId, content));
+			}
+		}
+
+		// Hit max turns without completion
+		throw new AgentMaxTurnsError(maxTurns);
+	}
+
+	/**
+	 * Creates a fluent tool builder for defining tools with Zod schemas.
+	 *
+	 * @example
+	 * ```typescript
+	 * import { z } from "zod";
+	 *
+	 * const tools = mr.tools()
+	 *   .add("get_weather", "Get current weather", z.object({ location: z.string() }), async (args) => {
+	 *     return { temp: 72, unit: "fahrenheit" };
+	 *   })
+	 *   .add("read_file", "Read a file", z.object({ path: z.string() }), async (args) => {
+	 *     return fs.readFile(args.path, "utf-8");
+	 *   });
+	 *
+	 * // Use with agent (pass ToolBuilder directly)
+	 * const result = await mr.agent("claude-sonnet-4-5", {
+	 *   tools,
+	 *   prompt: "What's the weather in Paris?",
+	 * });
+	 *
+	 * // Or get tool definitions for manual use
+	 * const toolDefs = tools.definitions();
+	 * ```
+	 */
+	tools(): ToolBuilder {
+		return new ToolBuilder();
 	}
 }
 
@@ -178,6 +429,13 @@ export {
 	// ToolCall helpers
 	createToolCall,
 	createFunctionCall,
+	// ToolCall convenience accessors
+	getToolName,
+	getToolArgsRaw,
+	getToolArgs,
+	getAllToolCalls,
+	// Response text extraction
+	getAssistantText,
 	// Streaming accumulator
 	ToolCallAccumulator,
 	// Schema inference
@@ -196,6 +454,9 @@ export {
 	createRetryMessages,
 	executeWithRetry,
 } from "./tools";
+
+// Fluent tool builder
+export { ToolBuilder } from "./tool_builder";
 
 export type {
 	ZodLikeSchema,

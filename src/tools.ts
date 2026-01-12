@@ -82,7 +82,9 @@ export function createFunctionCall(name: string, args: string): FunctionCall {
 
 /**
  * Interface for Zod-like schema types.
- * Compatible with Zod's ZodType and similar libraries.
+ *
+ * This is designed to be compatible with Zod's actual types while also
+ * supporting other schema libraries with similar structure.
  */
 export interface ZodLikeSchema {
 	_def: {
@@ -801,6 +803,107 @@ export function parseToolArgsRaw(call: ToolCall): unknown {
 			rawArgs,
 		);
 	}
+}
+
+// ============================================================================
+// Tool Call Convenience Accessors
+// ============================================================================
+
+/**
+ * Get the tool name from a tool call.
+ *
+ * This is a convenience function that unwraps the nested structure.
+ *
+ * @example
+ * ```typescript
+ * const name = getToolName(call);  // Instead of call.function?.name
+ * ```
+ */
+export function getToolName(call: ToolCall): string {
+	return call.function?.name ?? "";
+}
+
+/**
+ * Get the raw arguments string from a tool call.
+ *
+ * @example
+ * ```typescript
+ * const argsJson = getToolArgsRaw(call);  // Instead of call.function?.arguments
+ * ```
+ */
+export function getToolArgsRaw(call: ToolCall): string {
+	return call.function?.arguments ?? "";
+}
+
+/**
+ * Get parsed arguments from a tool call.
+ *
+ * Returns the parsed JSON object, or an empty object if parsing fails.
+ * For error handling, use parseToolArgsRaw instead.
+ *
+ * @example
+ * ```typescript
+ * const args = getToolArgs(call);
+ * console.log(args.location);  // Access properties directly
+ * ```
+ */
+export function getToolArgs<T = Record<string, unknown>>(call: ToolCall): T {
+	const raw = call.function?.arguments ?? "";
+	if (!raw) return {} as T;
+	try {
+		return JSON.parse(raw) as T;
+	} catch {
+		return {} as T;
+	}
+}
+
+/**
+ * Extract all tool calls from a response.
+ *
+ * Flattens tool calls from all output items into a single array.
+ *
+ * @example
+ * ```typescript
+ * const calls = getAllToolCalls(response);
+ * for (const call of calls) {
+ *   console.log(getToolName(call), getToolArgs(call));
+ * }
+ * ```
+ */
+export function getAllToolCalls(response: Response): ToolCall[] {
+	const calls: ToolCall[] = [];
+	for (const item of response.output || []) {
+		if (item.toolCalls) {
+			calls.push(...item.toolCalls);
+		}
+	}
+	return calls;
+}
+
+/**
+ * Extract assistant text from a response.
+ *
+ * Concatenates all text content parts from assistant role output items.
+ * Returns an empty string if no text content is present.
+ *
+ * @example
+ * ```typescript
+ * const text = getAssistantText(response);
+ * console.log("Assistant said:", text);
+ * ```
+ */
+export function getAssistantText(response: Response): string {
+	const texts: string[] = [];
+	for (const item of response.output || []) {
+		if (item.role === "assistant" && item.content) {
+			for (const part of item.content) {
+				if (part.type === "text" && part.text) {
+					texts.push(part.text);
+				}
+			}
+		}
+	}
+	return texts.join("");
 }
 
 // ============================================================================
