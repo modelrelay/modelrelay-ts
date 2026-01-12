@@ -4,6 +4,7 @@ import { RunsClient } from "./runs";
 import { WorkflowsClient } from "./workflows_client";
 import { ImagesClient } from "./images";
 import { StateHandlesClient } from "./state_handles";
+import { MessagesClient } from "./messages";
 import { SessionsClient } from "./sessions/client";
 import { TiersClient } from "./tiers";
 import { PluginsClient } from "./plugins";
@@ -35,6 +36,7 @@ export class ModelRelay {
 	readonly auth: AuthClient;
 	readonly sessions: SessionsClient;
 	readonly stateHandles: StateHandlesClient;
+	readonly messages: MessagesClient;
 	readonly tiers: TiersClient;
 	readonly plugins: PluginsClient;
 	readonly baseUrl: string;
@@ -99,6 +101,7 @@ export class ModelRelay {
 		this.images = new ImagesClient(this.http, auth);
 		this.sessions = new SessionsClient(this, this.http, auth);
 		this.stateHandles = new StateHandlesClient(this.http, auth);
+		this.messages = new MessagesClient(this.http, auth);
 		this.tiers = new TiersClient(this.http, { apiKey, accessToken });
 		this.plugins = new PluginsClient({
 			responses: this.responses,
@@ -321,6 +324,7 @@ export {
 	ImagesClient,
 	SessionsClient,
 	TiersClient,
+	MessagesClient,
 	PluginsClient,
 	ConfigError,
 	DEFAULT_BASE_URL,
@@ -377,6 +381,12 @@ export type {
 	StateHandleResponse,
 	StateHandleListResponse,
 } from "./state_handles";
+
+export type {
+	MessageSendRequest,
+	MessageResponse,
+	MessageListResponse,
+} from "./messages";
 
 export { MAX_STATE_HANDLE_TTL_SECONDS } from "./state_handles";
 

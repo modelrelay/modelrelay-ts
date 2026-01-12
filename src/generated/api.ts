@@ -1414,6 +1414,64 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List messages
+         * @description List messages for an inbox address or a thread.
+         */
+        get: operations["listMessages"];
+        put?: never;
+        /**
+         * Send a message
+         * @description Send a message to a mailbox address.
+         */
+        post: operations["sendMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/messages/{message_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a message */
+        get: operations["getMessage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/messages/{message_id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark a message read */
+        post: operations["markMessageRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3025,6 +3083,37 @@ export interface components {
             plan_json?: Record<string, never>;
             /** @description Plan hash (when compile succeeds) */
             plan_hash?: string;
+        };
+        MessageSendRequest: {
+            to: string;
+            subject: string;
+            body: {
+                [key: string]: unknown;
+            };
+            /** Format: uuid */
+            thread_id?: string;
+            from?: string;
+        };
+        MessageResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            project_id: string;
+            from: string;
+            to: string;
+            subject: string;
+            body: {
+                [key: string]: unknown;
+            };
+            /** Format: uuid */
+            thread_id: string;
+            read: boolean;
+            read_at?: string;
+            created_at: string;
+        };
+        MessageListResponse: {
+            messages: components["schemas"]["MessageResponse"][];
+            next_cursor?: string;
         };
     };
     responses: never;
@@ -6051,6 +6140,98 @@ export interface operations {
             };
             /** @description Invalid payload */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listMessages: {
+        parameters: {
+            query?: {
+                to?: string;
+                thread_id?: string;
+                unread?: boolean;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Messages */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageListResponse"];
+                };
+            };
+        };
+    };
+    sendMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MessageSendRequest"];
+            };
+        };
+        responses: {
+            /** @description Message */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+        };
+    };
+    getMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                message_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Message */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+        };
+    };
+    markMessageRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                message_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Message marked as read */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
