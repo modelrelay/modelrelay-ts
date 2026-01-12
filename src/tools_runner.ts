@@ -18,6 +18,13 @@ import type {
 } from "./runs_types";
 import type { RunId, NodeId } from "./runs_ids";
 import { createToolCall } from "./tools";
+import {
+	USER_ASK_TOOL_NAME,
+	parseUserAskArgs,
+	serializeUserAskResult,
+	type UserAskArgs,
+	type UserAskResponse,
+} from "./tools_user_ask";
 
 // ============================================================================
 // Types
@@ -41,6 +48,11 @@ export interface ToolRunnerOptions {
 		count: number,
 		status: RunStatusV0,
 	) => void | Promise<void>;
+	/** Called when a user.ask tool needs a response (optional). */
+	onUserAsk?: (
+		pending: PendingToolCallV0,
+		args: UserAskArgs,
+	) => Promise<UserAskResponse | string> | UserAskResponse | string;
 	/** Called when an error occurs during execution (optional). */
 	onError?: (error: Error, pending?: PendingToolCallV0) => void | Promise<void>;
 }
@@ -92,6 +104,7 @@ export class ToolRunner {
 	private readonly onBeforeExecute?: ToolRunnerOptions["onBeforeExecute"];
 	private readonly onAfterExecute?: ToolRunnerOptions["onAfterExecute"];
 	private readonly onSubmitted?: ToolRunnerOptions["onSubmitted"];
+	private readonly onUserAsk?: ToolRunnerOptions["onUserAsk"];
 	private readonly onError?: ToolRunnerOptions["onError"];
 
 	constructor(options: ToolRunnerOptions) {
@@ -101,6 +114,7 @@ export class ToolRunner {
 		this.onBeforeExecute = options.onBeforeExecute;
 		this.onAfterExecute = options.onAfterExecute;
 		this.onSubmitted = options.onSubmitted;
+		this.onUserAsk = options.onUserAsk;
 		this.onError = options.onError;
 	}
 
@@ -144,9 +158,28 @@ export class ToolRunner {
 					pending.tool_call.arguments,
 				);
 
-				const result = await this.registry.execute(toolCall);
-				results.push(result);
+				let result: ToolExecutionResult;
+				if (pending.tool_call.name === USER_ASK_TOOL_NAME) {
+					if (!this.onUserAsk) {
+						throw new Error("user.ask requires onUserAsk handler");
+					}
+					const args = parseUserAskArgs(toolCall);
+					const response = await this.onUserAsk(pending, args);
+					const output =
+						typeof response === "string"
+							? serializeUserAskResult({ answer: response, is_freeform: true })
+							: serializeUserAskResult(response);
+					result = {
+						toolCallId: pending.tool_call.id,
+						toolName: pending.tool_call.name,
+						result: output,
+						isRetryable: false,
+					};
+				} else {
+					result = await this.registry.execute(toolCall);
+				}
 
+				results.push(result);
 				await this.onAfterExecute?.(result);
 			} catch (err) {
 				const error = err instanceof Error ? err : new Error(String(err));

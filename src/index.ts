@@ -476,7 +476,20 @@ export type {
 	ToolHandler,
 	ToolExecutionResult,
 	RetryOptions,
+	ToolArgsResult,
 } from "./tools";
+
+export {
+	USER_ASK_TOOL_NAME,
+	createUserAskTool,
+	isUserAskToolCall,
+	parseUserAskArgs,
+	serializeUserAskResult,
+	userAskResultFreeform,
+	userAskResultChoice,
+} from "./tools_user_ask";
+
+export type { UserAskArgs, UserAskOption, UserAskResponse } from "./tools_user_ask";
 
 // Tool runner for workflow client tools
 export { ToolRunner, createToolRunner } from "./tools_runner";

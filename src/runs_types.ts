@@ -99,6 +99,8 @@ export type RunEventTypeV0 =
 	| "node_tool_call"
 	| "node_tool_result"
 	| "node_waiting"
+	| "node_user_ask"
+	| "node_user_answer"
 	| "node_started"
 	| "node_succeeded"
 	| "node_failed"
@@ -180,6 +182,28 @@ export type NodeWaitingV0 = {
 	reason: string;
 };
 
+export type UserAskOptionV0 = {
+	label: string;
+	description?: string;
+};
+
+export type NodeUserAskV0 = {
+	step: number;
+	request_id: string;
+	tool_call: ToolCallWithArgumentsV0;
+	question: string;
+	options?: UserAskOptionV0[];
+	allow_freeform: boolean;
+};
+
+export type NodeUserAnswerV0 = {
+	step: number;
+	request_id: string;
+	tool_call: ToolCallV0;
+	answer: string;
+	is_freeform: boolean;
+};
+
 export type RunEventBaseV0 = {
 	envelope_version: "v2";
 	run_id: RunId;
@@ -255,6 +279,18 @@ export type RunEventNodeWaitingV0 = RunEventBaseV0 & {
 	waiting: NodeWaitingV0;
 };
 
+export type RunEventNodeUserAskV0 = RunEventBaseV0 & {
+	type: "node_user_ask";
+	node_id: NodeId;
+	user_ask: NodeUserAskV0;
+};
+
+export type RunEventNodeUserAnswerV0 = RunEventBaseV0 & {
+	type: "node_user_answer";
+	node_id: NodeId;
+	user_answer: NodeUserAnswerV0;
+};
+
 export type RunEventNodeOutputDeltaV0 = RunEventBaseV0 & {
 	type: "node_output_delta";
 	node_id: NodeId;
@@ -277,6 +313,8 @@ export type RunEventV0 =
 	| RunEventNodeToolCallV0
 	| RunEventNodeToolResultV0
 	| RunEventNodeWaitingV0
+	| RunEventNodeUserAskV0
+	| RunEventNodeUserAnswerV0
 	| RunEventNodeStartedV0
 	| RunEventNodeSucceededV0
 	| RunEventNodeFailedV0
@@ -379,6 +417,34 @@ const nodeWaitingSchema = z
 	})
 	.strict();
 
+const userAskOptionSchema = z
+	.object({
+		label: z.string().min(1),
+		description: z.string().optional(),
+	})
+	.strict();
+
+const nodeUserAskSchema = z
+	.object({
+		step: z.number().int().nonnegative(),
+		request_id: z.string().min(1),
+		tool_call: toolCallWithArgumentsSchema,
+		question: z.string().min(1),
+		options: z.array(userAskOptionSchema).optional(),
+		allow_freeform: z.boolean(),
+	})
+	.strict();
+
+const nodeUserAnswerSchema = z
+	.object({
+		step: z.number().int().nonnegative(),
+		request_id: z.string().min(1),
+		tool_call: toolCallSchema,
+		answer: z.string(),
+		is_freeform: z.boolean(),
+	})
+	.strict();
+
 const baseSchema = {
 	envelope_version: z.literal("v2").optional().default("v2"),
 	run_id: z.string().min(1),
@@ -444,6 +510,22 @@ const runEventWireSchema = z
 			type: z.literal("node_waiting"),
 			node_id: z.string().min(1),
 			waiting: nodeWaitingSchema,
+		})
+		.strict(),
+	z
+		.object({
+			...baseSchema,
+			type: z.literal("node_user_ask"),
+			node_id: z.string().min(1),
+			user_ask: nodeUserAskSchema,
+		})
+		.strict(),
+	z
+		.object({
+			...baseSchema,
+			type: z.literal("node_user_answer"),
+			node_id: z.string().min(1),
+			user_answer: nodeUserAnswerSchema,
 		})
 		.strict(),
 	z.object({ ...baseSchema, type: z.literal("node_started"), node_id: z.string().min(1) }).strict(),
@@ -549,6 +631,10 @@ export function parseRunEventV0(line: string): RunEventV0 | null {
 				return { ...base, type: "node_tool_result", node_id: parseNodeId(res.data.node_id), tool_result: res.data.tool_result };
 			case "node_waiting":
 				return { ...base, type: "node_waiting", node_id: parseNodeId(res.data.node_id), waiting: res.data.waiting };
+			case "node_user_ask":
+				return { ...base, type: "node_user_ask", node_id: parseNodeId(res.data.node_id), user_ask: res.data.user_ask };
+			case "node_user_answer":
+				return { ...base, type: "node_user_answer", node_id: parseNodeId(res.data.node_id), user_answer: res.data.user_answer };
 			case "node_succeeded":
 				return { ...base, type: "node_succeeded", node_id: parseNodeId(res.data.node_id) };
 			case "node_failed":

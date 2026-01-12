@@ -814,23 +814,39 @@ export function getToolArgsRaw(call: ToolCall): string {
 }
 
 /**
- * Get parsed arguments from a tool call.
+ * Result type for getToolArgs that includes parse error information.
+ */
+export type ToolArgsResult<T> =
+	| { ok: true; args: T }
+	| { ok: false; error: string; raw: string };
+
+/**
+ * Get parsed arguments from a tool call with explicit error handling.
  *
- * Returns the parsed JSON object, or an empty object if parsing fails.
+ * Returns a discriminated union indicating success or failure.
+ * Use this instead of getToolArgs for proper error handling.
  *
  * @example
  * ```typescript
- * const args = getToolArgs(call);
- * console.log(args.location);  // Access properties directly
+ * const result = getToolArgs(call);
+ * if (!result.ok) {
+ *   console.error(`Parse failed: ${result.error}, raw: ${result.raw}`);
+ *   return;
+ * }
+ * console.log(result.args.location);
  * ```
  */
-export function getToolArgs<T = Record<string, unknown>>(call: ToolCall): T {
+export function getToolArgs<T = Record<string, unknown>>(call: ToolCall): ToolArgsResult<T> {
 	const raw = call.function?.arguments ?? "";
-	if (!raw) return {} as T;
+	if (!raw) return { ok: true, args: {} as T };
 	try {
-		return JSON.parse(raw) as T;
-	} catch {
-		return {} as T;
+		return { ok: true, args: JSON.parse(raw) as T };
+	} catch (err) {
+		return {
+			ok: false,
+			error: err instanceof Error ? err.message : "Invalid JSON",
+			raw,
+		};
 	}
 }
 
@@ -843,7 +859,10 @@ export function getToolArgs<T = Record<string, unknown>>(call: ToolCall): T {
  * ```typescript
  * const calls = getAllToolCalls(response);
  * for (const call of calls) {
- *   console.log(getToolName(call), getToolArgs(call));
+ *   const result = getToolArgs(call);
+ *   if (result.ok) {
+ *     console.log(getToolName(call), result.args);
+ *   }
  * }
  * ```
  */

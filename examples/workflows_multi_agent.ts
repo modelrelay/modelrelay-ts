@@ -1,4 +1,5 @@
 import { ModelRelay, parallel, llm } from "../src";
+import type { WorkflowSpecIntentV1, WorkflowIntentNode } from "../src/runs_types";
 import { parseNodeId, parseOutputName } from "../src/runs_ids";
 
 type DevLoginResponse = {
@@ -75,7 +76,7 @@ function multiAgentSpec(model: string) {
 		.build();
 }
 
-async function runOnce(cfg: { apiBaseUrl: string; apiKey: string; spec: any; label: string }) {
+async function runOnce(cfg: { apiBaseUrl: string; apiKey: string; spec: WorkflowSpecIntentV1; label: string }) {
 	const mr = ModelRelay.fromSecretKey(cfg.apiKey, {
 		baseUrl: cfg.apiBaseUrl,
 	});
@@ -122,7 +123,7 @@ async function main() {
 		apiKey,
 		spec: {
 			...multiAgentSpec(modelOk),
-			nodes: multiAgentSpec(modelOk).nodes.map((n: any) =>
+			nodes: multiAgentSpec(modelOk).nodes.map((n: WorkflowIntentNode) =>
 				n.id === parseNodeId("agent_b") ? { ...n, model: modelBad } : n,
 			),
 		},

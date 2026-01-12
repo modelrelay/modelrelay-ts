@@ -59,6 +59,36 @@ console.log(result.output);
 console.log("Tool calls:", result.usage.toolCalls);
 ```
 
+### User Interaction — `user.ask`
+
+Use the built-in `user.ask` tool to request human input in a workflow run:
+
+```typescript
+import { ModelRelay, ToolRegistry, ToolRunner, createUserAskTool } from "@modelrelay/sdk";
+
+const mr = ModelRelay.fromSecretKey(process.env.MODELRELAY_API_KEY!);
+
+const tools = [createUserAskTool()];
+const registry = new ToolRegistry();
+
+const runner = new ToolRunner({
+  registry,
+  runsClient: mr.runs,
+  onUserAsk: async (_pending, args) => {
+    const answer = await promptUser(args.question); // your UI/input here
+    return { answer, is_freeform: true };
+  },
+});
+
+const run = await mr.runs.create(spec);
+
+for await (const event of mr.runs.events(run.run_id)) {
+  if (event.type === "node_waiting") {
+    await runner.handleNodeWaiting(run.run_id, event.node_id, event.waiting);
+  }
+}
+```
+
 ## Token Providers (Automatic Bearer Auth)
 
 Use token providers when you want the SDK to automatically obtain/refresh **bearer tokens** for data-plane calls like `/responses` and `/runs`.
