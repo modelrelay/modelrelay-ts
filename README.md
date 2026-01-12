@@ -231,6 +231,27 @@ for (const task of tasks) {
 }
 ```
 
+### Plugins (Workflows)
+
+Load GitHub-hosted plugins (markdown commands + agents), convert to workflows via `/responses`, then run them with `/runs`:
+
+```ts
+import { ModelRelay, OrchestrationModes } from "@modelrelay/sdk";
+import { createLocalFSTools } from "@modelrelay/sdk/node";
+
+const mr = ModelRelay.fromSecretKey(process.env.MODELRELAY_API_KEY!);
+const tools = createLocalFSTools({ root: process.cwd() });
+
+const plugin = await mr.plugins.load("github.com/your-org/your-plugin");
+const result = await mr.plugins.run(plugin, "run", {
+  userTask: "Summarize the repo and suggest next steps.",
+  orchestrationMode: OrchestrationModes.Dynamic,
+  toolRegistry: tools,
+});
+
+console.log(result.outputs?.result);
+```
+
 ## Chat-Like Text Helpers
 
 For the most common path (**system + user → assistant text**):

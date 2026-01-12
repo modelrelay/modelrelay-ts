@@ -6,6 +6,7 @@ import { ImagesClient } from "./images";
 import { StateHandlesClient } from "./state_handles";
 import { SessionsClient } from "./sessions/client";
 import { TiersClient } from "./tiers";
+import { PluginsClient } from "./plugins";
 import { ConfigError } from "./errors";
 import { HTTPClient } from "./http";
 import { parseApiKey, parseSecretKey } from "./api_keys";
@@ -35,6 +36,7 @@ export class ModelRelay {
 	readonly sessions: SessionsClient;
 	readonly stateHandles: StateHandlesClient;
 	readonly tiers: TiersClient;
+	readonly plugins: PluginsClient;
 	readonly baseUrl: string;
 
 	/** @internal HTTP client for internal use by session sync */
@@ -98,6 +100,12 @@ export class ModelRelay {
 		this.sessions = new SessionsClient(this, this.http, auth);
 		this.stateHandles = new StateHandlesClient(this.http, auth);
 		this.tiers = new TiersClient(this.http, { apiKey, accessToken });
+		this.plugins = new PluginsClient({
+			responses: this.responses,
+			http: this.http,
+			auth,
+			runs: this.runs,
+		});
 	}
 
 	forCustomer(customerId: string): CustomerScopedModelRelay {
@@ -313,6 +321,7 @@ export {
 	ImagesClient,
 	SessionsClient,
 	TiersClient,
+	PluginsClient,
 	ConfigError,
 	DEFAULT_BASE_URL,
 	createApiKeyAuth,
@@ -344,6 +353,7 @@ export * from "./json_path";
 export * from "./workflow_builder";
 export * from "./workflows_request";
 export * from "./workflows_client";
+export * from "./plugins";
 
 export * from "./testing";
 
