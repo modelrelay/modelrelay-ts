@@ -980,7 +980,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List state handles
+         * @description List state handles for the current project or customer.
+         */
+        get: operations["listStateHandles"];
         put?: never;
         /**
          * Create a state handle
@@ -988,6 +992,23 @@ export interface paths {
          */
         post: operations["createStateHandle"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/state-handles/{state_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a state handle */
+        delete: operations["deleteStateHandle"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2117,6 +2138,10 @@ export interface components {
             customer_id?: string;
             created_at: string;
             expires_at?: string;
+        };
+        StateHandleListResponse: {
+            state_handles: components["schemas"]["StateHandleResponse"][];
+            next_cursor?: string;
         };
         ResponsesStreamEnvelope: {
             code?: string;
@@ -5266,6 +5291,29 @@ export interface operations {
             };
         };
     };
+    listStateHandles: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description State handles */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StateHandleListResponse"];
+                };
+            };
+        };
+    };
     createStateHandle: {
         parameters: {
             query?: never;
@@ -5287,6 +5335,26 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["StateHandleResponse"];
                 };
+            };
+        };
+    };
+    deleteStateHandle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                state_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description State handle deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

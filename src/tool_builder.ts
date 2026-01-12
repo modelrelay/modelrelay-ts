@@ -7,10 +7,10 @@
 
 import type { Tool, ToolCall } from "./types";
 import {
-	createTypedTool,
+	createFunctionToolFromSchema,
 	ToolRegistry,
 	ToolArgsError,
-	type ZodLikeSchema,
+	type AnySchema,
 	type ToolHandler,
 } from "./tools";
 
@@ -20,7 +20,7 @@ import {
 interface ToolEntry {
 	name: string;
 	description: string;
-	schema: ZodLikeSchema;
+	schema: AnySchema;
 	handler: ToolHandler;
 	tool: Tool;
 }
@@ -110,13 +110,13 @@ export class ToolBuilder {
 	 * );
 	 * ```
 	 */
-	add<S extends ZodLikeSchema, R>(
+	add<S extends AnySchema, R>(
 		name: string,
 		description: string,
 		schema: S,
 		handler: (args: S extends { parse(data: unknown): infer T } ? T : unknown, call: ToolCall) => R | Promise<R>,
 	): this {
-		const tool = createTypedTool({ name, description, parameters: schema });
+		const tool = createFunctionToolFromSchema(name, description, schema);
 		this.entries.push({
 			name,
 			description,

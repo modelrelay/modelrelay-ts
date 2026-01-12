@@ -51,4 +51,46 @@ describe("StateHandlesClient", () => {
 		expect(response.project_id).toBe(mockResponse.project_id);
 		expect(response.expires_at).toBe(mockResponse.expires_at);
 	});
+
+	it("lists and deletes state handles", async () => {
+		const fetchMock = vi.fn(async (url, init) => {
+			const path = String(url);
+			if (path.endsWith("/state-handles?limit=1&offset=2")) {
+				return new Response(
+					JSON.stringify({
+						state_handles: [
+							{
+								id: "550e8400-e29b-41d4-a716-446655440000",
+								project_id: "11111111-2222-3333-4444-555555555555",
+								created_at: "2025-01-15T10:30:00.000Z",
+							},
+						],
+						next_cursor: "3",
+					}),
+					{
+						status: 200,
+						headers: { "Content-Type": "application/json" },
+					},
+				);
+			}
+			if (
+				path.endsWith("/state-handles/550e8400-e29b-41d4-a716-446655440000") &&
+				init?.method === "DELETE"
+			) {
+				return new Response(null, { status: 204 });
+			}
+			throw new Error(`unexpected URL: ${url}`);
+		});
+
+		const client = new ModelRelay({
+			key: parseSecretKey("mr_sk_state"),
+			// biome-ignore lint/suspicious/noExplicitAny: mocking fetch
+			fetch: fetchMock as any,
+		});
+
+		const list = await client.stateHandles.list({ limit: 1, offset: 2 });
+		expect(list.state_handles).toHaveLength(1);
+
+		await client.stateHandles.delete("550e8400-e29b-41d4-a716-446655440000");
+	});
 });

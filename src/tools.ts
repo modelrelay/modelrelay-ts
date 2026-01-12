@@ -81,10 +81,24 @@ export function createFunctionCall(name: string, args: string): FunctionCall {
 // ============================================================================
 
 /**
- * Interface for Zod-like schema types.
+ * Public interface for Zod-like schema types.
  *
- * This is designed to be compatible with Zod's actual types while also
- * supporting other schema libraries with similar structure.
+ * This interface is designed to accept actual Zod schemas without requiring
+ * an index signature on `_def`, which Zod's types don't expose.
+ * Use this type in public APIs that accept schemas.
+ */
+export interface AnySchema {
+	_def: { typeName: string };
+	parse(data: unknown): unknown;
+	safeParse(data: unknown): { success: boolean; data?: unknown; error?: unknown };
+}
+
+/**
+ * Interface for Zod-like schema types with index signature.
+ *
+ * The index signature allows dynamic property access on `_def` which is needed
+ * for schema conversion (accessing checks, shape, items, etc.).
+ * For accepting actual Zod schemas in public APIs, use AnySchema instead.
  */
 export interface ZodLikeSchema {
 	_def: {
@@ -438,6 +452,41 @@ function convertZodTuple(def: Record<string, unknown>): Record<string, unknown> 
  *     unit: z.enum(["celsius", "fahrenheit"]).default("celsius"),
  *   }),
  * });
+ * ```
+ */
+export function createFunctionToolFromSchema(
+	name: string,
+	description: string,
+	schema: AnySchema,
+	options?: JsonSchemaOptions,
+): Tool {
+	// Cast to ZodLikeSchema for internal dynamic property access on _def
+	const jsonSchema = zodToJsonSchema(schema as ZodLikeSchema, options);
+	return createFunctionTool(name, description, jsonSchema);
+}
+
+/**
+ * Creates a typed function tool from a Zod schema with attached schema metadata.
+ *
+ * This function creates a tool that includes the original schema as non-enumerable
+ * metadata, enabling typed argument extraction via parseTypedToolCall and getTypedToolCall.
+ *
+ * @example
+ * ```typescript
+ * import { z } from "zod";
+ *
+ * const tool = createTypedTool({
+ *   name: "get_weather",
+ *   description: "Get weather for a location",
+ *   parameters: z.object({
+ *     location: z.string().describe("City name"),
+ *     unit: z.enum(["celsius", "fahrenheit"]).default("celsius"),
+ *   }),
+ * });
+ *
+ * // Later, extract typed arguments:
+ * const typedCall = getTypedToolCall(response, tool);
+ * console.log(typedCall?.function.arguments.location); // Typed as string
  * ```
  */
 export function createTypedTool<S extends ZodLikeSchema>(def: {
@@ -824,7 +873,7 @@ export type ToolArgsResult<T> =
  * Get parsed arguments from a tool call with explicit error handling.
  *
  * Returns a discriminated union indicating success or failure.
- * Use this instead of getToolArgs for proper error handling.
+ * Use this instead of parseToolArgsRaw for proper error handling.
  *
  * @example
  * ```typescript

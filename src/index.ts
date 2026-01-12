@@ -409,6 +409,7 @@ export type {
 export type {
 	StateHandleCreateRequest,
 	StateHandleResponse,
+	StateHandleListResponse,
 } from "./state_handles";
 
 export { MAX_STATE_HANDLE_TTL_SECONDS } from "./state_handles";
