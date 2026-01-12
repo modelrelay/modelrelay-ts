@@ -18,8 +18,8 @@ export type {
 	SessionRunStatus,
 	SessionPendingToolCall,
 	SessionUsageSummary,
-	SessionStore,
-	SessionState,
+	ConversationStore,
+	ConversationState,
 	LocalSessionOptions,
 	LocalSessionPersistence,
 	RemoteSessionOptions,
@@ -39,8 +39,19 @@ export { LocalSession, createLocalSession } from "./local_session";
 // Remote session
 export { RemoteSession, createRemoteSession } from "./remote_session";
 
-// Session stores
-export { MemorySessionStore, createMemorySessionStore } from "./stores/memory_store";
+// Conversation stores
+export {
+	MemoryConversationStore,
+	createMemoryConversationStore,
+} from "./stores/memory_store";
+export {
+	FileConversationStore,
+	createFileConversationStore,
+} from "./stores/file_store";
+export {
+	SqliteConversationStore,
+	createSqliteConversationStore,
+} from "./stores/sqlite_store";
 
 // Client
 export { SessionsClient } from "./client";

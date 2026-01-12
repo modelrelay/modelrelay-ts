@@ -6,7 +6,7 @@ import { ImagesClient } from "./images";
 import { StateHandlesClient } from "./state_handles";
 import { SessionsClient } from "./sessions/client";
 import { TiersClient } from "./tiers";
-import { ConfigError, AgentMaxTurnsError } from "./errors";
+import { ConfigError } from "./errors";
 import { HTTPClient } from "./http";
 import { parseApiKey, parseSecretKey } from "./api_keys";
 import { CustomerResponsesClient, CustomerScopedModelRelay } from "./customer_scoped";
@@ -20,18 +20,11 @@ import {
 	type Response,
 } from "./types";
 import type { ResponsesRequestOptions } from "./responses_request";
-import type { ToolRegistry } from "./tools";
-import {
-	getAllToolCalls,
-	getAssistantText,
-	assistantMessageWithToolCalls,
-	toolResultMessage,
-	createSystemMessage,
-	createUserMessage,
-} from "./tools";
+import { createSystemMessage, createUserMessage } from "./tools";
+import { runToolLoop } from "./tool_loop";
 import { ToolBuilder } from "./tool_builder";
 import { extractAssistantText } from "./responses_normalize";
-import type { InputItem, Tool } from "./types";
+import type { InputItem } from "./types";
 
 export class ModelRelay {
 	readonly responses: ResponsesClient;
@@ -254,67 +247,30 @@ export class ModelRelay {
 		const maxTurns = options.maxTurns ?? ModelRelay.DEFAULT_MAX_TURNS;
 		const modelId = asModelId(model as string);
 
-		const usage = {
-			inputTokens: 0,
-			outputTokens: 0,
-			totalTokens: 0,
-			llmCalls: 0,
-			toolCalls: 0,
-		};
-
-		// Build initial input
 		const input: InputItem[] = [];
 		if (options.system) {
 			input.push(createSystemMessage(options.system));
 		}
 		input.push(createUserMessage(options.prompt));
 
-		for (let turn = 0; turn < maxTurns; turn++) {
-			// Build and send request
-			let builder = this.responses.new().model(modelId).input(input);
-			if (definitions.length > 0) {
-				builder = builder.tools(definitions);
-			}
-			const response = await this.responses.create(builder.build());
+		const outcome = await runToolLoop({
+			client: this.responses,
+			input,
+			tools: definitions,
+			registry,
+			maxTurns,
+			buildRequest: (builder) => builder.model(modelId),
+		});
 
-			// Accumulate usage
-			usage.llmCalls++;
-			usage.inputTokens += response.usage.inputTokens;
-			usage.outputTokens += response.usage.outputTokens;
-			usage.totalTokens += response.usage.totalTokens;
-
-			// Check for tool calls
-			const toolCalls = getAllToolCalls(response);
-			if (toolCalls.length === 0) {
-				// No tool calls, we're done
-				return {
-					output: getAssistantText(response),
-					usage,
-					response,
-				};
-			}
-
-			// Execute tool calls
-			usage.toolCalls += toolCalls.length;
-
-			// Add assistant message with tool calls to history
-			const assistantText = getAssistantText(response);
-			input.push(assistantMessageWithToolCalls(assistantText, toolCalls));
-
-			// Execute tools and add results
-			const results = await registry.executeAll(toolCalls);
-			for (const result of results) {
-				const content = result.error
-					? `Error: ${result.error}`
-					: typeof result.result === "string"
-						? result.result
-						: JSON.stringify(result.result);
-				input.push(toolResultMessage(result.toolCallId, content));
-			}
+		if (outcome.status !== "complete") {
+			throw new ConfigError("agent tool loop requires a tool registry");
 		}
 
-		// Hit max turns without completion
-		throw new AgentMaxTurnsError(maxTurns);
+		return {
+			output: outcome.output,
+			usage: outcome.usage,
+			response: outcome.response,
+		};
 	}
 
 	/**
@@ -415,6 +371,8 @@ export type {
 export { MAX_STATE_HANDLE_TTL_SECONDS } from "./state_handles";
 
 export * from "./types";
+export * from "./context_manager";
+export * from "./tool_loop";
 
 export * from "./errors";
 
@@ -529,8 +487,12 @@ export * as workflow from "./workflow";
 export {
 	LocalSession,
 	createLocalSession,
-	MemorySessionStore,
-	createMemorySessionStore,
+	MemoryConversationStore,
+	createMemoryConversationStore,
+	FileConversationStore,
+	createFileConversationStore,
+	SqliteConversationStore,
+	createSqliteConversationStore,
 	asSessionId,
 	generateSessionId,
 } from "./sessions";
@@ -548,8 +510,8 @@ export type {
 	SessionRunStatus,
 	SessionPendingToolCall,
 	SessionUsageSummary,
-	SessionStore,
-	SessionState,
+	ConversationStore,
+	ConversationState,
 	LocalSessionOptions,
 	LocalSessionPersistence,
 	RemoteSessionOptions,

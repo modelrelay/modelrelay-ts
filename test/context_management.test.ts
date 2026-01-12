@@ -3,9 +3,9 @@ import { ConfigError } from "../src/errors";
 import { asModelId } from "../src/types";
 import type { SessionMessage } from "../src/sessions/types";
 import {
-	buildSessionInputWithContext,
-	truncateMessagesByTokens,
-} from "../src/sessions/context_management";
+	prepareInputWithContext,
+	truncateInputByTokens,
+} from "../src/context_manager";
 
 function imgMsg(seq: number, detail?: string): SessionMessage {
 	return {
@@ -27,17 +27,19 @@ function msg(seq: number, role: SessionMessage["role"], text: string): SessionMe
 	};
 }
 
-describe("session context management", () => {
-	it("returns full history when contextManagement is none", async () => {
+describe("context management", () => {
+	it("returns full history when budget allows", async () => {
 		const messages = [
 			msg(1, "user", "hello"),
 			msg(2, "assistant", "hi"),
 		];
 
-		const input = await buildSessionInputWithContext(
+		const input = await prepareInputWithContext(
 			messages,
-			{},
-			undefined,
+			{
+				model: asModelId("gpt-4o"),
+				maxHistoryTokens: 200,
+			},
 			async () => null,
 		);
 
@@ -48,19 +50,14 @@ describe("session context management", () => {
 		const messages = [msg(1, "user", "hello")];
 
 		await expect(
-			buildSessionInputWithContext(
-				messages,
-				{ contextManagement: "truncate" },
-				undefined,
-				async () => null,
-			),
+			prepareInputWithContext(messages, {}, async () => null),
 		).rejects.toBeInstanceOf(ConfigError);
 	});
 
 	it("throws when maxHistoryTokens is too small", () => {
 		const messages = [msg(1, "user", "hello")];
 
-		expect(() => truncateMessagesByTokens(messages, 1)).toThrow(ConfigError);
+		expect(() => truncateInputByTokens(messages, 1)).toThrow(ConfigError);
 	});
 
 	it("keeps latest system messages when truncating", () => {
@@ -71,7 +68,7 @@ describe("session context management", () => {
 			msg(3, "user", "hello"),
 		];
 
-		const truncated = truncateMessagesByTokens(messages, 200);
+		const truncated = truncateInputByTokens(messages, 200);
 
 		expect(truncated.map((m) => m.seq)).toEqual([2, 3]);
 	});
@@ -83,7 +80,7 @@ describe("session context management", () => {
 		];
 
 		// With a budget that only fits one image, the text message should be kept
-		const truncated = truncateMessagesByTokens(messages, 500);
+		const truncated = truncateInputByTokens(messages, 500);
 
 		expect(truncated.map((m) => m.seq)).toEqual([2]);
 	});
@@ -95,7 +92,7 @@ describe("session context management", () => {
 		];
 
 		// Budget fits both with low-detail image
-		const truncated = truncateMessagesByTokens(messages, 150);
+		const truncated = truncateInputByTokens(messages, 150);
 
 		expect(truncated.map((m) => m.seq)).toEqual([1, 2]);
 	});
@@ -111,20 +108,19 @@ describe("session context management", () => {
 		let callbackInfo: { originalMessages: number; keptMessages: number } | null =
 			null;
 
-		const input = await buildSessionInputWithContext(
+		const input = await prepareInputWithContext(
 			messages,
 			{
-				contextManagement: "truncate",
 				model: asModelId("gpt-4o"),
+				strategy: "truncate",
 				maxHistoryTokens: 200,
-				onContextTruncate: (info) => {
+				onTruncate: (info) => {
 					callbackInfo = {
 						originalMessages: info.originalMessages,
 						keptMessages: info.keptMessages,
 					};
 				},
 			},
-			undefined,
 			async () => null,
 		);
 

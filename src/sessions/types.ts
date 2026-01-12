@@ -10,10 +10,11 @@
  * @module
  */
 
-import type { InputItem, OutputItem, Tool, ModelId, ProviderId } from "../types";
+import type { InputItem, OutputItem, Tool, ModelId, ProviderId, Response } from "../types";
 import type { ToolRegistry, ToolExecutionResult } from "../tools";
 import type { RunId } from "../runs_ids";
 import type { TokenUsageV0, RunEventV0 } from "../runs_types";
+import type { ContextManager } from "../context_manager";
 
 // ============================================================================
 // Branded Types
@@ -146,12 +147,16 @@ export interface SessionRunResult {
 	readonly pendingTools?: SessionPendingToolCall[];
 	/** Error message (when status is 'error'). */
 	readonly error?: string;
-	/** The run ID from the server. */
-	readonly runId: RunId;
+	/** The original error that caused the failure (when status is 'error'). */
+	readonly cause?: Error;
+	/** The response object for responses-based runs. */
+	readonly response?: Response;
+	/** The run ID from the server (when using /runs). */
+	readonly runId?: RunId;
 	/** Token and call usage. */
 	readonly usage: SessionUsageSummary;
-	/** All events from this run. */
-	readonly events: RunEventV0[];
+	/** All events from this run (when using /runs). */
+	readonly events?: RunEventV0[];
 }
 
 // ============================================================================
@@ -234,6 +239,8 @@ export type LocalSessionPersistence = "memory" | "file" | "sqlite";
 export interface LocalSessionOptions {
 	/** Tool registry for handling tool calls. */
 	toolRegistry?: ToolRegistry;
+	/** Optional context manager for input truncation or summarization. */
+	contextManager?: ContextManager;
 	/** Default model for runs (can be overridden per-run). */
 	defaultModel?: ModelId;
 	/** Default provider for runs (can be overridden per-run). */
@@ -244,8 +251,10 @@ export interface LocalSessionOptions {
 	systemPrompt?: string;
 	/** Persistence mode (default: 'memory'). */
 	persistence?: LocalSessionPersistence;
-	/** Storage path for file/sqlite persistence (default: ~/.modelrelay/sessions/). */
+	/** Storage path for file/sqlite persistence (default: ~/.modelrelay/sessions or ~/.modelrelay/sessions.sqlite). */
 	storagePath?: string;
+	/** Custom conversation store (overrides persistence/storagePath). */
+	conversationStore?: ConversationStore;
 	/** Session ID to use (default: generate new). */
 	sessionId?: SessionId;
 	/** Session metadata. */
@@ -306,13 +315,13 @@ export interface RemoteSessionInfo {
 }
 
 // ============================================================================
-// Session Store Interface (for persistence)
+// Conversation Store Interface (for persistence)
 // ============================================================================
 
 /**
  * Serialized session state for persistence.
  */
-export interface SessionState {
+export interface ConversationState {
 	id: SessionId;
 	messages: SessionMessage[];
 	artifacts: Record<string, unknown>;
@@ -322,14 +331,14 @@ export interface SessionState {
 }
 
 /**
- * Interface for session storage backends.
+ * Interface for conversation storage backends.
  */
-export interface SessionStore {
-	/** Load a session by ID. Returns null if not found. */
-	load(id: SessionId): Promise<SessionState | null>;
+export interface ConversationStore {
+	/** Load a conversation by ID. Returns null if not found. */
+	load(id: SessionId): Promise<ConversationState | null>;
 
-	/** Save a session state. */
-	save(state: SessionState): Promise<void>;
+	/** Save a conversation state. */
+	save(state: ConversationState): Promise<void>;
 
 	/** Delete a session by ID. */
 	delete(id: SessionId): Promise<void>;

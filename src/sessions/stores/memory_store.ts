@@ -1,5 +1,5 @@
 /**
- * In-memory session store.
+ * In-memory conversation store.
  *
  * Session data is lost when the process exits. Use for:
  * - Development/testing
@@ -9,17 +9,17 @@
  * @module
  */
 
-import type { SessionId, SessionState, SessionStore } from "../types";
+import type { ConversationState, ConversationStore, SessionId } from "../types";
 
 /**
- * In-memory implementation of SessionStore.
+ * In-memory implementation of ConversationStore.
  *
  * All operations are synchronous but wrapped in promises for interface compatibility.
  */
-export class MemorySessionStore implements SessionStore {
-	private readonly sessions: Map<SessionId, SessionState> = new Map();
+export class MemoryConversationStore implements ConversationStore {
+	private readonly sessions: Map<SessionId, ConversationState> = new Map();
 
-	async load(id: SessionId): Promise<SessionState | null> {
+	async load(id: SessionId): Promise<ConversationState | null> {
 		const state = this.sessions.get(id);
 		if (!state) return null;
 
@@ -27,7 +27,7 @@ export class MemorySessionStore implements SessionStore {
 		return structuredClone(state);
 	}
 
-	async save(state: SessionState): Promise<void> {
+	async save(state: ConversationState): Promise<void> {
 		// Store a deep clone to prevent external mutation
 		this.sessions.set(state.id, structuredClone(state));
 	}
@@ -55,8 +55,8 @@ export class MemorySessionStore implements SessionStore {
 }
 
 /**
- * Create a new in-memory session store.
+ * Create a new in-memory conversation store.
  */
-export function createMemorySessionStore(): MemorySessionStore {
-	return new MemorySessionStore();
+export function createMemoryConversationStore(): MemoryConversationStore {
+	return new MemoryConversationStore();
 }

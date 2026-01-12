@@ -1,13 +1,28 @@
-import { ConfigError } from "../errors";
-import type { InputItem, ModelId } from "../types";
-import type { components } from "../generated/api";
-import type {
-	SessionContextTruncateInfo,
-	SessionMessage,
-	SessionRunOptions,
-} from "./types";
+import { ConfigError } from "./errors";
+import type { InputItem, ModelId } from "./types";
+import type { components } from "./generated/api";
 
-type CatalogModel = components["schemas"]["Model"];
+export type ContextManagementStrategy = "truncate" | "summarize";
+
+export interface ContextTruncateInfo {
+	readonly model: ModelId;
+	readonly originalMessages: number;
+	readonly keptMessages: number;
+	readonly maxHistoryTokens: number;
+	readonly reservedOutputTokens?: number;
+}
+
+export interface ContextManagerOptions {
+	strategy?: ContextManagementStrategy;
+	maxHistoryTokens?: number;
+	reserveOutputTokens?: number;
+	onTruncate?: (info: ContextTruncateInfo) => void;
+}
+
+export interface ContextPrepareOptions extends ContextManagerOptions {
+	model?: ModelId;
+}
+
 type ModelsResponse = components["schemas"]["ModelsResponse"];
 
 export interface ModelContextWindow {
@@ -42,7 +57,7 @@ const CHARS_PER_TOKEN = 4;
 // Image token estimates by detail level (based on OpenAI's pricing model).
 // These are conservative estimates for truncation decisions.
 const IMAGE_TOKENS_LOW_DETAIL = 85;
-const IMAGE_TOKENS_HIGH_DETAIL = 1000; // Conservative estimate without dimensions
+const IMAGE_TOKENS_HIGH_DETAIL = 1000;
 
 const modelContextCache = new WeakMap<object, ModelContextCacheEntry>();
 
@@ -69,75 +84,80 @@ export function createModelContextResolver(
 	};
 }
 
-export async function buildSessionInputWithContext(
-	messages: SessionMessage[],
-	options: SessionRunOptions,
-	defaultModel: ModelId | undefined,
-	resolveModelContext: ModelContextResolver,
-): Promise<InputItem[]> {
-	const strategy = options.contextManagement ?? "none";
-	if (strategy === "none") {
-		return messagesToInput(messages);
-	}
-	if (strategy === "summarize") {
-		throw new ConfigError("contextManagement 'summarize' is not implemented yet");
-	}
-	if (strategy !== "truncate") {
-		throw new ConfigError(`Unknown contextManagement strategy: ${strategy}`);
+export class ContextManager {
+	private readonly resolveModelContext: ModelContextResolver;
+	private readonly defaults: ContextManagerOptions;
+
+	constructor(
+		resolveModelContext: ModelContextResolver,
+		defaults: ContextManagerOptions = {},
+	) {
+		this.resolveModelContext = resolveModelContext;
+		this.defaults = defaults;
 	}
 
-	const modelId = options.model ?? defaultModel;
-	if (!modelId) {
-		throw new ConfigError(
-			"model is required for context management; set options.model or a session defaultModel",
-		);
+	async prepare(
+		input: InputItem[],
+		options: ContextPrepareOptions = {},
+	): Promise<InputItem[]> {
+		const merged: ContextPrepareOptions = {
+			...this.defaults,
+			...options,
+		};
+		return prepareInputWithContext(input, merged, this.resolveModelContext);
+	}
+}
+
+export async function prepareInputWithContext(
+	input: InputItem[],
+	options: ContextPrepareOptions,
+	resolveModelContext: ModelContextResolver,
+): Promise<InputItem[]> {
+	const strategy = options.strategy ?? "truncate";
+	if (strategy === "summarize") {
+		throw new ConfigError("context management 'summarize' is not implemented yet");
+	}
+	if (strategy !== "truncate") {
+		throw new ConfigError(`Unknown context management strategy: ${strategy}`);
 	}
 
 	const budget = await resolveHistoryBudget(
-		modelId,
+		options.model,
 		options,
 		resolveModelContext,
 	);
 
-	const truncated = truncateMessagesByTokens(
-		messages,
-		budget.maxHistoryTokens,
-	);
+	const truncated = truncateInputByTokens(input, budget.maxHistoryTokens);
 
-	if (options.onContextTruncate && truncated.length < messages.length) {
-		const info: SessionContextTruncateInfo = {
-			model: modelId,
-			originalMessages: messages.length,
+	if (options.onTruncate && truncated.length < input.length) {
+		if (!options.model) {
+			throw new ConfigError(
+				"model is required for context management; set options.model",
+			);
+		}
+		const info: ContextTruncateInfo = {
+			model: options.model,
+			originalMessages: input.length,
 			keptMessages: truncated.length,
 			maxHistoryTokens: budget.maxHistoryTokens,
 			reservedOutputTokens: budget.reservedOutputTokens,
 		};
-		options.onContextTruncate(info);
+		options.onTruncate(info);
 	}
 
-	return messagesToInput(truncated);
+	return truncated;
 }
 
-function messagesToInput(messages: SessionMessage[]): InputItem[] {
-	return messages.map((m) => ({
-		type: m.type,
-		role: m.role,
-		content: m.content,
-		toolCalls: m.toolCalls,
-		toolCallId: m.toolCallId,
-	}));
-}
-
-export function truncateMessagesByTokens(
-	messages: SessionMessage[],
+export function truncateInputByTokens(
+	input: InputItem[],
 	maxHistoryTokens: number,
-): SessionMessage[] {
+): InputItem[] {
 	const maxTokens = normalizePositiveInt(maxHistoryTokens, "maxHistoryTokens");
-	if (messages.length === 0) return [];
+	if (input.length === 0) return [];
 
-	const tokensByIndex = messages.map((msg) => estimateTokensForMessage(msg));
+	const tokensByIndex = input.map((msg) => estimateTokensForMessage(msg));
 
-	const systemIndices = messages
+	const systemIndices = input
 		.map((msg, idx) => (msg.role === "system" ? idx : -1))
 		.filter((idx) => idx >= 0);
 
@@ -158,7 +178,7 @@ export function truncateMessagesByTokens(
 	const selected = new Set<number>(selectedSystem);
 	let remaining = maxTokens - systemTokens;
 
-	for (let i = messages.length - 1; i >= 0; i -= 1) {
+	for (let i = input.length - 1; i >= 0; i -= 1) {
 		if (selected.has(i)) continue;
 		const tokens = tokensByIndex[i];
 		if (tokens <= remaining) {
@@ -167,7 +187,7 @@ export function truncateMessagesByTokens(
 		}
 	}
 
-	const result = messages.filter((_, idx) => selected.has(idx));
+	const result = input.filter((_, idx) => selected.has(idx));
 	if (result.length === 0) {
 		throw new ConfigError("No messages fit within maxHistoryTokens");
 	}
@@ -190,11 +210,10 @@ function estimateImageTokens(part: ImagePart): number {
 	const detail = part.detail ?? "auto";
 	if (detail === "low") return IMAGE_TOKENS_LOW_DETAIL;
 
-	// For high/auto detail, use conservative estimate
 	return IMAGE_TOKENS_HIGH_DETAIL;
 }
 
-function estimateTokensForMessage(message: SessionMessage): number {
+function estimateTokensForMessage(message: InputItem): number {
 	const segments: string[] = [message.role];
 	let imageTokens = 0;
 
@@ -242,17 +261,17 @@ type HistoryBudget = {
 };
 
 async function resolveHistoryBudget(
-	modelId: ModelId,
-	options: SessionRunOptions,
+	modelId: ModelId | undefined,
+	options: ContextPrepareOptions,
 	resolveModelContext: ModelContextResolver,
 ): Promise<HistoryBudget> {
 	const reservedOutputTokens =
 		options.reserveOutputTokens === undefined
 			? undefined
 			: normalizeNonNegativeInt(
-					options.reserveOutputTokens,
-					"reserveOutputTokens",
-				);
+				options.reserveOutputTokens,
+				"reserveOutputTokens",
+			);
 
 	if (options.maxHistoryTokens !== undefined) {
 		return {
@@ -262,6 +281,12 @@ async function resolveHistoryBudget(
 			),
 			reservedOutputTokens,
 		};
+	}
+
+	if (!modelId) {
+		throw new ConfigError(
+			"model is required for context management when maxHistoryTokens is not set",
+		);
 	}
 
 	const model = await resolveModelContext(modelId);
@@ -318,14 +343,12 @@ async function populateModelContextCache(
 		entry.listPromise = (async () => {
 			const response = await client.http.json<ModelsResponse>("/models");
 			for (const model of response.models) {
-				entry.byId.set(String(model.model_id), {
+				entry.byId.set(model.model_id, {
 					contextWindow: model.context_window,
-					maxOutputTokens: model.max_output_tokens,
+					maxOutputTokens: model.max_output_tokens ?? undefined,
 				});
 			}
-		})().finally(() => {
-			entry.listPromise = undefined;
-		});
+		})();
 	}
 	await entry.listPromise;
 }

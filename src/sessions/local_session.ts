@@ -11,17 +11,13 @@
  */
 
 import type { ModelRelay } from "../index";
-import { ConfigError } from "../errors";
-import type { InputItem, Tool, ModelId, ProviderId, ContentPart } from "../types";
+import { AgentMaxTurnsError, ConfigError } from "../errors";
+import type { InputItem, Tool, ModelId, ProviderId, ToolCall } from "../types";
 import type { ToolRegistry, ToolExecutionResult } from "../tools";
-import type { RunId, NodeId } from "../runs_ids";
-import type { RunEventV0, RunStatusV0, TokenUsageV0, NodeWaitingV0 } from "../runs_types";
-import { parseRunId } from "../runs_ids";
-import {
-	buildSessionInputWithContext,
-	createModelContextResolver,
-	type ModelContextResolver,
-} from "./context_management";
+import { createSystemMessage, createUserMessage, toolResultMessage } from "../tools";
+import type { ResponsesRequestOptions } from "../responses_request";
+import { runToolLoop, type ToolLoopUsage } from "../tool_loop";
+import type { ContextManager, ContextPrepareOptions } from "../context_manager";
 
 import type {
 	Session,
@@ -30,11 +26,10 @@ import type {
 	SessionArtifacts,
 	SessionRunOptions,
 	SessionRunResult,
-	SessionRunStatus,
-	SessionPendingToolCall,
 	SessionUsageSummary,
-	SessionStore,
-	SessionState,
+	SessionPendingToolCall,
+	ConversationState,
+	ConversationStore,
 	LocalSessionOptions,
 	LocalSessionPersistence,
 	SessionSyncOptions,
@@ -42,7 +37,12 @@ import type {
 } from "./types";
 import type { RemoteSession } from "./remote_session";
 import { asSessionId, generateSessionId } from "./types";
-import { MemorySessionStore, createMemorySessionStore } from "./stores/memory_store";
+import { createMemoryConversationStore } from "./stores/memory_store";
+import { createFileConversationStore } from "./stores/file_store";
+import { createSqliteConversationStore } from "./stores/sqlite_store";
+import { messagesToInput, mergeTools, emptyUsage, createRequestBuilder } from "./utils";
+
+const DEFAULT_MAX_TURNS = 100;
 
 // ============================================================================
 // LocalSession Class
@@ -70,63 +70,48 @@ export class LocalSession implements Session {
 	readonly id: SessionId;
 
 	private readonly client: ModelRelay;
-	private readonly store: SessionStore;
+	private readonly store: ConversationStore;
 	private readonly toolRegistry?: ToolRegistry;
+	private readonly contextManager?: ContextManager;
 	private readonly defaultModel?: ModelId;
 	private readonly defaultProvider?: ProviderId;
 	private readonly defaultTools?: Tool[];
 	private readonly systemPrompt?: string;
 	private readonly metadata: Record<string, unknown>;
-	private readonly resolveModelContext: ModelContextResolver;
 
 	private messages: SessionMessage[] = [];
 	private artifacts: Map<string, unknown> = new Map();
-	private nextSeq = 1;
 	private createdAt: Date;
 	private updatedAt: Date;
 
-	// State for multi-step tool handling
-	private currentRunId?: RunId;
-	private currentNodeId?: NodeId;
-	private currentWaiting?: NodeWaitingV0;
-	private currentEvents: RunEventV0[] = [];
-	private currentUsage: SessionUsageSummary = {
-		inputTokens: 0,
-		outputTokens: 0,
-		totalTokens: 0,
-		llmCalls: 0,
-		toolCalls: 0,
-	};
+	private pendingLoop?: PendingToolLoop;
 
 	private constructor(
 		client: ModelRelay,
-		store: SessionStore,
+		store: ConversationStore,
 		options: LocalSessionOptions,
-		existingState?: SessionState,
+		existingState?: ConversationState,
 	) {
 		this.client = client;
 		this.store = store;
 		this.toolRegistry = options.toolRegistry;
+		this.contextManager = options.contextManager;
 		this.defaultModel = options.defaultModel;
 		this.defaultProvider = options.defaultProvider;
 		this.defaultTools = options.defaultTools;
 		this.systemPrompt = options.systemPrompt;
 		this.metadata = options.metadata || {};
-		this.resolveModelContext = createModelContextResolver(client);
 
 		if (existingState) {
-			// Resume from persisted state
 			this.id = existingState.id;
 			this.messages = existingState.messages.map((m) => ({
 				...m,
 				createdAt: new Date(m.createdAt),
 			}));
 			this.artifacts = new Map(Object.entries(existingState.artifacts));
-			this.nextSeq = this.messages.length + 1;
 			this.createdAt = new Date(existingState.createdAt);
 			this.updatedAt = new Date(existingState.updatedAt);
 		} else {
-			// New session
 			this.id = options.sessionId || generateSessionId();
 			this.createdAt = new Date();
 			this.updatedAt = new Date();
@@ -141,7 +126,11 @@ export class LocalSession implements Session {
 	 * @returns A new LocalSession instance
 	 */
 	static create(client: ModelRelay, options: LocalSessionOptions = {}): LocalSession {
-		const store = createStore(options.persistence || "memory", options.storagePath);
+		const store = createStore(
+			options.conversationStore,
+			options.persistence || "memory",
+			options.storagePath,
+		);
 		return new LocalSession(client, store, options);
 	}
 
@@ -159,7 +148,11 @@ export class LocalSession implements Session {
 		options: LocalSessionOptions = {},
 	): Promise<LocalSession | null> {
 		const id = typeof sessionId === "string" ? asSessionId(sessionId) : sessionId;
-		const store = createStore(options.persistence || "memory", options.storagePath);
+		const store = createStore(
+			options.conversationStore,
+			options.persistence || "memory",
+			options.storagePath,
+		);
 		const state = await store.load(id);
 
 		if (!state) {
@@ -175,98 +168,159 @@ export class LocalSession implements Session {
 	}
 
 	async run(prompt: string, options: SessionRunOptions = {}): Promise<SessionRunResult> {
-		// Add user message to history
-		const userMessage = this.addMessage({
-			type: "message",
-			role: "user",
-			content: [{ type: "text", text: prompt }],
-		});
+		this.pendingLoop = undefined;
 
-		// Reset per-run state
-		this.currentEvents = [];
-		this.currentUsage = {
-			inputTokens: 0,
-			outputTokens: 0,
-			totalTokens: 0,
-			llmCalls: 0,
-			toolCalls: 0,
-		};
-		this.currentRunId = undefined;
-		this.currentNodeId = undefined;
-		this.currentWaiting = undefined;
+		this.messages.push(buildMessage(createUserMessage(prompt), this.messages.length + 1));
+		this.updatedAt = new Date();
+
+		const baseInput = messagesToInput(this.messages);
+		const contextOptions = this.buildContextOptions(options);
 
 		try {
-			// Build input from history with context management
-			const input = await this.buildInput(options);
-
-			// Merge tools
+			const prepared = await this.prepareInput(baseInput, contextOptions);
 			const tools = mergeTools(this.defaultTools, options.tools);
+			const modelId = options.model ?? this.defaultModel;
+			const providerId = options.provider ?? this.defaultProvider;
+			const requestOptions: ResponsesRequestOptions = options.signal
+				? { signal: options.signal }
+				: {};
 
-			// Create workflow spec for this turn
-			const spec = {
-				kind: "workflow" as const,
-				name: `session-${this.id}-turn-${this.nextSeq}`,
-				model: options.model || this.defaultModel,
-				nodes: [
-					{
-						id: "main" as any,
-						type: "llm" as const,
-						input,
-						tools,
-						tool_execution: this.toolRegistry ? { mode: "client" as const } : undefined,
-					},
-				],
-				outputs: [{ name: "result" as any, from: "main" as any }],
-			};
-
-			// Create run
-			const run = await this.client.runs.create(spec, {
-				customerId: options.customerId,
+			const outcome = await runToolLoop({
+				client: this.client.responses,
+				input: prepared,
+				tools,
+				registry: this.toolRegistry,
+				maxTurns: options.maxTurns ?? DEFAULT_MAX_TURNS,
+				requestOptions,
+				buildRequest: createRequestBuilder({
+					model: modelId,
+					provider: providerId,
+					customerId: options.customerId,
+				}),
 			});
-			this.currentRunId = run.run_id;
 
-			// Process events
-			return await this.processRunEvents(options.signal);
+			const cleanInput = stripSystemPrompt(outcome.input, this.systemPrompt);
+			this.replaceHistory(cleanInput);
+			await this.persist();
+
+			const usage = outcome.usage;
+			if (outcome.status === "waiting_for_tools") {
+				const pendingRequestOptions: ResponsesRequestOptions = { ...requestOptions };
+				delete pendingRequestOptions.signal;
+				this.pendingLoop = {
+					input: cleanInput,
+					usage,
+					remainingTurns: remainingTurns(
+						options.maxTurns ?? DEFAULT_MAX_TURNS,
+						outcome.turnsUsed,
+					),
+					config: {
+						model: modelId,
+						provider: providerId,
+						tools,
+						customerId: options.customerId,
+						requestOptions: pendingRequestOptions,
+						contextOptions,
+					},
+				};
+				return {
+					status: "waiting_for_tools",
+					pendingTools: mapPendingToolCalls(outcome.pendingToolCalls),
+					response: outcome.response,
+					usage,
+				};
+			}
+
+			return {
+				status: "complete",
+				output: outcome.output,
+				response: outcome.response,
+				usage,
+			};
 		} catch (err) {
 			const error = err instanceof Error ? err : new Error(String(err));
 			return {
 				status: "error",
 				error: error.message,
-				runId: this.currentRunId || parseRunId("unknown"),
-				usage: this.currentUsage,
-				events: this.currentEvents,
+				cause: error,
+				usage: emptyUsage(),
 			};
 		}
 	}
 
 	async submitToolResults(results: ToolExecutionResult[]): Promise<SessionRunResult> {
-		if (!this.currentRunId || !this.currentNodeId || !this.currentWaiting) {
+		if (!this.pendingLoop) {
 			throw new Error("No pending tool calls to submit results for");
 		}
 
-		// Submit results to server
-		await this.client.runs.submitToolResults(this.currentRunId, {
-			node_id: this.currentNodeId,
-			step: this.currentWaiting.step,
-			request_id: this.currentWaiting.request_id,
-			results: results.map((r) => ({
-				tool_call: {
-					id: r.toolCallId,
-					name: r.toolName,
-				},
-				output: r.error
-					? `Error: ${r.error}`
-					: typeof r.result === "string"
-						? r.result
-						: JSON.stringify(r.result),
-			})),
+		const pending = this.pendingLoop;
+		this.pendingLoop = undefined;
+
+		if (pending.remainingTurns <= 0) {
+			throw new AgentMaxTurnsError(0);
+		}
+
+		const resultItems = results.map((result) => {
+			const content = result.error
+				? `Error: ${result.error}`
+				: typeof result.result === "string"
+					? result.result
+					: JSON.stringify(result.result);
+			return toolResultMessage(result.toolCallId, content);
 		});
 
-		// Clear waiting state
-		this.currentWaiting = undefined;
+		const baseInput = [...pending.input, ...resultItems];
 
-		// Continue processing events
-		return await this.processRunEvents();
+		try {
+			const prepared = await this.prepareInput(baseInput, pending.config.contextOptions);
+			const outcome = await runToolLoop({
+				client: this.client.responses,
+				input: prepared,
+				tools: pending.config.tools,
+				registry: this.toolRegistry,
+				maxTurns: pending.remainingTurns,
+				requestOptions: pending.config.requestOptions,
+				buildRequest: createRequestBuilder(pending.config),
+			});
+
+			const cleanInput = stripSystemPrompt(outcome.input, this.systemPrompt);
+			this.replaceHistory(cleanInput);
+			await this.persist();
+
+			const usage = mergeUsage(pending.usage, outcome.usage);
+			if (outcome.status === "waiting_for_tools") {
+				this.pendingLoop = {
+					input: cleanInput,
+					usage,
+					remainingTurns: remainingTurns(
+						pending.remainingTurns,
+						outcome.turnsUsed,
+					),
+					config: pending.config,
+				};
+				return {
+					status: "waiting_for_tools",
+					pendingTools: mapPendingToolCalls(outcome.pendingToolCalls),
+					response: outcome.response,
+					usage,
+				};
+			}
+
+			return {
+				status: "complete",
+				output: outcome.output,
+				response: outcome.response,
+				usage,
+			};
+		} catch (err) {
+			const error = err instanceof Error ? err : new Error(String(err));
+			return {
+				status: "error",
+				error: error.message,
+				cause: error,
+				usage: pending.usage,
+			};
+		}
 	}
 
 	getArtifacts(): SessionArtifacts {
@@ -280,28 +334,6 @@ export class LocalSession implements Session {
 
 	/**
 	 * Sync this local session's messages to a remote session.
-	 *
-	 * This uploads all local messages to the remote session, enabling
-	 * cross-device access and server-side backup. Messages are synced
-	 * in order and the remote session's history will contain all local
-	 * messages after sync completes.
-	 *
-	 * @param remoteSession - The remote session to sync to
-	 * @param options - Optional sync configuration
-	 * @returns Sync result with message count
-	 *
-	 * @example
-	 * ```typescript
-	 * // Create local session and work offline
-	 * const local = LocalSession.create(client, { ... });
-	 * await local.run("Implement the feature");
-	 *
-	 * // Later, sync to remote for backup/sharing
-	 * const remote = await RemoteSession.create(client);
-	 * const result = await local.syncTo(remote, {
-	 *   onProgress: (synced, total) => console.log(`${synced}/${total}`),
-	 * });
-	 * ```
 	 */
 	async syncTo(
 		remoteSession: RemoteSession,
@@ -317,9 +349,6 @@ export class LocalSession implements Session {
 			};
 		}
 
-		// Fail fast if remote session already has messages.
-		// syncTo() is for initial migration to an empty remote session.
-		// For re-syncing or merging, use bidirectional sync (see #971).
 		if (remoteSession.history.length > 0) {
 			throw new ConfigError(
 				`Cannot sync to non-empty remote session (has ${remoteSession.history.length} messages). ` +
@@ -327,7 +356,6 @@ export class LocalSession implements Session {
 			);
 		}
 
-		// Get HTTP client from ModelRelay instance
 		const http = this.client.http;
 
 		let synced = 0;
@@ -349,8 +377,6 @@ export class LocalSession implements Session {
 			onProgress?.(synced, total);
 		}
 
-		// Refresh remote session so its local history reflects the synced messages.
-		// This allows immediate use (e.g., remoteSession.run()) without manual refresh.
 		await remoteSession.refresh();
 
 		return {
@@ -363,203 +389,46 @@ export class LocalSession implements Session {
 	// Private Methods
 	// ============================================================================
 
-	private addMessage(
-		input: Omit<InputItem, "seq" | "createdAt">,
-		runId?: RunId,
-	): SessionMessage {
-		const message: SessionMessage = {
-			...input,
-			seq: this.nextSeq++,
-			createdAt: new Date(),
-			runId,
-		};
-		this.messages.push(message);
-		this.updatedAt = new Date();
-		return message;
-	}
-
-	private async buildInput(options: SessionRunOptions): Promise<InputItem[]> {
-		const input = await buildSessionInputWithContext(
-			this.messages,
-			options,
-			this.defaultModel,
-			this.resolveModelContext,
-		);
-
-		// Prepend system message if configured
-		if (this.systemPrompt) {
-			const systemMessage: InputItem = {
-				type: "message",
-				role: "system",
-				content: [{ type: "text", text: this.systemPrompt }],
-			};
-			return [systemMessage, ...input];
-		}
-
-		return input;
-	}
-
-	private async processRunEvents(signal?: AbortSignal): Promise<SessionRunResult> {
-		if (!this.currentRunId) {
-			throw new Error("No current run");
-		}
-
-		// Stream events from the run
-		const eventStream = await this.client.runs.events(this.currentRunId, {
-			afterSeq: this.currentEvents.length,
-		});
-
-		for await (const event of eventStream) {
-			if (signal?.aborted) {
-				return {
-					status: "canceled",
-					runId: this.currentRunId,
-					usage: this.currentUsage,
-					events: this.currentEvents,
-				};
-			}
-
-			this.currentEvents.push(event);
-
-			switch (event.type) {
-				case "node_llm_call":
-					this.currentUsage = {
-						...this.currentUsage,
-						llmCalls: this.currentUsage.llmCalls + 1,
-						inputTokens:
-							this.currentUsage.inputTokens +
-							(event.llm_call.usage?.input_tokens || 0),
-						outputTokens:
-							this.currentUsage.outputTokens +
-							(event.llm_call.usage?.output_tokens || 0),
-						totalTokens:
-							this.currentUsage.totalTokens +
-							(event.llm_call.usage?.total_tokens || 0),
-					};
-					break;
-
-				case "node_tool_call":
-					this.currentUsage = {
-						...this.currentUsage,
-						toolCalls: this.currentUsage.toolCalls + 1,
-					};
-					break;
-
-				case "node_waiting":
-					this.currentNodeId = event.node_id;
-					this.currentWaiting = event.waiting;
-
-					// If we have a tool registry, auto-execute
-					if (this.toolRegistry) {
-						const results = await this.executeTools(event.waiting.pending_tool_calls);
-						return await this.submitToolResults(results);
-					}
-
-					// Otherwise return waiting status for manual handling
-					return {
-						status: "waiting_for_tools",
-						pendingTools: event.waiting.pending_tool_calls.map((tc: { tool_call: { id: string; name: string; arguments: string } }) => ({
-							toolCallId: tc.tool_call.id,
-							name: tc.tool_call.name,
-							arguments: tc.tool_call.arguments,
-						})),
-						runId: this.currentRunId,
-						usage: this.currentUsage,
-						events: this.currentEvents,
-					};
-
-				case "run_completed":
-					// Fetch run state to get outputs
-					const runState = await this.client.runs.get(this.currentRunId);
-					const output = extractTextOutput(runState.outputs || {});
-
-					if (output) {
-						this.addMessage(
-							{
-								type: "message",
-								role: "assistant",
-								content: [{ type: "text", text: output }],
-							},
-							this.currentRunId,
-						);
-					}
-
-					await this.persist();
-
-					return {
-						status: "complete",
-						output,
-						runId: this.currentRunId,
-						usage: this.currentUsage,
-						events: this.currentEvents,
-					};
-
-				case "run_failed":
-					return {
-						status: "error",
-						error: event.error.message,
-						runId: this.currentRunId,
-						usage: this.currentUsage,
-						events: this.currentEvents,
-					};
-
-				case "run_canceled":
-					return {
-						status: "canceled",
-						error: event.error.message,
-						runId: this.currentRunId,
-						usage: this.currentUsage,
-						events: this.currentEvents,
-					};
-			}
-		}
-
-		// Stream ended without terminal event (shouldn't happen)
+	private buildContextOptions(options: SessionRunOptions): ContextPrepareOptions | null {
+		if (!this.contextManager) return null;
+		if (options.contextManagement === "none") return null;
 		return {
-			status: "error",
-			error: "Run event stream ended unexpectedly",
-			runId: this.currentRunId,
-			usage: this.currentUsage,
-			events: this.currentEvents,
+			model: options.model ?? this.defaultModel,
+			strategy: options.contextManagement,
+			maxHistoryTokens: options.maxHistoryTokens,
+			reserveOutputTokens: options.reserveOutputTokens,
+			onTruncate: options.onContextTruncate,
 		};
 	}
 
-	private async executeTools(
-		pendingTools: Array<{ tool_call: { id: string; name: string; arguments: string } }>,
-	): Promise<ToolExecutionResult[]> {
-		if (!this.toolRegistry) {
-			throw new Error("No tool registry configured");
+	private async prepareInput(
+		input: InputItem[],
+		contextOptions: ContextPrepareOptions | null,
+	): Promise<InputItem[]> {
+		let prepared = input;
+		if (this.systemPrompt) {
+			prepared = [createSystemMessage(this.systemPrompt), ...prepared];
 		}
 
-		const results: ToolExecutionResult[] = [];
-
-		for (const pending of pendingTools) {
-			try {
-				const result = await this.toolRegistry.execute({
-					id: pending.tool_call.id,
-					type: "function",
-					function: {
-						name: pending.tool_call.name,
-						arguments: pending.tool_call.arguments,
-					},
-				});
-				results.push(result);
-			} catch (err) {
-				const error = err instanceof Error ? err : new Error(String(err));
-				results.push({
-					toolCallId: pending.tool_call.id,
-					toolName: pending.tool_call.name,
-					result: null,
-					error: error.message,
-				});
-			}
+		if (!this.contextManager || !contextOptions) {
+			return prepared;
 		}
 
-		return results;
+		return this.contextManager.prepare(prepared, contextOptions);
+	}
+
+	private replaceHistory(input: InputItem[]): void {
+		const now = new Date();
+		this.messages = input.map((item, idx) => ({
+			...item,
+			seq: idx + 1,
+			createdAt: now,
+		}));
+		this.updatedAt = now;
 	}
 
 	private async persist(): Promise<void> {
-		const state: SessionState = {
+		const state: ConversationState = {
 			id: this.id,
 			messages: this.messages.map((m) => ({
 				...m,
@@ -578,131 +447,94 @@ export class LocalSession implements Session {
 // Helper Functions
 // ============================================================================
 
+type PendingToolLoop = {
+	input: InputItem[];
+	usage: SessionUsageSummary;
+	remainingTurns: number;
+	config: {
+		model?: ModelId;
+		provider?: ProviderId;
+		tools?: Tool[];
+		customerId?: string;
+		requestOptions: ResponsesRequestOptions;
+		contextOptions: ContextPrepareOptions | null;
+	};
+};
+
 function createStore(
+	custom: ConversationStore | undefined,
 	persistence: LocalSessionPersistence,
 	storagePath?: string,
-): SessionStore {
+): ConversationStore {
+	if (custom) {
+		return custom;
+	}
 	switch (persistence) {
 		case "memory":
-			return createMemorySessionStore();
+			return createMemoryConversationStore();
 		case "file":
-			// TODO: Implement file store
-			throw new Error("File persistence not yet implemented");
+			return createFileConversationStore(storagePath);
 		case "sqlite":
-			// TODO: Implement SQLite store
-			throw new Error("SQLite persistence not yet implemented");
+			return createSqliteConversationStore(storagePath);
 		default:
 			throw new Error(`Unknown persistence mode: ${persistence}`);
 	}
 }
 
-function mergeTools(
-	defaults?: Tool[],
-	overrides?: Tool[],
-): Tool[] | undefined {
-	if (!defaults && !overrides) return undefined;
-	if (!defaults) return overrides;
-	if (!overrides) return defaults;
+function buildMessage(item: InputItem, seq: number): SessionMessage {
+	return {
+		...item,
+		seq,
+		createdAt: new Date(),
+	};
+}
 
-	// Merge, with overrides taking precedence by name
-	const merged = new Map<string, Tool>();
-	for (const tool of defaults) {
-		if (tool.type === "function" && tool.function) {
-			merged.set(tool.function.name, tool);
-		}
+function stripSystemPrompt(input: InputItem[], systemPrompt?: string): InputItem[] {
+	if (!systemPrompt || input.length === 0) {
+		return input;
 	}
-	for (const tool of overrides) {
-		if (tool.type === "function" && tool.function) {
-			merged.set(tool.function.name, tool);
-		}
+	const [first, ...rest] = input;
+	if (
+		first.role === "system" &&
+		first.content?.length === 1 &&
+		first.content[0].type === "text" &&
+		first.content[0].text === systemPrompt
+	) {
+		return rest;
 	}
-	return Array.from(merged.values());
+	return input;
 }
 
-// Type guards for extractTextOutput
-interface OutputMessage {
-	type: string;
-	role?: string;
-	content?: unknown[];
-}
-
-interface ContentPiece {
-	type: string;
-	text?: string;
-}
-
-interface ResponseWithOutput {
-	output?: unknown[];
-}
-
-interface ResponseWithContent {
-	content?: unknown[];
-}
-
-function isOutputMessage(item: unknown): item is OutputMessage {
-	return (
-		typeof item === "object" &&
-		item !== null &&
-		"type" in item &&
-		typeof (item as OutputMessage).type === "string"
-	);
-}
-
-function isContentPiece(c: unknown): c is ContentPiece {
-	return (
-		typeof c === "object" &&
-		c !== null &&
-		"type" in c &&
-		typeof (c as ContentPiece).type === "string"
-	);
-}
-
-function hasOutputArray(obj: object): obj is ResponseWithOutput {
-	return "output" in obj && Array.isArray((obj as ResponseWithOutput).output);
-}
-
-function hasContentArray(obj: object): obj is ResponseWithContent {
-	return "content" in obj && Array.isArray((obj as ResponseWithContent).content);
-}
-
-function extractTextOutput(outputs: Record<string, unknown>): string | undefined {
-	// Try common output patterns
-	const result = outputs.result;
-	if (typeof result === "string") return result;
-
-	if (result && typeof result === "object") {
-		// Check for response object with output array
-		if (hasOutputArray(result)) {
-			const textParts = result.output!
-				.filter(
-					(item): item is OutputMessage =>
-						isOutputMessage(item) && item.type === "message" && item.role === "assistant",
-				)
-				.flatMap((item) =>
-					(item.content || [])
-						.filter((c): c is ContentPiece => isContentPiece(c) && c.type === "text")
-						.map((c) => c.text ?? ""),
-				)
-				.filter((text) => text.length > 0);
-			if (textParts.length > 0) {
-				return textParts.join("\n");
-			}
+function mapPendingToolCalls(calls: ToolCall[]): SessionPendingToolCall[] {
+	return calls.map((call) => {
+		if (!call.function?.name) {
+			throw new Error(`Tool call ${call.id} missing function name`);
 		}
+		return {
+			toolCallId: call.id,
+			name: call.function.name,
+			arguments: call.function.arguments ?? "{}",
+		};
+	});
+}
 
-		// Check for direct text content
-		if (hasContentArray(result)) {
-			const textParts = result.content!
-				.filter((c): c is ContentPiece => isContentPiece(c) && c.type === "text")
-				.map((c) => c.text ?? "")
-				.filter((text) => text.length > 0);
-			if (textParts.length > 0) {
-				return textParts.join("\n");
-			}
-		}
+function remainingTurns(maxTurns: number, turnsUsed: number): number {
+	if (maxTurns === Number.MAX_SAFE_INTEGER) {
+		return maxTurns;
 	}
-
-	return undefined;
+	return Math.max(0, maxTurns - turnsUsed);
 }
+
+function mergeUsage(base: SessionUsageSummary, add: ToolLoopUsage): SessionUsageSummary {
+	return {
+		inputTokens: base.inputTokens + add.inputTokens,
+		outputTokens: base.outputTokens + add.outputTokens,
+		totalTokens: base.totalTokens + add.totalTokens,
+		llmCalls: base.llmCalls + add.llmCalls,
+		toolCalls: base.toolCalls + add.toolCalls,
+	};
+}
+
 
 /**
  * Create a new local session.

@@ -20,15 +20,16 @@ import type {
 	ContentPart,
 	OutputItem,
 } from "../types";
+import { ConfigError } from "../errors";
 import type { ToolRegistry, ToolExecutionResult } from "../tools";
 import type { RunId, NodeId } from "../runs_ids";
 import type { RunEventV0, NodeWaitingV0, PendingToolCallV0 } from "../runs_types";
-import { parseRunId } from "../runs_ids";
+import { parseRunId, parseNodeId, parseOutputName } from "../runs_ids";
 import {
-	buildSessionInputWithContext,
+	prepareInputWithContext,
 	createModelContextResolver,
 	type ModelContextResolver,
-} from "./context_management";
+} from "../context_manager";
 
 import type {
 	Session,
@@ -44,6 +45,7 @@ import type {
 	RemoteSessionInfo,
 } from "./types";
 import { asSessionId } from "./types";
+import { messagesToInput, mergeTools, emptyUsage } from "./utils";
 
 // ============================================================================
 // API Response Types
@@ -183,7 +185,7 @@ export class RemoteSession implements Session {
 		client: ModelRelay,
 		options: RemoteSessionOptions = {},
 	): Promise<RemoteSession> {
-		const http = getHTTPClient(client);
+		const http = client.http;
 
 		const response = await http.request("/sessions", {
 			method: "POST",
@@ -210,7 +212,7 @@ export class RemoteSession implements Session {
 		sessionId: string | SessionId,
 		options: RemoteSessionOptions = {},
 	): Promise<RemoteSession> {
-		const http = getHTTPClient(client);
+		const http = client.http;
 		const id = typeof sessionId === "string" ? sessionId : String(sessionId);
 
 		const response = await http.request(`/sessions/${id}`, {
@@ -232,7 +234,7 @@ export class RemoteSession implements Session {
 		client: ModelRelay,
 		options: { limit?: number; offset?: number; customerId?: string } = {},
 	): Promise<{ sessions: RemoteSessionInfo[]; nextCursor?: string }> {
-		const http = getHTTPClient(client);
+		const http = client.http;
 		const params = new URLSearchParams();
 		if (options.limit) params.set("limit", String(options.limit));
 		if (options.offset) params.set("offset", String(options.offset));
@@ -267,7 +269,7 @@ export class RemoteSession implements Session {
 		client: ModelRelay,
 		sessionId: string | SessionId,
 	): Promise<void> {
-		const http = getHTTPClient(client);
+		const http = client.http;
 		const id = typeof sessionId === "string" ? sessionId : String(sessionId);
 
 		await http.request(`/sessions/${id}`, {
@@ -311,13 +313,14 @@ export class RemoteSession implements Session {
 			const tools = mergeTools(this.defaultTools, options.tools);
 
 			// Create workflow spec for this turn
+			const mainNodeId = parseNodeId("main");
 			const spec = {
 				kind: "workflow" as const,
 				name: `session-${this.id}-turn-${this.nextSeq}`,
 				model: options.model || this.defaultModel,
 				nodes: [
 					{
-						id: "main" as any,
+						id: mainNodeId,
 						type: "llm" as const,
 						input,
 						tools,
@@ -326,7 +329,7 @@ export class RemoteSession implements Session {
 							: undefined,
 					},
 				],
-				outputs: [{ name: "result" as any, from: "main" as any }],
+				outputs: [{ name: parseOutputName("result"), from: mainNodeId }],
 			};
 
 			// Create run
@@ -343,7 +346,8 @@ export class RemoteSession implements Session {
 			return {
 				status: "error",
 				error: error.message,
-				runId: this.currentRunId || (parseRunId("unknown") as RunId),
+				cause: error,
+				runId: this.currentRunId,
 				usage: { ...this.currentUsage },
 				events: [...this.currentEvents],
 			};
@@ -448,10 +452,27 @@ export class RemoteSession implements Session {
 	}
 
 	private async buildInput(options: SessionRunOptions): Promise<InputItem[]> {
-		return buildSessionInputWithContext(
-			this.messages,
-			options,
-			this.defaultModel,
+		const baseInput = messagesToInput(this.messages);
+		if (!options.contextManagement || options.contextManagement === "none") {
+			return baseInput;
+		}
+
+		const modelId = options.model ?? this.defaultModel;
+		if (!modelId) {
+			throw new ConfigError(
+				"model is required for context management; set options.model or a session defaultModel",
+			);
+		}
+
+		return prepareInputWithContext(
+			baseInput,
+			{
+				model: modelId,
+				strategy: options.contextManagement,
+				maxHistoryTokens: options.maxHistoryTokens,
+				reserveOutputTokens: options.reserveOutputTokens,
+				onTruncate: options.onContextTruncate,
+			},
 			this.resolveModelContext,
 		);
 	}
@@ -461,13 +482,7 @@ export class RemoteSession implements Session {
 		this.currentNodeId = undefined;
 		this.currentWaiting = undefined;
 		this.currentEvents = [];
-		this.currentUsage = {
-			inputTokens: 0,
-			outputTokens: 0,
-			totalTokens: 0,
-			llmCalls: 0,
-			toolCalls: 0,
-		};
+		this.currentUsage = emptyUsage();
 	}
 
 	private async processRunEvents(signal?: AbortSignal): Promise<SessionRunResult> {
@@ -775,40 +790,6 @@ export class RemoteSession implements Session {
 // Helper Functions
 // ============================================================================
 
-/**
- * Get HTTP client from ModelRelay instance.
- * Uses internal accessor pattern to avoid exposing http property.
- */
-function getHTTPClient(client: ModelRelay): HTTPClient {
-	// Access the internal http property
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	return (client as any).http;
-}
-
-/**
- * Merge tool arrays, with later tools overriding earlier ones.
- */
-function mergeTools(
-	defaults?: Tool[],
-	overrides?: Tool[],
-): Tool[] | undefined {
-	if (!defaults && !overrides) return undefined;
-	if (!defaults) return overrides;
-	if (!overrides) return defaults;
-
-	const merged = new Map<string, Tool>();
-	for (const tool of defaults) {
-		if (tool.type === "function" && tool.function) {
-			merged.set(tool.function.name, tool);
-		}
-	}
-	for (const tool of overrides) {
-		if (tool.type === "function" && tool.function) {
-			merged.set(tool.function.name, tool);
-		}
-	}
-	return Array.from(merged.values());
-}
 
 /**
  * Factory function for creating remote sessions.
