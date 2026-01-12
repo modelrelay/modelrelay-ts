@@ -1873,6 +1873,8 @@ export interface components {
             model?: components["schemas"]["ModelId"];
             /** Format: uuid */
             session_id?: string;
+            /** Format: uuid */
+            state_id?: string;
             /** @description Response identifier (message_start) */
             response_id?: string;
             /** @description Why generation stopped (message_stop) */
@@ -2062,6 +2064,8 @@ export interface components {
             model?: components["schemas"]["ModelId"];
             /** Format: uuid */
             session_id?: string;
+            /** Format: uuid */
+            state_id?: string;
             output_format?: components["schemas"]["OutputFormat"];
             provider?: components["schemas"]["ProviderId"];
             stop?: string[];
