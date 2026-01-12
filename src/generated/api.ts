@@ -964,9 +964,29 @@ export interface paths {
         put?: never;
         /**
          * Create a response via the provider-agnostic API
-         * @description Creates a model response. Auth accepts secret API keys or bearer tokens. Bearer tokens may be owner session tokens (dashboard/server) or customer tokens; publishable keys are not allowed.
+         * @description Creates a model response. Auth accepts secret API keys or bearer tokens. Bearer tokens may be owner session tokens (dashboard/server) or customer tokens; publishable keys are not allowed. Persistent tool state requires a state handle created via /state-handles.
          */
         post: operations["createResponse"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/state-handles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a state handle
+         * @description Create a state handle for persistent /responses tool state.
+         */
+        post: operations["createStateHandle"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1872,8 +1892,6 @@ export interface components {
             event: "message_start" | "message_delta" | "message_stop" | "tool_use_start" | "tool_use_delta" | "tool_use_stop" | "ping" | "keepalive";
             model?: components["schemas"]["ModelId"];
             /** Format: uuid */
-            session_id?: string;
-            /** Format: uuid */
             state_id?: string;
             /** @description Response identifier (message_start) */
             response_id?: string;
@@ -2063,8 +2081,6 @@ export interface components {
             max_output_tokens?: number;
             model?: components["schemas"]["ModelId"];
             /** Format: uuid */
-            session_id?: string;
-            /** Format: uuid */
             state_id?: string;
             output_format?: components["schemas"]["OutputFormat"];
             provider?: components["schemas"]["ProviderId"];
@@ -2084,6 +2100,23 @@ export interface components {
             /** @description Why generation stopped (stop, max_tokens, tool_use, etc.) */
             stop_reason?: string;
             usage: components["schemas"]["Usage"];
+        };
+        StateHandleCreateRequest: {
+            /**
+             * Format: int64
+             * @description TTL in seconds for the state handle. Maximum is 1 year (31536000 seconds).
+             */
+            ttl_seconds?: number;
+        };
+        StateHandleResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            project_id: string;
+            /** Format: uuid */
+            customer_id?: string;
+            created_at: string;
+            expires_at?: string;
         };
         ResponsesStreamEnvelope: {
             code?: string;
@@ -5229,6 +5262,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ResponsesResponse"];
+                };
+            };
+        };
+    };
+    createStateHandle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["StateHandleCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description State handle */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StateHandleResponse"];
                 };
             };
         };

@@ -80,12 +80,6 @@ export class ResponseBuilder {
 		return this.with({ body: { model: asModelId(model as string) } });
 	}
 
-	/** @returns A new builder with session-scoped tool state. */
-	sessionId(sessionId: string): ResponseBuilder {
-		const session_id = sessionId.trim();
-		return this.with({ body: { session_id: session_id || undefined } });
-	}
-
 	/** @returns A new builder with state-scoped tool state. */
 	stateId(stateId: string): ResponseBuilder {
 		const state_id = stateId.trim();
@@ -401,13 +395,9 @@ export class ResponseBuilder {
 		if (input.length === 0) {
 			throw new ConfigError("at least one input item is required");
 		}
-		if (this.body.session_id && this.body.state_id) {
-			throw new ConfigError("session_id and state_id are mutually exclusive");
-		}
 		const body: WireResponsesRequest = {
 			provider: this.body.provider,
 			model: this.body.model,
-			session_id: this.body.session_id,
 			state_id: this.body.state_id,
 			input,
 			output_format: this.body.output_format,

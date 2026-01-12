@@ -23,7 +23,6 @@ export type ResponsesRequest = {
 export type WireResponsesRequest = {
 	provider?: ProviderId;
 	model?: ModelId;
-	session_id?: string;
 	state_id?: string;
 	input: InputItem[];
 	output_format?: OutputFormat;

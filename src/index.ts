@@ -3,6 +3,7 @@ import { ResponsesClient, ResponsesStream, StructuredJSONStream } from "./respon
 import { RunsClient } from "./runs";
 import { WorkflowsClient } from "./workflows_client";
 import { ImagesClient } from "./images";
+import { StateHandlesClient } from "./state_handles";
 import { SessionsClient } from "./sessions/client";
 import { TiersClient } from "./tiers";
 import { ConfigError, AgentMaxTurnsError } from "./errors";
@@ -39,6 +40,7 @@ export class ModelRelay {
 	readonly images: ImagesClient;
 	readonly auth: AuthClient;
 	readonly sessions: SessionsClient;
+	readonly stateHandles: StateHandlesClient;
 	readonly tiers: TiersClient;
 	readonly baseUrl: string;
 
@@ -101,6 +103,7 @@ export class ModelRelay {
 		});
 		this.images = new ImagesClient(this.http, auth);
 		this.sessions = new SessionsClient(this, this.http, auth);
+		this.stateHandles = new StateHandlesClient(this.http, auth);
 		this.tiers = new TiersClient(this.http, { apiKey, accessToken });
 	}
 
@@ -402,6 +405,13 @@ export type {
 	ImageResponseFormat,
 	ImagePinResponse,
 } from "./images";
+
+export type {
+	StateHandleCreateRequest,
+	StateHandleResponse,
+} from "./state_handles";
+
+export { MAX_STATE_HANDLE_TTL_SECONDS } from "./state_handles";
 
 export * from "./types";
 

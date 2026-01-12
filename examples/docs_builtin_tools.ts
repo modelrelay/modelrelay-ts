@@ -116,9 +116,9 @@ async function kvToolsExample() {
 		),
 	];
 
-	// Use with a session for persistent storage across requests
-	// Note: Built-in tools with session_id are used via the runs API, not responses
-	// This example shows the tool definitions - actual usage requires workflow runs
+	// Use with a local session for persistent storage across requests.
+	// Local sessions run via /runs (run-scoped state); /responses uses state_id handles.
+	// This example shows the tool definitions - actual usage requires workflow runs.
 	const session = mr.sessions.createLocal({
 		defaultModel: asModelId("claude-sonnet-4-5"),
 		sessionId: asSessionId("my-session-id"),
