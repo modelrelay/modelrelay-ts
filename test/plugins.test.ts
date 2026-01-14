@@ -30,14 +30,14 @@ description: Example description.
 `;
 		const command = `---
 tools:
-  - fs.read_file
-  - fs.search
+  - fs_read_file
+  - fs_search
 ---
 Use agents/worker.md to execute this task.
 `;
 		const agent = `---
 description: Handles the main task.
-tools: [fs.read_file, bash]
+tools: [fs_read_file, bash]
 ---
 You are a helpful worker.
 `;

@@ -190,43 +190,43 @@ conformanceSuite("tools.v0 conformance (local fs)", () => {
 		}
 	}
 
-	it("fs.read_file", async () => {
-		const fixture = fixtures.tools["fs.read_file"];
+	it("fs_read_file", async () => {
+		const fixture = fixtures.tools["fs_read_file"];
 		for (const c of fixture.schema_invalid) {
-			await assertSchemaInvalid("fs.read_file", c);
+			await assertSchemaInvalid("fs_read_file", c);
 		}
 		for (const c of fixture.behavior) {
-			await assertBehavior("fs.read_file", c);
+			await assertBehavior("fs_read_file", c);
 		}
 	});
 
-	it("fs.list_files", async () => {
-		const fixture = fixtures.tools["fs.list_files"];
+	it("fs_list_files", async () => {
+		const fixture = fixtures.tools["fs_list_files"];
 		for (const c of fixture.schema_invalid) {
-			await assertSchemaInvalid("fs.list_files", c);
+			await assertSchemaInvalid("fs_list_files", c);
 		}
 		for (const c of fixture.behavior) {
-			await assertBehavior("fs.list_files", c);
+			await assertBehavior("fs_list_files", c);
 		}
 	});
 
-	it("fs.search", async () => {
-		const fixture = fixtures.tools["fs.search"];
+	it("fs_search", async () => {
+		const fixture = fixtures.tools["fs_search"];
 		for (const c of fixture.schema_invalid) {
-			await assertSchemaInvalid("fs.search", c);
+			await assertSchemaInvalid("fs_search", c);
 		}
 		for (const c of fixture.behavior) {
-			await assertBehavior("fs.search", c);
+			await assertBehavior("fs_search", c);
 		}
 	});
 
-	it("fs.edit", async () => {
-		const fixture = fixtures.tools["fs.edit"];
+	it("fs_edit", async () => {
+		const fixture = fixtures.tools["fs_edit"];
 		for (const c of fixture.schema_invalid) {
-			await assertSchemaInvalid("fs.edit", c);
+			await assertSchemaInvalid("fs_edit", c);
 		}
 		for (const c of fixture.behavior) {
-			await assertBehavior("fs.edit", c);
+			await assertBehavior("fs_edit", c);
 		}
 	});
 });

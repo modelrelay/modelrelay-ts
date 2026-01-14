@@ -65,7 +65,7 @@ describe("LocalFSToolPack", () => {
 		});
 	});
 
-	describe("fs.read_file", () => {
+	describe("fs_read_file", () => {
 		it("reads file content", async () => {
 			const filePath = path.join(tempDir, "hello.txt");
 			await fs.writeFile(filePath, "Hello, World!");
@@ -203,7 +203,7 @@ describe("LocalFSToolPack", () => {
 		});
 	});
 
-	describe("fs.list_files", () => {
+	describe("fs_list_files", () => {
 		it("lists directory contents", async () => {
 			await fs.writeFile(path.join(tempDir, "a.txt"), "a");
 			await fs.writeFile(path.join(tempDir, "b.txt"), "b");
@@ -280,7 +280,7 @@ describe("LocalFSToolPack", () => {
 		});
 	});
 
-	describe("fs.search", () => {
+	describe("fs_search", () => {
 		beforeEach(async () => {
 			await fs.writeFile(
 				path.join(tempDir, "code.ts"),
@@ -359,13 +359,13 @@ describe("LocalFSToolPack", () => {
 		});
 
 		it("exports ToolNames", () => {
-			expect(ToolNames.FS_READ_FILE).toBe("fs.read_file");
-			expect(ToolNames.FS_LIST_FILES).toBe("fs.list_files");
-			expect(ToolNames.FS_SEARCH).toBe("fs.search");
+			expect(ToolNames.FS_READ_FILE).toBe("fs_read_file");
+			expect(ToolNames.FS_LIST_FILES).toBe("fs_list_files");
+			expect(ToolNames.FS_SEARCH).toBe("fs_search");
 		});
 	});
 
-	describe("fs.edit", () => {
+	describe("fs_edit", () => {
 		it("replaces a single occurrence and reports lines", async () => {
 			await fs.writeFile(
 				path.join(tempDir, "edit.txt"),

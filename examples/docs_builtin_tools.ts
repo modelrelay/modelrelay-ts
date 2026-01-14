@@ -84,7 +84,7 @@ async function kvToolsExample() {
 
 	const kvTools = [
 		createFunctionTool(
-			"kv.write",
+			"kv_write",
 			"Store a value in persistent storage",
 			{
 				type: "object",
@@ -96,7 +96,7 @@ async function kvToolsExample() {
 			}
 		),
 		createFunctionTool(
-			"kv.read",
+			"kv_read",
 			"Retrieve a value from persistent storage",
 			{
 				type: "object",
@@ -107,7 +107,7 @@ async function kvToolsExample() {
 			}
 		),
 		createFunctionTool(
-			"kv.list",
+			"kv_list",
 			"List all keys in persistent storage",
 			{
 				type: "object",
@@ -136,7 +136,7 @@ async function tasksToolExample() {
 	const mr = ModelRelay.fromSecretKey(process.env.MODELRELAY_API_KEY!);
 
 	const tasksWriteTool = createFunctionTool(
-		"tasks.write",
+		"tasks_write",
 		"Update the task list to track progress",
 		{
 			type: "object",

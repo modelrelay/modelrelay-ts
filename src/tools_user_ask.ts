@@ -2,7 +2,7 @@ import type { Tool, ToolCall } from "./types";
 import { createFunctionTool, getToolArgsRaw } from "./tools";
 import { ToolArgumentError } from "./errors";
 
-export const USER_ASK_TOOL_NAME = "user.ask";
+export const USER_ASK_TOOL_NAME = "user_ask";
 
 export type UserAskOption = {
 	label: string;
@@ -65,7 +65,7 @@ export function parseUserAskArgs(call: ToolCall): UserAskArgs {
 	const raw = getToolArgsRaw(call);
 	if (!raw) {
 		throw new ToolArgumentError({
-			message: "user.ask arguments required",
+			message: "user_ask arguments required",
 			toolCallId: call.id,
 			toolName: USER_ASK_TOOL_NAME,
 			rawArguments: raw,
@@ -76,7 +76,7 @@ export function parseUserAskArgs(call: ToolCall): UserAskArgs {
 		parsed = JSON.parse(raw) as UserAskArgs;
 	} catch (err) {
 		throw new ToolArgumentError({
-			message: "user.ask arguments must be valid JSON",
+			message: "user_ask arguments must be valid JSON",
 			toolCallId: call.id,
 			toolName: USER_ASK_TOOL_NAME,
 			rawArguments: raw,
@@ -86,7 +86,7 @@ export function parseUserAskArgs(call: ToolCall): UserAskArgs {
 	const question = parsed.question?.trim?.() ?? "";
 	if (!question) {
 		throw new ToolArgumentError({
-			message: "user.ask question required",
+			message: "user_ask question required",
 			toolCallId: call.id,
 			toolName: USER_ASK_TOOL_NAME,
 			rawArguments: raw,
@@ -96,7 +96,7 @@ export function parseUserAskArgs(call: ToolCall): UserAskArgs {
 		for (const opt of parsed.options) {
 			if (!opt?.label?.trim?.()) {
 				throw new ToolArgumentError({
-					message: "user.ask options require label",
+					message: "user_ask options require label",
 					toolCallId: call.id,
 					toolName: USER_ASK_TOOL_NAME,
 					rawArguments: raw,
@@ -115,7 +115,7 @@ export function serializeUserAskResult(result: UserAskResponse): string {
 	const answer = result.answer?.trim?.() ?? "";
 	if (!answer) {
 		throw new ToolArgumentError({
-			message: "user.ask answer required",
+			message: "user_ask answer required",
 			toolCallId: "",
 			toolName: USER_ASK_TOOL_NAME,
 			rawArguments: "",

@@ -2,10 +2,10 @@
  * Local filesystem tool pack for client-side tool execution.
  *
  * Implements tools.v0 contract:
- * - fs.read_file - Read workspace-relative files
- * - fs.list_files - List files recursively
- * - fs.search - Regex search (ripgrep or JS fallback)
- * - fs.edit - Replace exact string matches in a file
+ * - fs_read_file - Read workspace-relative files
+ * - fs_list_files - List files recursively
+ * - fs_search - Regex search (ripgrep or JS fallback)
+ * - fs_edit - Replace exact string matches in a file
  *
  * Safety features:
  * - Root sandbox with symlink resolution
@@ -31,10 +31,10 @@ import { PathEscapeError, ToolArgumentError } from "./errors";
 
 /** Reserved tool names from tools.v0 specification. */
 export const ToolNames = {
-	FS_READ_FILE: "fs.read_file",
-	FS_LIST_FILES: "fs.list_files",
-	FS_SEARCH: "fs.search",
-	FS_EDIT: "fs.edit",
+	FS_READ_FILE: "fs_read_file",
+	FS_LIST_FILES: "fs_list_files",
+	FS_SEARCH: "fs_search",
+	FS_EDIT: "fs_edit",
 } as const;
 
 /** Default size limits and caps from wire contract. */
@@ -305,7 +305,7 @@ export class LocalFSToolPack {
 	}
 
 	/**
-	 * Creates a new ToolRegistry with fs.* tools pre-registered.
+	 * Creates a new ToolRegistry with fs_* tools pre-registered.
 	 */
 	toRegistry(): ToolRegistry {
 		return this.registerInto(new ToolRegistry());
@@ -1084,7 +1084,7 @@ export function createLocalFSToolPack(
 }
 
 /**
- * Creates a ToolRegistry with fs.* tools pre-registered.
+ * Creates a ToolRegistry with fs_* tools pre-registered.
  * Shorthand for createLocalFSToolPack(options).toRegistry().
  *
  * @example

@@ -161,7 +161,7 @@ export class ToolRunner {
 				let result: ToolExecutionResult;
 				if (pending.tool_call.name === USER_ASK_TOOL_NAME) {
 					if (!this.onUserAsk) {
-						throw new Error("user.ask requires onUserAsk handler");
+						throw new Error("user_ask requires onUserAsk handler");
 					}
 					const args = parseUserAskArgs(toolCall);
 					const response = await this.onUserAsk(pending, args);

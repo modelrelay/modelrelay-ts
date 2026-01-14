@@ -27,13 +27,13 @@ export type PluginCommandName = string & { readonly __brand: "PluginCommandName"
 export type PluginAgentName = string & { readonly __brand: "PluginAgentName" };
 
 export const PluginToolNames = {
-	FS_READ_FILE: "fs.read_file",
-	FS_LIST_FILES: "fs.list_files",
-	FS_SEARCH: "fs.search",
-	FS_EDIT: "fs.edit",
+	FS_READ_FILE: "fs_read_file",
+	FS_LIST_FILES: "fs_list_files",
+	FS_SEARCH: "fs_search",
+	FS_EDIT: "fs_edit",
 	BASH: "bash",
 	WRITE_FILE: "write_file",
-	USER_ASK: "user.ask",
+	USER_ASK: "user_ask",
 } as const;
 export type PluginToolName = (typeof PluginToolNames)[keyof typeof PluginToolNames];
 
@@ -614,7 +614,7 @@ Rules:
   - Target tools.v0 client tools (see docs/reference/tools.md).
   - Workspace access MUST use these exact function tool names:
     - ${Object.values(PluginToolNames).join(", ")}
-  - Prefer fs.* tools for reading/listing/searching the workspace (use bash only when necessary).
+  - Prefer fs_* tools for reading/listing/searching the workspace (use bash only when necessary).
   - Do NOT invent ad-hoc tool names (no repo.*, github.*, filesystem.*, etc.).
   - All client tools MUST be represented as type="function" tools.
   - Any node that includes tools MUST set tool_execution.mode="client".
