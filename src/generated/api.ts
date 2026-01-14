@@ -1031,7 +1031,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/skills/compile": {
+    "/plugins/compile": {
         parameters: {
             query?: never;
             header?: never;
@@ -1040,8 +1040,8 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Compile a Claude Code skill to workflow */
-        post: operations["compileSkill"];
+        /** Compile a Claude Code plugin to workflow */
+        post: operations["compilePlugin"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2073,29 +2073,35 @@ export interface components {
             name?: string;
             version?: string;
         };
-        SkillSummaryV0: {
+        PluginSummaryV0: {
             agents: components["schemas"]["PluginAgentV0"][];
             description?: string;
             name: string;
         };
-        /** @description Request to compile a skill into a workflow. One of source, content, or files must be provided (mutually exclusive). */
-        SkillsCompileRequest: {
-            /** @description Inline skill content (single SKILL.md file). Mutually exclusive with source and files. */
+        /** @description Request to compile a Claude Code plugin into a workflow. One of source or files must be provided (mutually exclusive). */
+        PluginsCompileRequest: {
+            /** @description Deprecated. Use files instead. */
             content?: string;
-            /** @description Map of file paths to content for inline skills with multiple files (e.g., SKILL.md, agents/worker.md, commands/run.md). Mutually exclusive with source and content. */
+            /** @description Map of file paths to content for inline plugins (e.g., .claude-plugin/plugin.json, agents/worker.md). Mutually exclusive with source. */
             files?: {
                 [key: string]: string;
             };
             /** @default 3 */
             max_attempts: number;
+            /**
+             * @description Compile mode. Currently only 'intent' is supported.
+             * @default intent
+             * @enum {string}
+             */
+            mode: "intent";
             model?: string;
-            /** @description GitHub URL to fetch skill from. Mutually exclusive with content and files. */
+            /** @description GitHub URL to fetch plugin from (e.g., github:owner/repo@ref). Mutually exclusive with files. */
             source?: string;
         };
-        SkillsCompileResponse: {
+        PluginsCompileResponse: {
             /** Format: date-time */
             compiled_at: string;
-            skill: components["schemas"]["SkillSummaryV0"];
+            plugin: components["schemas"]["PluginSummaryV0"];
             source_ref: string;
             workflow: components["schemas"]["WorkflowSpec"];
         };
@@ -5472,7 +5478,7 @@ export interface operations {
             };
         };
     };
-    compileSkill: {
+    compilePlugin: {
         parameters: {
             query?: never;
             header?: never;
@@ -5481,17 +5487,17 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["SkillsCompileRequest"];
+                "application/json": components["schemas"]["PluginsCompileRequest"];
             };
         };
         responses: {
-            /** @description Compiled skill */
+            /** @description Compiled plugin */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SkillsCompileResponse"];
+                    "application/json": components["schemas"]["PluginsCompileResponse"];
                 };
             };
             /** @description Invalid source format */
@@ -5501,14 +5507,14 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Skill not found */
+            /** @description Plugin not found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description Skill parse or workflow generation failed */
+            /** @description Plugin parse or workflow generation failed */
             422: {
                 headers: {
                     [name: string]: unknown;
