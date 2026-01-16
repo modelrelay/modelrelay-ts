@@ -243,15 +243,16 @@ export interface GetOrCreateCustomerTokenRequest {
 	externalId: string;
 	/** Customer email address (required for customer creation). */
 	email: string;
+	/**
+	 * Tier code for the customer's subscription.
+	 * Required for new customers on managed billing projects.
+	 * Existing customers use their current tier if not provided.
+	 */
+	tierCode: TierCode;
 	/** Optional customer metadata. */
 	metadata?: CustomerMetadata;
 	/** Optional token TTL in seconds (default: 7 days, max: 30 days). */
 	ttlSeconds?: number;
-	/**
-	 * Tier code for customers without an existing subscription.
-	 * When provided, a billing profile is created for the customer with this tier.
-	 */
-	tierCode?: TierCode;
 }
 
 export interface CustomerToken {
